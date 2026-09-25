@@ -1,11 +1,11 @@
-import { Archive, ArrowLeft, Check, Copy, Crosshair, ExternalLink, FileText, Link2, MoreHorizontal, NotebookPen, Pencil, Plus, Send, Trash2, X } from 'lucide-react';
+import { Archive, ArrowLeft, Check, Copy, Crosshair, ExternalLink, FileText, FolderInput, Link2, MoreHorizontal, NotebookPen, Pencil, Plus, Send, Trash2, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useData } from '../db/data';
-import { newJob, saveJob, saveProject, deleteProject, uid } from '../db/repo';
+import { assignToProject, newJob, saveJob, saveProject, deleteProject, uid } from '../db/repo';
 import { diffDays, dateOnly } from '../domain/dates';
 import { fxRate, jobGross, jobGrossBase } from '../domain/money';
-import { PART_KINDS, partLabel, partTitle, projectStats, queriesText, shortPartName, sortQueries, templateFor } from '../domain/projects';
-import { clientPrice } from '../domain/rates';
+import { isOngoing, PART_KINDS, partLabel, partTitle, projectStats, queriesText, shortPartName, sortQueries, templateFor } from '../domain/projects';
+import { clientPrice, matchClientRate } from '../domain/rates';
 import { isEarned } from '../domain/stats';
 import type { Job, JobStatus, Project, ProjectQuery, Unit } from '../domain/types';
 import { getLang, tx } from '../i18n';
@@ -13,7 +13,8 @@ import { Timeline, type TimelineRow } from '../charts/Timeline';
 import { dueInfo, money, num, qty } from '../ui/format';
 import { Button, cx, Empty, Field, fitText, Input, Menu, NumberInput, PageHeader, Pair, Segmented, Select, Sheet, StatusPill, Textarea, statusLabel } from '../ui/kit';
 import { useUI } from '../ui/store';
-import { useSpeed } from '../features/common';
+import { clientHabits, useSpeed } from '../features/common';
+import { JobPicker } from '../features/JobPicker';
 import { InvoiceBuilder } from '../features/InvoiceBuilder';
 import { LogProgress } from '../features/TodayPlan';
 import { copyText } from '../features/download';
@@ -30,6 +31,7 @@ export function ProjectDetail({ id }: { id: string }) {
   );
   const s = useMemo(() => (p ? projectStats(p, parts, today, speed.wph) : undefined), [p, parts, today, speed.wph]);
   const [adding, setAdding] = useState(false);
+  const [filing, setFiling] = useState(false);
   const [logging, setLogging] = useState<string | null>(null);
   const [invoicing, setInvoicing] = useState(false);
   const lang = getLang();
@@ -64,16 +66,52 @@ export function ProjectDetail({ id }: { id: string }) {
       };
     });
 
+  const ongoing = isOngoing(p);
+
   const remove = async () => {
     const ok = await ask({
       title: tx('刪除這個專案？', 'Delete this project?'),
-      body: tx(`${parts.length} 個部分會保留為一般案件，收入紀錄不受影響。`, `Its ${parts.length} parts stay as ordinary jobs, so no income is lost.`),
+      body: tx(ongoing ? `${parts.length} 件案件會保留，只是不再歸在這個專案，收入紀錄不受影響。` : `${parts.length} 個部分會保留為一般案件，收入紀錄不受影響。`, `Its ${parts.length} parts stay as ordinary jobs, so no income is lost.`),
       confirm: tx('刪除專案', 'Delete project'),
       danger: true,
     });
     if (!ok) return;
     await deleteProject(p.id, false);
     navigate('/projects');
+  };
+
+  /** A new job in this project, set up like the latest one (same client, pair, unit and rate). */
+  const addJob = () => {
+    const last = [...parts].sort((a, b) => b.createdAt - a.createdAt)[0];
+    const h = last ? undefined : clientHabits(p.clientId, jobs);
+    const currency = last?.currency ?? client?.currency ?? settings.baseCurrency;
+    const service = last?.service ?? h?.service ?? 'translation';
+    const sourceLang = p.sourceLang ?? last?.sourceLang ?? settings.defaultSourceLang;
+    const targetLang = p.targetLang ?? last?.targetLang ?? settings.defaultTargetLang;
+    // the client's current rate card wins over what the last job was billed at
+    const card = matchClientRate(client, { service, sourceLang, targetLang, unit: last?.unit });
+    openJobEditor(
+      newJob({
+        projectId: p.id,
+        clientId: p.clientId ?? last?.clientId,
+        service,
+        sourceLang,
+        targetLang,
+        domain: last?.domain ?? h?.domain,
+        catTool: last?.catTool ?? h?.catTool,
+        unit: card?.unit ?? last?.unit ?? client?.defaultUnit ?? h?.unit ?? 'word',
+        rate: card?.rate ?? last?.rate ?? client?.defaultRate ?? h?.rate ?? 0,
+        minimumFee: card ? card.minimumFee : last?.minimumFee,
+        currency,
+        fxToBase: fxRate(currency, settings.baseCurrency, settings.fx.rates),
+        status: 'active',
+        progress: 0,
+        receivedAt: today,
+        incomeCategory: last?.incomeCategory ?? '9B',
+        confidential: p.confidential || last?.confidential || client?.kind === 'agency',
+      }),
+      true,
+    );
   };
 
   const logJob = logging ? parts.find((j) => j.id === logging) : undefined;
@@ -89,12 +127,15 @@ export function ProjectDetail({ id }: { id: string }) {
           title={p.name}
           actions={
             <>
-              <Button size="sm" variant="primary" icon={<Plus size={15} />} onClick={() => setAdding(true)}>
-                {tx('新增部分', 'Add part')}
+              <Button size="sm" variant="primary" icon={<Plus size={15} />} onClick={() => (ongoing ? addJob() : setAdding(true))}>
+                {ongoing ? tx('新增案件', 'New job') : tx('新增部分', 'Add part')}
+              </Button>
+              <Button size="sm" icon={<FolderInput size={15} />} onClick={() => setFiling(true)}>
+                {tx('加入現有案件', 'Add existing jobs')}
               </Button>
               {toInvoice.length > 0 && (
                 <Button size="sm" icon={<FileText size={15} />} onClick={() => setInvoicing(true)}>
-                  {tx(`請款 ${toInvoice.length} 個已交稿部分`, `Invoice ${toInvoice.length} delivered`)}
+                  {ongoing ? tx(`請款 ${toInvoice.length} 件已交稿案件`, `Invoice ${toInvoice.length} delivered`) : tx(`請款 ${toInvoice.length} 個已交稿部分`, `Invoice ${toInvoice.length} delivered`)}
                 </Button>
               )}
               <Menu
@@ -125,7 +166,7 @@ export function ProjectDetail({ id }: { id: string }) {
             <div className="h-full bg-gold" style={{ width: `${s.progress * 100}%`, transition: 'width .8s' }} />
           </div>
         </div>
-        <Stat label={tx('部分', 'Parts')} value={`${s.done}/${s.parts}`} sub={tx(`${s.active} 進行中 · ${s.quotes} 待確認`, `${s.active} active · ${s.quotes} coming up`)} />
+        <Stat label={ongoing ? tx('案件', 'Jobs') : tx('部分', 'Parts')} value={`${s.done}/${s.parts}`} sub={tx(`${s.active} 進行中 · ${s.quotes} 待確認`, `${s.active} active · ${s.quotes} coming up`)} />
         <Stat
           label={tx('份量', 'Volume')}
           value={s.words ? num(s.words) : '—'}
@@ -172,10 +213,15 @@ export function ProjectDetail({ id }: { id: string }) {
 
       <section className="card overflow-hidden">
         <div className="flex items-center justify-between px-5 pb-3 pt-4">
-          <h2 className="text-[15px] font-semibold text-ink">{tx(`部分（${parts.length}）`, `Parts (${parts.length})`)}</h2>
-          <Button size="sm" variant="ghost" icon={<Plus size={15} />} onClick={() => setAdding(true)}>
-            {tx('新增部分', 'Add part')}
-          </Button>
+          <h2 className="text-[15px] font-semibold text-ink">{ongoing ? tx(`案件（${parts.length}）`, `Jobs (${parts.length})`) : tx(`部分（${parts.length}）`, `Parts (${parts.length})`)}</h2>
+          <div className="flex flex-wrap justify-end gap-1">
+            <Button size="sm" variant="ghost" icon={<FolderInput size={15} />} onClick={() => setFiling(true)}>
+              {tx('加入現有', 'Add existing')}
+            </Button>
+            <Button size="sm" variant="ghost" icon={<Plus size={15} />} onClick={() => (ongoing ? addJob() : setAdding(true))}>
+              {ongoing ? tx('新增案件', 'New job') : tx('新增部分', 'Add part')}
+            </Button>
+          </div>
         </div>
         {parts.length ? (
           <ul className="hairline-list border-t border-line">
@@ -184,7 +230,11 @@ export function ProjectDetail({ id }: { id: string }) {
             ))}
           </ul>
         ) : (
-          <p className="border-t border-line px-5 py-6 text-[13.5px] text-muted">{tx('還沒有部分。新增預告片、過場動畫、劇情對話等部分，分開追蹤。', 'No parts yet. Add a trailer, cutscenes, dialogue and so on to track each on its own.')}</p>
+          <p className="border-t border-line px-5 py-6 text-[13.5px] text-muted">
+            {ongoing
+              ? tx('還沒有案件。接到這個專案的新案件時按「新增案件」，已經記過的案件用「加入現有」歸進來。', 'No jobs yet. Use “New job” when the next one comes in, or “Add existing” for jobs you have already logged.')
+              : tx('還沒有部分。新增預告片、過場動畫、劇情對話等部分，分開追蹤。', 'No parts yet. Add a trailer, cutscenes, dialogue and so on to track each on its own.')}
+          </p>
         )}
       </section>
 
@@ -194,6 +244,7 @@ export function ProjectDetail({ id }: { id: string }) {
       </div>
 
       {adding && <AddPart project={p} onClose={() => setAdding(false)} />}
+      {filing && <FileJobs project={p} onClose={() => setFiling(false)} />}
       {logJob && <LogProgress job={logJob} onClose={() => setLogging(null)} />}
       <InvoiceBuilder
         open={invoicing}
@@ -262,7 +313,7 @@ function PartRow({ job, project, onLog, onEdit }: { job: Job; project: Project; 
             {tx('開始', 'Start')}
           </button>
         )}
-        <IconBtn label={tx('編輯部分', 'Edit part')} onClick={onEdit}>
+        <IconBtn label={isOngoing(project) ? tx('編輯案件', 'Edit job') : tx('編輯部分', 'Edit part')} onClick={onEdit}>
           <Pencil size={14} />
         </IconBtn>
       </div>
@@ -477,6 +528,39 @@ function References({ project }: { project: Project }) {
 }
 
 // ---------- add a part ----------
+
+/** Moves jobs that are already logged into this project. */
+function FileJobs({ project, onClose }: { project: Project; onClose: () => void }) {
+  const { toast } = useUI();
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const save = async () => {
+    const ids = [...picked];
+    await assignToProject(ids, project.id);
+    toast(tx(`已將 ${ids.length} 件案件歸入「${project.name}」`, `Moved ${ids.length} jobs into “${project.name}”`), { action: { label: tx('復原', 'Undo'), run: () => void assignToProject(ids, undefined) } });
+    onClose();
+  };
+  return (
+    <Sheet
+      open
+      onClose={onClose}
+      size="md"
+      title={tx('加入現有案件', 'Add existing jobs')}
+      subtitle={project.name}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            {tx('取消', 'Cancel')}
+          </Button>
+          <Button variant="primary" disabled={!picked.size} onClick={() => void save()}>
+            {picked.size ? tx(`加入 ${picked.size} 件`, `Add ${picked.size}`) : tx('加入', 'Add')}
+          </Button>
+        </>
+      }
+    >
+      <JobPicker project={project} picked={picked} onChange={setPicked} />
+    </Sheet>
+  );
+}
 
 function AddPart({ project, onClose }: { project: Project; onClose: () => void }) {
   const { clientMap, settings, today } = useData();

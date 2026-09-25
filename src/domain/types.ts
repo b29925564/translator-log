@@ -103,7 +103,8 @@ export interface Job extends SyncMeta {
   part?: string;
 }
 
-export type ProjectKind = 'game' | 'series' | 'book' | 'software' | 'custom';
+/** `ongoing`: size unknown up front; jobs from the same project are added as they come in. */
+export type ProjectKind = 'ongoing' | 'game' | 'series' | 'book' | 'software' | 'custom';
 
 /** A question for the client, kept with the project until it is answered. */
 export interface ProjectQuery {

@@ -222,6 +222,19 @@ export const createProject = async (p: Project, parts: Job[]) => {
   changed();
 };
 
+/** Moves jobs into a project, or out of any project when `projectId` is undefined. */
+export const assignToProject = async (jobIds: string[], projectId: string | undefined) => {
+  const t = now();
+  await db.transaction('rw', db.jobs, async () => {
+    for (const id of jobIds) {
+      const j = await db.jobs.get(id);
+      if (!j || j.projectId === projectId) continue;
+      await db.jobs.put(clean({ ...j, projectId, part: projectId ? j.part : undefined, updatedAt: t }));
+    }
+  });
+  changed();
+};
+
 /** Deletes a project; its parts are either deleted too or kept as standalone jobs. */
 export const deleteProject = async (id: string, withParts: boolean) => {
   const t = now();

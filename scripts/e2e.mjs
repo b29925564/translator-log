@@ -157,6 +157,7 @@ await suite('New user, English', { locale: 'en-US' }, async (page, step) => {
     await page.getByRole('button', { name: '新增專案' }).first().click();
     await page.getByRole('textbox', { name: '專案名稱' }).fill('Starfall');
     await page.locator('#pj-client').selectOption({ label: 'Harbor & Quill' });
+    await page.getByRole('button', { name: '遊戲在地化' }).click();
     await expectVisible(page.getByText('將建立 4 個部分'));
     await page.getByRole('button', { name: '建立專案' }).click();
     await expectVisible(page.getByRole('heading', { name: 'Starfall' }));
@@ -208,6 +209,41 @@ await suite('New user, English', { locale: 'en-US' }, async (page, step) => {
     await expectVisible(page.getByText(/匯入完成：1 筆標記已收款、新增 1 筆/));
     await page.evaluate(() => (location.hash = '/jobs'));
     await expectVisible(page.getByText('Onboarding emails'));
+  });
+  await step('an ongoing project collects new and existing jobs as they come in', async () => {
+    await page.evaluate(() => (location.hash = '/projects'));
+    await page.getByRole('button', { name: '新增專案' }).first().click();
+    await page.getByRole('textbox', { name: '專案名稱' }).fill('Northwind');
+    await expectVisible(page.getByText('之後隨時可以加入案件'));
+    await page.getByRole('button', { name: '建立專案' }).click();
+    await expectVisible(page.getByRole('heading', { name: 'Northwind' }));
+    await expectVisible(page.getByText('還沒有案件'));
+    // a new job starts inside the project
+    await page.locator('main').getByRole('button', { name: '新增案件' }).first().click();
+    await page.getByRole('textbox', { name: '案件名稱' }).fill('Northwind batch 1');
+    await page.getByRole('button', { name: '建立', exact: true }).click();
+    await expectVisible(page.getByRole('button', { name: /專案 · Northwind/ }));
+    // a job logged earlier is filed under it
+    await page.getByRole('button', { name: /專案 · Northwind/ }).click();
+    await page.getByRole('button', { name: '加入現有', exact: true }).click();
+    await page.getByTestId('job-picker').locator('label').filter({ hasText: 'Onboarding emails' }).getByRole('checkbox').check();
+    await page.getByRole('button', { name: '加入 1 件' }).click();
+    await expectVisible(page.getByText('案件（2）'));
+    // the job list can be narrowed to it
+    await page.evaluate(() => (location.hash = '/jobs'));
+    await page.getByLabel('專案', { exact: true }).selectOption({ label: 'Northwind' });
+    await expectVisible(page.getByText('Northwind batch 1'));
+    await expectVisible(page.getByText('Onboarding emails'));
+  });
+  await step('a new project can be started from the job form', async () => {
+    await page.evaluate(() => (location.hash = '/jobs'));
+    await page.getByLabel('專案', { exact: true }).selectOption('');
+    await page.getByText('Onboarding emails').click();
+    await page.getByRole('button', { name: '編輯', exact: true }).first().click();
+    await page.locator('#job-project').selectOption({ label: '＋ 建立新專案…' });
+    await page.getByRole('textbox', { name: '新專案名稱' }).fill('Onboarding series');
+    await page.getByRole('button', { name: '儲存', exact: true }).click();
+    await expectVisible(page.getByRole('button', { name: /專案 · Onboarding series/ }));
   });
   await step('a CSV dropped anywhere opens the import; a PDF asks for an AI key', async () => {
     await page.evaluate(() => {

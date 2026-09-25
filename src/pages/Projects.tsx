@@ -1,7 +1,7 @@
 import { FolderKanban, MessageCircleQuestion, Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useData } from '../db/data';
-import { projectStats, shortPartName, templateFor } from '../domain/projects';
+import { isOngoing, projectDone, projectStats, shortPartName, templateFor } from '../domain/projects';
 import { tx } from '../i18n';
 import { dueInfo, money, num } from '../ui/format';
 import { Button, cx, Empty, Meter, PageHeader, Pair, Segmented } from '../ui/kit';
@@ -23,7 +23,7 @@ export function Projects() {
       projects.map((p) => {
         const parts = jobs.filter((j) => j.projectId === p.id);
         const s = projectStats(p, parts, today, speed.wph);
-        const done = p.archived || (s.parts > 0 && s.done === s.parts);
+        const done = projectDone(p, s);
         return { p, parts, s, done };
       }),
     [projects, jobs, today, speed.wph],
@@ -48,8 +48,8 @@ export function Projects() {
             icon={<FolderKanban size={22} />}
             title={tx('大案子，拆開來管', 'Big jobs, broken down')}
             body={tx(
-              '客戶說接下來有個大專案？建立一個專案，把預告片、過場動畫、劇情對話、介面文字…拆成各自的部分：每個部分有自己的字數、費率、截止日與進度，問客戶的問題也集中在一起。',
-              'A client has a big project coming? Create one and split it into parts such as trailer, cutscenes, dialogue and UI strings. Each part gets its own volume, rate, deadline and progress, and your questions for the client live in one place.',
+              '同一個專案的案件陸續進來、不知道總共會有多少？建立一個「陸續接案」專案，接到新案件就歸進去。已經知道範圍的大案子，也可以一開始就拆成預告片、過場動畫、劇情對話等部分。每件都有自己的字數、費率、截止日與進度，問客戶的問題也集中在一起。',
+              'Jobs from the same project keep coming and you don’t know how many there will be? Create an ongoing project and file each new job under it. If you know the scope up front, split it into parts such as trailer, cutscenes and dialogue instead. Each job keeps its own volume, rate, deadline and progress, and your questions for the client live in one place.',
             )}
             action={
               <Button variant="primary" icon={<Plus size={16} />} onClick={() => openProjectEditor()}>
@@ -88,7 +88,7 @@ export function Projects() {
                     </div>
                   )}
                   <div className="mt-4 flex items-baseline justify-between text-[12.5px]">
-                    <span className="text-muted">{tx(`${s.done}／${s.parts} 個部分完成`, `${s.done} of ${s.parts} parts done`)}</span>
+                    <span className="text-muted">{isOngoing(p) ? tx(`${s.parts} 件案件 · ${s.done} 件完成`, `${s.parts} jobs · ${s.done} done`) : tx(`${s.done}／${s.parts} 個部分完成`, `${s.done} of ${s.parts} parts done`)}</span>
                     <span className="font-medium text-ink tnum">{Math.round(s.progress * 100)}%</span>
                   </div>
                   <Meter className="mt-1.5" value={s.progress} max={1} label={tx('完成度', 'Progress')} />

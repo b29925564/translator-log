@@ -1,4 +1,4 @@
-import { ChevronRight, Play, Plus, Square } from 'lucide-react';
+import { ChevronRight, FolderKanban, Play, Plus, Square } from 'lucide-react';
 import { useMemo } from 'react';
 import { useData } from '../db/data';
 import { startTimer, stopTimer } from '../db/repo';
@@ -170,9 +170,12 @@ export function TimerButton({ job, size = 'sm' }: { job: Job; size?: 'sm' | 'md'
 }
 
 export function JobRow({ job, showClient = true, showTimer = false, showDue = false }: { job: Job; showClient?: boolean; showTimer?: boolean; showDue?: boolean }) {
-  const { clientMap, today, settings } = useData();
+  const { clientMap, projectMap, today, settings } = useData();
   const navigate = useUI((s) => s.navigate);
   const client = job.clientId ? clientMap.get(job.clientId) : undefined;
+  const pj = job.projectId ? projectMap.get(job.projectId) : undefined;
+  // parts already carry the project name in their title
+  const project = pj && !job.title.startsWith(pj.name) ? pj : undefined;
   const due = showDue && job.status === 'active' ? dueInfo(job.dueAt, today) : undefined;
   const w = jobWords(job);
   return (
@@ -190,6 +193,12 @@ export function JobRow({ job, showClient = true, showTimer = false, showDue = fa
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-muted">
           <Pair source={job.sourceLang} target={job.targetLang} />
           {showClient && client && <span className="truncate">{client.name}</span>}
+          {project && (
+            <span className="inline-flex min-w-0 items-center gap-1 truncate">
+              <FolderKanban size={12} className="shrink-0" />
+              <span className="truncate">{project.name}</span>
+            </span>
+          )}
           {w > 0 && job.unit !== 'flat' && <span className="tnum">{qty(job.unit === 'word' || job.unit === 'char' ? w : job.quantity, job.unit)}</span>}
           {job.unit === 'flat' && w > 0 && <span className="tnum">{qty(w, 'word')}</span>}
           {due && (

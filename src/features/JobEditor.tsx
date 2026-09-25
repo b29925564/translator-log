@@ -1,7 +1,7 @@
 import { ArrowLeftRight, Calculator, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useData } from '../db/data';
-import { deleteJob, restoreJob, saveJob, withStatus } from '../db/repo';
+import { createProject, deleteJob, newProject, restoreJob, saveJob, withStatus } from '../db/repo';
 import { weightedWords } from '../domain/cat';
 import { CAT_TOOLS, DEFAULT_CAT_GRID, SERVICES, STATUSES, UNITS } from '../domain/constants';
 import { fxRate, jobGross, jobGrossBase, jobNet, suggestDeductions } from '../domain/money';
@@ -13,6 +13,8 @@ import { Button, cx, Field, Input, NumberInput, Select, Sheet, statusLabel, Text
 import { useUI } from '../ui/store';
 import { CatPanel } from './CatPanel';
 import { ClientSelect, clientHabits, CurrencySelect, DomainSelect, LangSelect } from './common';
+
+const NEW_PROJECT = '__new';
 
 function Block({ title, children, aside }: { title: string; children: ReactNode; aside?: ReactNode }) {
   return (
@@ -44,14 +46,19 @@ export function JobEditor() {
   const [catOn, setCatOn] = useState(false);
   // the price last filled in from the client, so edits to service or languages can update it until the user types their own
   const autoPrice = useRef<{ rate: number; unit: Unit; minimumFee?: number } | null>(null);
+  /** Name for a project created from this form; undefined when not creating one. */
+  const [newProjectName, setNewProjectName] = useState<string | undefined>();
 
   const defaults = useRef({ settings, today });
   defaults.current = { settings, today };
   useEffect(() => {
     const { settings, today } = defaults.current;
     autoPrice.current = null;
+    setNewProjectName(undefined);
     if (jobEditor.open && jobEditor.job) {
       setD({ ...jobEditor.job });
+      // a new job arrives pre-priced (quick add, a project); let service or language changes re-price it
+      if (jobEditor.isNew && jobEditor.job.rate) autoPrice.current = { rate: jobEditor.job.rate, unit: jobEditor.job.unit, minimumFee: jobEditor.job.minimumFee };
       setOverrideOn(jobEditor.job.amountOverride != null);
       setCatOn(!!jobEditor.job.cat);
     } else if (jobEditor.open) {
@@ -78,7 +85,7 @@ export function JobEditor() {
       setOverrideOn(false);
       setCatOn(false);
     } else setD(null);
-  }, [jobEditor.open, jobEditor.job]);
+  }, [jobEditor.open, jobEditor.job, jobEditor.isNew]);
 
   const set = (patch: Partial<Job>) => setD((x) => (x ? { ...x, ...patch } : x));
   const client = d?.clientId ? clientMap.get(d.clientId) : undefined;
@@ -88,6 +95,8 @@ export function JobEditor() {
 
   if (!d) return null;
   const isNew = jobEditor.isNew;
+  // open ongoing projects for this client, offered when a new job is not filed yet
+  const suggested = isNew && d.clientId ? projects.filter((pj) => !pj.archived && pj.kind === 'ongoing' && pj.clientId === d.clientId).slice(0, 3) : [];
   const base = settings.baseCurrency;
 
   /** Price fields for `next` from its client's rate card, or {} when the user has set their own rate. */
@@ -136,6 +145,12 @@ export function JobEditor() {
 
   const save = async () => {
     let job = { ...d };
+    const pjName = newProjectName?.trim();
+    if (pjName) {
+      const pj = newProject({ name: pjName, kind: 'ongoing', clientId: job.clientId, sourceLang: job.sourceLang, targetLang: job.targetLang, confidential: job.confidential || undefined });
+      await createProject(pj, []);
+      job.projectId = pj.id;
+    }
     if (!overrideOn) job.amountOverride = undefined;
     if (!catOn) job.cat = undefined;
     if (!job.title.trim()) job.title = tx('未命名案件', 'Untitled job');
@@ -208,27 +223,47 @@ export function JobEditor() {
             <Field label={tx('客戶', 'Client')} htmlFor="job-client">
               <ClientSelect id="job-client" value={d.clientId} onChange={(id) => applyClient(id)} />
             </Field>
-            {projects.length > 0 && (
-              <Field label={tx('所屬專案', 'Project')} htmlFor="job-project">
-                <Select
-                  id="job-project"
-                  value={d.projectId ?? ''}
-                  onChange={(e) => {
-                    const pj = projects.find((x) => x.id === e.target.value);
-                    set({ projectId: pj?.id, part: pj ? d.part : undefined });
-                    if (pj?.clientId && !d.clientId) applyClient(pj.clientId);
-                  }}
-                >
-                  <option value="">{tx('（不屬於專案）', '(None)')}</option>
-                  {projects
-                    .filter((pj) => !pj.archived || pj.id === d.projectId)
-                    .map((pj) => (
-                      <option key={pj.id} value={pj.id}>
-                        {pj.name}
-                      </option>
-                    ))}
-                </Select>
+            <Field label={tx('所屬專案', 'Project')} htmlFor="job-project">
+              <Select
+                id="job-project"
+                value={newProjectName != null ? NEW_PROJECT : d.projectId ?? ''}
+                onChange={(e) => {
+                  if (e.target.value === NEW_PROJECT) {
+                    setNewProjectName('');
+                    set({ projectId: undefined, part: undefined });
+                    return;
+                  }
+                  setNewProjectName(undefined);
+                  const pj = projects.find((x) => x.id === e.target.value);
+                  set({ projectId: pj?.id, part: pj ? d.part : undefined });
+                  if (pj?.clientId && !d.clientId) applyClient(pj.clientId);
+                }}
+              >
+                <option value="">{tx('（不屬於專案）', '(None)')}</option>
+                {projects
+                  .filter((pj) => !pj.archived || pj.id === d.projectId)
+                  .map((pj) => (
+                    <option key={pj.id} value={pj.id}>
+                      {pj.name}
+                    </option>
+                  ))}
+                <option value={NEW_PROJECT}>{tx('＋ 建立新專案…', '+ New project…')}</option>
+              </Select>
+            </Field>
+            {newProjectName != null && (
+              <Field label={tx('新專案名稱', 'New project name')} htmlFor="job-new-project" hint={tx('之後這個專案的案件都可以歸進來。', 'File later jobs from the same project under it.')}>
+                <Input id="job-new-project" autoFocus value={newProjectName} onChange={(e) => setNewProjectName(e.target.value)} placeholder={tx('例如：《星墜紀元》在地化', 'e.g. Starfall Chronicles localisation')} />
               </Field>
+            )}
+            {newProjectName == null && !d.projectId && suggested.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 text-[12.5px] text-muted sm:col-span-2">
+                <span>{tx('這個客戶有進行中的專案：', 'This client has open projects:')}</span>
+                {suggested.map((pj) => (
+                  <button key={pj.id} type="button" className="chip" onClick={() => set({ projectId: pj.id })}>
+                    {tx(`歸到「${pj.name}」`, `Add to “${pj.name}”`)}
+                  </button>
+                ))}
+              </div>
             )}
             <Field label={tx('服務類型', 'Service')} htmlFor="job-service">
               <Select id="job-service" value={d.service} onChange={(e) => setPriced({ service: e.target.value as Job['service'] })}>
