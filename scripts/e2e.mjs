@@ -62,6 +62,17 @@ const xlsxOf = (rows) => {
   );
 };
 
+/** Waits for an input to show `want`; number fields sync their text a frame after the value changes. */
+const expectValue = async (locator, want, what, timeout = 3000) => {
+  const end = Date.now() + timeout;
+  let got;
+  while (Date.now() < end) {
+    got = await locator.inputValue();
+    if (got === want) return;
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  throw new Error(`${what}: ${JSON.stringify(got)}, expected ${JSON.stringify(want)}`);
+};
 const expectVisible = async (locator, timeout = 5000) => locator.first().waitFor({ state: 'visible', timeout });
 const skipOverture = async (page) => {
   const doors = page.locator('div.fixed.inset-0.z-\\[200\\]');
@@ -296,22 +307,26 @@ await suite('Sample data, 繁體中文', { locale: 'zh-TW' }, async (page, step)
     await page.locator('#job-src').selectOption('en');
     await page.locator('#job-tgt').selectOption('zh-TW');
     await page.locator('#job-service').selectOption('proofreading');
-    if ((await page.locator('#job-rate').inputValue()) !== '0.4') throw new Error('proofreading rate ' + (await page.locator('#job-rate').inputValue()));
-    if ((await page.locator('#job-min').inputValue()) !== '500') throw new Error('minimum fee not filled');
+    await expectValue(page.locator('#job-rate'), '0.4', 'proofreading rate');
+    await expectValue(page.locator('#job-min'), '500', 'minimum fee');
     await expectVisible(page.getByTestId('rate-source').getByText(/校對/));
     await page.locator('#job-service').selectOption('mtpe');
-    if ((await page.locator('#job-rate').inputValue()) !== '0.6') throw new Error('MTPE rate ' + (await page.locator('#job-rate').inputValue()));
-    if ((await page.locator('#job-min').inputValue()) !== '') throw new Error('proofreading minimum fee kept for MTPE');
+    await expectValue(page.locator('#job-rate'), '0.6', 'MTPE rate');
+    await expectValue(page.locator('#job-min'), '', 'minimum fee after switching to MTPE');
   });
   await step('a rate typed by hand stays when the service changes', async () => {
     await page.locator('#job-rate').fill('0.7');
     await page.locator('#job-service').selectOption('translation');
-    if ((await page.locator('#job-rate').inputValue()) !== '0.7') throw new Error('typed rate replaced');
-    await page.getByRole('button', { name: /套用客戶費率/ }).click();
-    if ((await page.locator('#job-rate').inputValue()) !== '1.1') throw new Error('client rate not applied');
-    await page.keyboard.press('Escape');
+    // wait for the translation rate's button, so the click cannot land on the MTPE one still on screen
+    const useCard = page.getByRole('button', { name: /套用客戶費率 NT\$1\.1\b/ });
+    await expectVisible(useCard);
+    await expectValue(page.locator('#job-rate'), '0.7', 'typed rate after changing service');
+    await useCard.click();
+    await expectValue(page.locator('#job-rate'), '1.1', 'rate after applying the client rate');
   });
   await step('rates can be added in the client form', async () => {
+    await page.keyboard.press('Escape');
+    await page.locator('#job-rate').waitFor({ state: 'detached', timeout: 5000 });
     await page.getByRole('button', { name: '編輯' }).first().click();
     const rows = page.getByTestId('rate-row');
     const before = await rows.count();
