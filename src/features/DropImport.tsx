@@ -11,9 +11,14 @@ const OWN_DROP = ['/tools'];
 
 export function DropImport() {
   const [over, setOver] = useState(false);
+  const importOpen = useUI((s) => s.reportImport.open);
 
   useEffect(() => {
     let depth = 0;
+    const reset = () => {
+      depth = 0;
+      setOver(false);
+    };
     const skip = () => OWN_DROP.includes(useUI.getState().route);
     const enter = (e: DragEvent) => {
       if (!hasFiles(e) || skip()) return;
@@ -23,14 +28,13 @@ export function DropImport() {
     const leave = (e: DragEvent) => {
       if (!hasFiles(e) || skip()) return;
       depth = Math.max(0, depth - 1);
-      if (!depth) setOver(false);
+      // leaving the window reports no related target
+      if (!depth || !e.relatedTarget) reset();
     };
     const dragover = (e: DragEvent) => {
       if (hasFiles(e) && !skip()) e.preventDefault();
     };
     const drop = (e: DragEvent) => {
-      depth = 0;
-      setOver(false);
       if (!hasFiles(e) || skip() || e.defaultPrevented) return;
       e.preventDefault();
       const f = e.dataTransfer?.files?.[0];
@@ -40,7 +44,12 @@ export function DropImport() {
     window.addEventListener('dragleave', leave);
     window.addEventListener('dragover', dragover);
     window.addEventListener('drop', drop);
+    // capture phase: a drop zone that stops propagation must still clear the overlay
+    window.addEventListener('drop', reset, true);
+    window.addEventListener('dragend', reset, true);
     return () => {
+      window.removeEventListener('drop', reset, true);
+      window.removeEventListener('dragend', reset, true);
       window.removeEventListener('dragenter', enter);
       window.removeEventListener('dragleave', leave);
       window.removeEventListener('dragover', dragover);
@@ -48,7 +57,7 @@ export function DropImport() {
     };
   }, []);
 
-  if (!over || useUI.getState().reportImport.open) return null;
+  if (!over || importOpen) return null;
   return (
     <div className="pointer-events-none fixed inset-3 z-[60] flex items-center justify-center rounded-[10px] border-2 border-dashed border-accent" style={{ background: 'var(--backdrop)' }}>
       <div className="flex flex-col items-center gap-2 rounded-[6px] bg-surface px-8 py-6 text-center" style={{ boxShadow: 'var(--shadow-lg)' }}>

@@ -208,6 +208,22 @@ await suite('New user, English', { locale: 'en-US' }, async (page, step) => {
     await expectVisible(page.getByText('po-list.csv'));
     await expectVisible(page.getByLabel('「Glossary cleanup」的處理方式'));
     await page.getByRole('button', { name: '換一個檔案' }).first().click();
+    // a drop on the sheet's own drop zone must not leave the window overlay behind
+    await page.evaluate(() => {
+      const dt = new DataTransfer();
+      dt.items.add(new File(['Job,Words,Rate\nStyle guide,800,0.1\n'], 'style.csv', { type: 'text/csv' }));
+      const zone = document.querySelector('[role=dialog] .border-dashed');
+      document.body.dispatchEvent(new DragEvent('dragenter', { dataTransfer: dt, bubbles: true }));
+      zone.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true }));
+    });
+    await expectVisible(page.getByText('style.csv'));
+    await page.keyboard.press('Escape');
+    // any later re-render (navigation, saved data) used to reveal the stale overlay
+    await page.evaluate(() => (location.hash = '/jobs'));
+    await page.waitForTimeout(300);
+    if (await page.getByText('放開以匯入報表').count()) throw new Error('drop overlay stuck after closing the import');
+    await page.evaluate(() => (location.hash = '/money'));
+    await page.getByRole('button', { name: '匯入報表' }).click();
     await page.getByLabel('選擇報表檔案').setInputFiles({ name: 'statement.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n%%EOF') });
     await expectVisible(page.getByText(/PDF、照片和截圖要由 Claude 讀取/));
     await page.keyboard.press('Escape');
