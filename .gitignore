@@ -1,0 +1,9 @@
+node_modules
+dist
+dist-demo
+.DS_Store
+*.log
+coverage
+.vite
+test-results
+e2e-output
