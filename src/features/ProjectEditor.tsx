@@ -1,19 +1,21 @@
-// Create or edit a project. A new project starts from a template (game,
-// series, book, software) whose parts become jobs in one step.
+// Create or edit a project. An ongoing project starts empty (or with jobs
+// you already have) and grows as new jobs come in; the other templates
+// (game, series, book, software) create their parts as jobs in one step.
 
 import { Check } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useData } from '../db/data';
 import { createProject, newJob, newProject, saveProject } from '../db/repo';
 import { fxRate } from '../domain/money';
-import { PART_KINDS, PROJECT_TEMPLATES, partLabel, partTitle, templateFor, type PartKind } from '../domain/projects';
+import { isOngoing, PART_KINDS, PROJECT_TEMPLATES, partLabel, partTitle, templateFor, type PartKind } from '../domain/projects';
 import type { Job, JobStatus, Project, ProjectKind } from '../domain/types';
 import { getLang, tx } from '../i18n';
 import { Button, cx, Field, Input, NumberInput, Segmented, Sheet, Textarea, Toggle } from '../ui/kit';
 import { useUI } from '../ui/store';
 import { clientHabits, ClientSelect, LangSelect } from './common';
+import { JobPicker } from './JobPicker';
 
-const DOMAIN_FOR: Record<ProjectKind, string | undefined> = { game: 'games', series: 'media', book: 'literary', software: 'software', custom: undefined };
+const DOMAIN_FOR: Record<ProjectKind, string | undefined> = { ongoing: undefined, game: 'games', series: 'media', book: 'literary', software: 'software', custom: undefined };
 
 export function ProjectEditor() {
   const { projectEditor, closeProjectEditor, navigate, toast } = useUI();
@@ -22,6 +24,7 @@ export function ProjectEditor() {
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [count, setCount] = useState<number | undefined>(8);
   const [start, setStart] = useState<JobStatus>('quote');
+  const [existing, setExisting] = useState<Set<string>>(new Set());
   const isNew = projectEditor.isNew;
   const lang = getLang();
 
@@ -30,12 +33,13 @@ export function ProjectEditor() {
       setP(null);
       return;
     }
-    const base = projectEditor.project ?? newProject({ kind: 'game', sourceLang: settings.defaultSourceLang, targetLang: settings.defaultTargetLang });
+    const base = projectEditor.project ?? newProject({ kind: 'ongoing', sourceLang: settings.defaultSourceLang, targetLang: settings.defaultTargetLang });
     setP({ ...base });
     const t = templateFor(base.kind);
     setPicked(new Set(t.selected));
     setCount(t.count);
     setStart('quote');
+    setExisting(new Set());
   }, [projectEditor.open, projectEditor.project, settings.defaultSourceLang, settings.defaultTargetLang]);
 
   const template = useMemo(() => (p ? templateFor(p.kind) : undefined), [p]);
@@ -49,7 +53,10 @@ export function ProjectEditor() {
     setCount(t.count);
   };
 
+  const ongoing = isOngoing(p);
+
   const plannedParts = (): { kind: PartKind; label: string }[] => {
+    if (ongoing) return [];
     const out: { kind: PartKind; label: string }[] = [];
     for (const id of template.parts) {
       if (!picked.has(id)) continue;
@@ -97,6 +104,14 @@ export function ProjectEditor() {
         confidential: project.confidential || client?.kind === 'agency',
       }),
     );
+    if (ongoing) {
+      const moved = jobs.filter((j) => existing.has(j.id));
+      await createProject(project, moved);
+      closeProjectEditor();
+      toast(moved.length ? tx(`已建立專案「${name}」，歸入 ${moved.length} 件案件`, `Created “${name}” with ${moved.length} jobs`) : tx(`已建立專案「${name}」`, `Created “${name}”`));
+      navigate('/projects/' + project.id);
+      return;
+    }
     await createProject(project, parts);
     closeProjectEditor();
     toast(tx(`已建立專案「${name}」，含 ${parts.length} 個部分`, `Created “${name}” with ${parts.length} parts`));
@@ -111,10 +126,24 @@ export function ProjectEditor() {
       onClose={closeProjectEditor}
       size="lg"
       title={isNew ? tx('新增專案', 'New project') : tx('編輯專案', 'Edit project')}
-      subtitle={isNew ? tx('大案子拆成部分來管理：每個部分有自己的字數、費率、截止日與進度。', 'Split a big engagement into parts, each with its own volume, rate, deadline and progress.') : undefined}
+      subtitle={
+        isNew
+          ? ongoing
+            ? tx('同一個專案的案件陸續進來？先建專案，之後每接到一件就歸進來。', 'Jobs from one project keep coming in? Create it now and file each new job under it.')
+            : tx('大案子拆成部分來管理：每個部分有自己的字數、費率、截止日與進度。', 'Split a big engagement into parts, each with its own volume, rate, deadline and progress.')
+          : undefined
+      }
       footer={
         <>
-          {isNew && <span className="mr-auto text-[12.5px] text-muted">{tx(`將建立 ${planned.length} 個部分`, `${planned.length} parts will be created`)}</span>}
+          {isNew && (
+            <span className="mr-auto text-[12.5px] text-muted">
+              {ongoing
+                ? existing.size
+                  ? tx(`將歸入 ${existing.size} 件案件`, `${existing.size} jobs will be filed here`)
+                  : tx('之後隨時可以加入案件', 'Add jobs any time')
+                : tx(`將建立 ${planned.length} 個部分`, `${planned.length} parts will be created`)}
+            </span>
+          )}
           <Button variant="ghost" onClick={closeProjectEditor}>
             {tx('取消', 'Cancel')}
           </Button>
@@ -139,7 +168,7 @@ export function ProjectEditor() {
               }}
             />
           </Field>
-          <Field label={tx('最終截稿日', 'Final deadline')} htmlFor="pj-due" hint={isNew ? tx('先套用到每個部分，之後可以個別調整。', 'Applied to every part for now; adjust each one later.') : undefined}>
+          <Field label={tx('最終截稿日', 'Final deadline')} htmlFor="pj-due" hint={isNew && !ongoing ? tx('先套用到每個部分，之後可以個別調整。', 'Applied to every part for now; adjust each one later.') : isNew ? tx('不確定可以留空。', 'Leave empty if unsure.') : undefined}>
             <Input id="pj-due" type="date" value={p.dueAt ?? ''} onChange={(e) => set({ dueAt: e.target.value || undefined })} />
           </Field>
           <Field label={tx('原文', 'From')} htmlFor="pj-src">
@@ -161,6 +190,12 @@ export function ProjectEditor() {
                 ))}
               </div>
             </Field>
+            {ongoing ? (
+              <Field label={tx('把已經接的案件加進來', 'Add jobs you already have')} hint={tx('可以不選，之後在專案頁或編輯案件時再加。', 'Optional; you can also add them later from the project or a job.')}>
+                <JobPicker project={p} picked={existing} onChange={setExisting} />
+              </Field>
+            ) : (
+            <>
             <Field label={tx('包含哪些部分', 'Parts')} hint={tx('之後隨時可以再加、改名或刪除。', 'You can add, rename or remove parts any time.')}>
               <div className="flex flex-wrap gap-2">
                 {template.parts.map((id) => {
@@ -215,6 +250,8 @@ export function ProjectEditor() {
                   {planned.length > 14 && <span className="text-muted">{tx(`…共 ${planned.length} 個`, `…${planned.length} in all`)}</span>}
                 </div>
               </div>
+            )}
+            </>
             )}
           </>
         )}

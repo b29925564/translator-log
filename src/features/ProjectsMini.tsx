@@ -4,7 +4,7 @@
 import { ArrowRight, MessageCircleQuestion } from 'lucide-react';
 import { useMemo } from 'react';
 import { useData } from '../db/data';
-import { projectStats, shortPartName } from '../domain/projects';
+import { isOngoing, projectStats, shortPartName } from '../domain/projects';
 import { tx } from '../i18n';
 import { dueInfo } from '../ui/format';
 import { cx } from '../ui/kit';
@@ -48,7 +48,7 @@ export function ProjectsMini() {
                   <div className="h-full bg-gold" style={{ width: `${s.progress * 100}%` }} />
                 </div>
                 <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[12px] text-muted">
-                  <span>{tx(`${s.done}／${s.parts} 部分`, `${s.done}/${s.parts} parts`)}</span>
+                  <span>{isOngoing(p) ? tx(`${s.done}／${s.parts} 件`, `${s.done}/${s.parts} jobs`) : tx(`${s.done}／${s.parts} 部分`, `${s.done}/${s.parts} parts`)}</span>
                   {s.nextDue && due && (
                     <span className={cx(due.tone === 'bad' ? 'text-bad' : due.tone === 'warn' ? 'text-warn' : '')}>
                       {shortPartName(s.nextDue.job.title, p.name)} · {due.text}
