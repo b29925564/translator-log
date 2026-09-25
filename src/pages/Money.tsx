@@ -8,7 +8,7 @@ import { jobGross, jobNetBase } from '../domain/money';
 import { monthsBack, receivables, type AgingBucket, type Receivable } from '../domain/stats';
 import { tx } from '../i18n';
 import { date, money, num } from '../ui/format';
-import { Button, cx, Empty, PageHeader, Pair, Segmented } from '../ui/kit';
+import { Button, cx, Empty, fitText, PageHeader, Pair, Segmented } from '../ui/kit';
 import { useUI } from '../ui/store';
 import { InvoiceBuilder } from '../features/InvoiceBuilder';
 
@@ -73,9 +73,11 @@ export function Money() {
           { label: tx('30 天內到期', 'Due in 30 days'), value: money(d.next30, base), tone: '' },
           { label: tx('本月已入帳（實收）', 'Received this month (net)'), value: money(d.paidThisMonth, base), tone: '' },
         ].map((t) => (
-          <div key={t.label} className="min-w-0 p-5">
+          <div key={t.label} className="min-w-0 p-4 [container-type:inline-size] sm:p-5">
             <div className="eyebrow truncate">{t.label}</div>
-            <div className={cx('tnum mt-3 truncate text-[24px] font-medium leading-none tracking-[-0.03em] text-ink', t.tone)}>{t.value}</div>
+            <div className={cx('tnum mt-3 truncate font-medium leading-none tracking-[-0.03em]', t.tone || 'text-ink')} style={fitText(t.value, 24)}>
+              {t.value}
+            </div>
           </div>
         ))}
       </div>

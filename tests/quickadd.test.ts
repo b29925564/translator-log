@@ -72,6 +72,12 @@ describe('parseQuickAdd', () => {
     expect(r.title).toBe('繪本翻譯');
   });
 
+  it('keeps “截稿” next to a date out of the title', () => {
+    const r = parseQuickAdd('藍海翻譯社 合約 3000字 每字0.9 10/3 截稿', ctx);
+    expect(r.dueAt).toBe('2026-10-03');
+    expect(r.title).toBe('合約');
+  });
+
   it('treats a tiny bare amount next to a word count as the rate', () => {
     const r = parseQuickAdd('合約 中譯英 5000字 1.8元', ctx);
     expect(r.sourceLang).toBe('zh-TW');

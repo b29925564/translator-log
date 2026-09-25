@@ -6,7 +6,7 @@ import { jobGross } from '../domain/money';
 import { taxYear } from '../domain/tax';
 import { tx } from '../i18n';
 import { money, num } from '../ui/format';
-import { Button, Empty, PageHeader, Segmented } from '../ui/kit';
+import { Button, Empty, fitText, PageHeader, Segmented } from '../ui/kit';
 import { useUI } from '../ui/store';
 import { downloadFile } from '../features/download';
 
@@ -79,9 +79,11 @@ export function Tax() {
           { l: tx('手續費', 'Fees'), v: t.fees },
           { l: tx('實際入帳', 'Net received'), v: t.net },
         ].map((x) => (
-          <div key={x.l} className="min-w-0 p-5 last:col-span-2 md:last:col-span-1">
+          <div key={x.l} className="min-w-0 p-4 [container-type:inline-size] last:col-span-2 sm:p-5 md:last:col-span-1">
             <div className="eyebrow truncate">{x.l}</div>
-            <div className="tnum mt-3 truncate text-[22px] font-medium leading-none tracking-[-0.03em] text-ink">{money(x.v, base)}</div>
+            <div className="tnum mt-3 truncate font-medium leading-none tracking-[-0.03em] text-ink" style={fitText(money(x.v, base), 22)}>
+              {money(x.v, base)}
+            </div>
             {x.sub && <div className="mt-2 text-[11.5px] text-muted">{x.sub}</div>}
           </div>
         ))}

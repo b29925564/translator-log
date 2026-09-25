@@ -6,7 +6,7 @@ import { generateDemo, DEMO_PROFILE } from '../domain/demo';
 import { mergeSnapshots, TABLES, type Snapshot } from '../domain/merge';
 import type { Client, Invoice, Job, JobStatus, Pref, Project, Session, Settings, SyncMeta, TableName } from '../domain/types';
 import type { Table } from 'dexie';
-import { db, getLocal, setLocal, uid, type LocalRow } from './db';
+import { db, delLocal, getLocal, setLocal, uid, type LocalRow } from './db';
 
 export const changeBus = new EventTarget();
 const changed = () => changeBus.dispatchEvent(new Event('change'));
@@ -308,13 +308,32 @@ export const exportBackup = async (): Promise<BackupFile> => ({
   data: await snapshot(),
 });
 
+const restamp = (snap: Snapshot, t: number): Snapshot => {
+  const out = {} as Snapshot;
+  for (const tn of TABLES) out[tn] = (snap[tn] || []).map((r) => ({ ...r, updatedAt: t }));
+  return out;
+};
+
 export const importBackup = async (file: BackupFile, mode: 'merge' | 'replace') => {
   if (file?.app !== 'wordtrail' || !file.data) throw new Error('not-a-backup');
   if (mode === 'replace') {
+    // With sync on, rows that simply vanish come straight back from the other
+    // devices, so the replaced ones are tombstoned and the backup is stamped newer.
+    const synced = !!(await getLocal('sync'));
+    const t = now();
     await db.transaction('rw', [db.jobs, db.clients, db.sessions, db.invoices, db.prefs, db.projects], async () => {
-      for (const t of TABLES) await tableOf(t).clear();
+      for (const tn of TABLES) {
+        const table = tableOf(tn);
+        if (!synced) {
+          await table.clear();
+          continue;
+        }
+        const keep = new Set((file.data[tn] || []).map((r) => r.id));
+        const gone = (await table.toArray()).filter((r) => !keep.has(r.id) && !r.deletedAt);
+        for (const r of gone) await table.update(r.id, { deletedAt: t, updatedAt: t });
+      }
     });
-    await applyRecords(file.data);
+    await applyRecords(synced ? restamp(file.data, t) : file.data);
   } else {
     const r = mergeSnapshots(await snapshot(), file.data);
     await applyRecords(r.toLocal);
@@ -327,9 +346,13 @@ export const loadDemo = async () => {
   await applyRecords({ jobs: demo.jobs, clients: demo.clients, sessions: demo.sessions, invoices: demo.invoices, projects: demo.projects });
   const current = await readSettings();
   if (!current.profile.name) await updateSettings({ profile: { ...current.profile, ...DEMO_PROFILE } });
-  await updateSettings({ goals: { yearIncome: 2_000_000, yearWords: 900_000 }, onboarded: true });
+  // remember the real goals so removing the sample data can put them back
+  if (!(await getLocal('demo:goals'))) await setLocal('demo:goals', current.goals);
+  await updateSettings({ goals: DEMO_GOALS, onboarded: true });
   changed();
 };
+
+const DEMO_GOALS: Settings['goals'] = { yearIncome: 2_000_000, yearWords: 900_000 };
 
 export const hasDemo = async () => (await db.jobs.filter((j) => !!j.demo && !j.deletedAt).count()) > 0;
 
@@ -346,6 +369,9 @@ export const clearDemo = async () => {
   });
   const s = await readSettings();
   if (s.profile.name === DEMO_PROFILE.name) await updateSettings({ profile: { name: '' } });
+  const goals = await getLocal<Settings['goals']>('demo:goals');
+  if (s.goals.yearIncome === DEMO_GOALS.yearIncome && s.goals.yearWords === DEMO_GOALS.yearWords) await updateSettings({ goals: goals ?? DEFAULT_SETTINGS.goals });
+  await delLocal('demo:goals');
   changed();
 };
 

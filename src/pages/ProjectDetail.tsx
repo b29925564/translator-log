@@ -10,7 +10,7 @@ import type { Job, JobStatus, Project, ProjectQuery, Unit } from '../domain/type
 import { getLang, tx } from '../i18n';
 import { Timeline, type TimelineRow } from '../charts/Timeline';
 import { dueInfo, money, num, qty } from '../ui/format';
-import { Button, cx, Empty, Field, Input, Menu, NumberInput, PageHeader, Pair, Segmented, Select, Sheet, StatusPill, Textarea, statusLabel } from '../ui/kit';
+import { Button, cx, Empty, Field, fitText, Input, Menu, NumberInput, PageHeader, Pair, Segmented, Select, Sheet, StatusPill, Textarea, statusLabel } from '../ui/kit';
 import { useUI } from '../ui/store';
 import { useSpeed } from '../features/common';
 import { InvoiceBuilder } from '../features/InvoiceBuilder';
@@ -206,9 +206,11 @@ export function ProjectDetail({ id }: { id: string }) {
 
 function Stat({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: string }) {
   return (
-    <div className="min-w-0 p-5">
+    <div className="min-w-0 p-4 [container-type:inline-size] sm:p-5">
       <div className="eyebrow truncate">{label}</div>
-      <div className={cx('tnum mt-3 truncate text-[24px] font-medium leading-none tracking-[-0.03em] text-ink', tone)}>{value}</div>
+      <div className={cx('tnum mt-3 truncate font-medium leading-none tracking-[-0.03em]', tone || 'text-ink')} style={fitText(value, 24)}>
+        {value}
+      </div>
       {sub && <div className="mt-2 truncate text-[12px] text-muted">{sub}</div>}
     </div>
   );
