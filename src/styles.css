@@ -557,3 +557,6 @@ html[data-overture] .hold-motion * { animation-play-state: paused !important; }
 
 @keyframes skRise { from { transform: translateY(var(--rise, 100px)); } to { transform: none; } }
 .sk-rise { animation: skRise 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+@keyframes growX { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.grow-x { transform-box: fill-box; transform-origin: 0 50%; animation: growX 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both; }

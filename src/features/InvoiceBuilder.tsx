@@ -10,7 +10,7 @@ import { date, money } from '../ui/format';
 import { Button, Field, Input, Pair, Segmented, Select, Sheet, Textarea } from '../ui/kit';
 import { useUI } from '../ui/store';
 
-export function InvoiceBuilder({ open, onClose, presetClient }: { open: boolean; onClose: () => void; presetClient?: string }) {
+export function InvoiceBuilder({ open, onClose, presetClient, onlyJobs }: { open: boolean; onClose: () => void; presetClient?: string; onlyJobs?: string[] }) {
   const { clients, jobs, settings, today, clientMap } = useData();
   const navigate = useUI((s) => s.navigate);
   const [clientId, setClientId] = useState('');
@@ -54,7 +54,7 @@ export function InvoiceBuilder({ open, onClose, presetClient }: { open: boolean;
   useEffect(() => {
     if (!open) return;
     const c = clientMap.get(clientId);
-    setPicked(new Set(candidatesRef.current.filter((j) => j.currency === (c?.currency ?? j.currency)).map((j) => j.id)));
+    setPicked(new Set(candidatesRef.current.filter((j) => j.currency === (c?.currency ?? j.currency) && (!onlyJobs || onlyJobs.includes(j.id))).map((j) => j.id)));
     setDue(addDays(today, c?.paymentTermsDays ?? 30));
     setLang(c?.country && c.country !== 'TW' ? 'en' : 'zh');
     // eslint-disable-next-line react-hooks/exhaustive-deps

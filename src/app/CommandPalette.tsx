@@ -1,4 +1,4 @@
-import { Building2, CornerDownLeft, Crosshair, FileText, Plus, Search } from 'lucide-react';
+import { Building2, CornerDownLeft, Crosshair, FileText, FolderKanban, Plus, Search } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useData } from '../db/data';
@@ -23,8 +23,8 @@ interface Item {
 const norm = (s: string) => s.toLowerCase().normalize('NFKC');
 
 export function CommandPalette() {
-  const { palette, setPalette, navigate, openQuickAdd, openClientEditor } = useUI();
-  const { jobs, clients, clientMap, settings } = useData();
+  const { palette, setPalette, navigate, openQuickAdd, openClientEditor, openProjectEditor } = useUI();
+  const { jobs, clients, clientMap, settings, projects } = useData();
   const [q, setQ] = useState('');
   const [sel, setSel] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -46,6 +46,7 @@ export function CommandPalette() {
     const actions: Item[] = [
       { id: 'a-new', group: tx('動作', 'Actions'), label: tx('新增案件', 'New job'), sub: q.trim() ? tx(`用「${q.trim()}」建立`, `Create from “${q.trim()}”`) : undefined, icon: <Plus size={16} />, run: () => { close(); openQuickAdd(q.trim()); } },
       { id: 'a-client', group: tx('動作', 'Actions'), label: tx('新增客戶', 'New client'), icon: <Building2 size={16} />, run: () => { close(); openClientEditor(undefined, true); } },
+      { id: 'a-project', group: tx('動作', 'Actions'), label: tx('新增專案', 'New project'), sub: tx('大案子拆成部分管理', 'Split a big job into parts'), icon: <FolderKanban size={16} />, run: () => { close(); openProjectEditor(); } },
       ...(urgent
         ? [{ id: 'a-focus', group: tx('動作', 'Actions'), label: tx('開始專注', 'Start a focus session'), sub: urgent.title, icon: <Crosshair size={16} />, run: () => { close(); navigate('/focus/' + urgent.id); } }]
         : []),
@@ -83,6 +84,12 @@ export function CommandPalette() {
         .map((c) => ({ id: 'c-' + c.id, group: tx('客戶', 'Clients'), label: c.name, icon: <Building2 size={16} />, run: () => { close(); navigate('/clients/' + c.id); } })),
     );
     out.push(
+      ...projects
+        .filter((pj) => norm(`${pj.name} ${pj.clientId ? clientMap.get(pj.clientId)?.name ?? '' : ''}`).includes(nq))
+        .slice(0, 5)
+        .map((pj) => ({ id: 'p-' + pj.id, group: tx('專案', 'Projects'), label: pj.name, sub: pj.clientId ? clientMap.get(pj.clientId)?.name : undefined, icon: <FolderKanban size={16} />, run: () => { close(); navigate('/projects/' + pj.id); } })),
+    );
+    out.push(
       ...jobs
         .filter((j) => {
           const c = j.clientId ? clientMap.get(j.clientId)?.name ?? '' : '';
@@ -93,7 +100,7 @@ export function CommandPalette() {
         .map(jobItem),
     );
     return out;
-  }, [q, jobs, clients, clientMap, settings.tax.region, navigate, openQuickAdd, openClientEditor, setPalette]);
+  }, [q, jobs, clients, clientMap, projects, settings.tax.region, navigate, openQuickAdd, openClientEditor, openProjectEditor, setPalette]);
 
   useEffect(() => setSel(0), [q]);
   useEffect(() => {

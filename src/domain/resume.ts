@@ -4,7 +4,7 @@ import { CLIENT_KINDS, domainLabel, langInfo, serviceLabel } from './constants';
 import { dateOnly, yearOf } from './dates';
 import { jobWords } from './money';
 import { groupJobs, incomeDate, isEarned, pairKey } from './stats';
-import type { Client, Job, Profile } from './types';
+import type { Client, Job, Profile, Project } from './types';
 
 export type ResumeLang = 'zh' | 'en';
 export type ClientMode = 'named' | 'anonymous' | 'hidden';
@@ -15,6 +15,8 @@ export interface ResumeOptions {
   to?: string;
   clientMode: ClientMode;
   projectCount: number;
+  /** Multi-part projects are listed once, with their parts added up. */
+  projects?: Project[];
 }
 
 export interface ResumeData {
@@ -97,6 +99,13 @@ const projectTitle = (j: Job, lang: ResumeLang) => {
   return lang === 'zh' ? `${d}領域${s}專案` : `${d} ${s.toLowerCase()} project`;
 };
 
+const projectCaseTitle = (p: Project, biggest: Job, lang: ResumeLang) => {
+  if (!p.confidential) return p.name;
+  if (p.publicTitle && !(lang === 'en' && HAS_CJK.test(p.publicTitle))) return p.publicTitle;
+  const d = domainLabel(biggest.domain, L(lang));
+  return lang === 'zh' ? `${d}領域大型在地化專案` : `Large ${d.toLowerCase()} localisation project`;
+};
+
 const joinList = (items: string[], lang: ResumeLang) => {
   if (lang === 'zh') return items.join('、');
   if (items.length <= 1) return items.join('');
@@ -133,21 +142,40 @@ export const buildResume = (jobs: Job[], clients: Client[], profile: Profile, op
   for (const j of done) if (j.catTool) toolCounts.set(j.catTool, (toolCounts.get(j.catTool) || 0) + 1);
   const tools = [...toolCounts.entries()].sort((a, b) => b[1] - a[1]).map(([t]) => t);
 
-  const projects = [...done]
-    .sort((a, b) => Number(!!b.featured) - Number(!!a.featured) || jobWords(b) - jobWords(a))
+  // one case per standalone job, and one per multi-part project
+  const pmap = new Map((opts.projects ?? []).filter((p) => !p.deletedAt).map((p) => [p.id, p]));
+  const cases = new Map<string, { date: string; words: number; featured: boolean; job: Job; project?: Project; parts: number }>();
+  for (const j of done) {
+    const p = j.projectId ? pmap.get(j.projectId) : undefined;
+    const key = p ? 'p:' + p.id : 'j:' + j.id;
+    const w = jobWords(j);
+    const c = cases.get(key);
+    if (!c) cases.set(key, { date: incomeDate(j), words: w, featured: !!j.featured, job: j, project: p, parts: 1 });
+    else {
+      c.words += w;
+      c.parts++;
+      c.featured ||= !!j.featured;
+      if (incomeDate(j) > c.date) c.date = incomeDate(j);
+      if (w > jobWords(c.job)) c.job = j;
+    }
+  }
+  const projects = [...cases.values()]
+    .sort((a, b) => Number(b.featured) - Number(a.featured) || b.words - a.words)
     .slice(0, opts.projectCount)
-    .sort((a, b) => incomeDate(b).localeCompare(incomeDate(a)))
-    .map((j) => {
-      const w = jobWords(j);
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .map((c) => {
+      const j = c.job;
+      const w = c.words;
       const pair = pairLabel(j, lang);
       const wordsText = w ? (lang === 'zh' ? `${w.toLocaleString('zh-TW')} 字` : `${w.toLocaleString('en-US')} words`) : '';
+      const partsText = c.parts > 1 ? (lang === 'zh' ? `${c.parts} 個部分` : `${c.parts} parts`) : '';
       return {
-        year: yearOf(dateOnly(incomeDate(j))),
+        year: yearOf(dateOnly(c.date)),
         client: clientPublicName(j.clientId ? cmap.get(j.clientId) : undefined, opts.clientMode, lang),
-        title: projectTitle(j, lang),
+        title: c.project ? projectCaseTitle(c.project, j, lang) : projectTitle(j, lang),
         pair,
         words: w,
-        detail: [pair, wordsText].filter(Boolean).join(lang === 'zh' ? '，' : ', '),
+        detail: [pair, wordsText, partsText].filter(Boolean).join(lang === 'zh' ? '，' : ', '),
       };
     });
 

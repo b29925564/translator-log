@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Client, Job } from '../domain/types';
+import type { Client, Job, Project } from '../domain/types';
 
 export interface Toast {
   id: number;
@@ -31,6 +31,10 @@ interface UIState {
   clientEditor: { open: boolean; client?: Client; isNew: boolean; onSaved?: (c: Client) => void };
   openClientEditor: (client?: Client, isNew?: boolean, onSaved?: (c: Client) => void) => void;
   closeClientEditor: () => void;
+
+  projectEditor: { open: boolean; project?: Project; isNew: boolean };
+  openProjectEditor: (project?: Project) => void;
+  closeProjectEditor: () => void;
 
   palette: boolean;
   setPalette: (open: boolean) => void;
@@ -94,6 +98,10 @@ export const useUI = create<UIState>((set, get) => ({
   clientEditor: { open: false, isNew: false },
   openClientEditor: (client, isNew = !client, onSaved) => set({ clientEditor: { open: true, client, isNew, onSaved } }),
   closeClientEditor: () => set({ clientEditor: { open: false, isNew: false } }),
+
+  projectEditor: { open: false, isNew: false },
+  openProjectEditor: (project) => set({ projectEditor: { open: true, project, isNew: !project }, palette: false, more: false }),
+  closeProjectEditor: () => set({ projectEditor: { open: false, isNew: false } }),
 
   palette: false,
   setPalette: (palette) => set({ palette }),

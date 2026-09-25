@@ -2,7 +2,7 @@
 // EN/JA → ZH-TW freelancer. Every record is flagged `demo: true`.
 
 import { addDays, diffDays, weekday } from './dates';
-import type { Client, Invoice, Job, JobStatus, ServiceType, Session, Unit } from './types';
+import type { Client, Invoice, Job, JobStatus, Project, ServiceType, Session, Unit } from './types';
 import { jobGross, suggestDeductions } from './money';
 import { DEFAULT_CAT_GRID, DEFAULT_SETTINGS } from './constants';
 
@@ -111,6 +111,7 @@ export interface DemoData {
   jobs: Job[];
   sessions: Session[];
   invoices: Invoice[];
+  projects: Project[];
 }
 
 export const generateDemo = (today: string, seed = 42): DemoData => {
@@ -391,7 +392,79 @@ export const generateDemo = (today: string, seed = 42): DemoData => {
     }
   }
 
-  return { clients, jobs, sessions, invoices };
+  // a big game project in its early days: two parts delivered, one in progress, the rest quoted
+  const projects: Project[] = [];
+  const pf = clients.find((c) => c.name === 'Pixelforge Games');
+  if (pf) {
+    const pid = id('p');
+    const fx = fxDrift(32, today);
+    const part = (kind: string, title: string, o: Partial<Job>): Job => ({
+      id: id('j'),
+      createdAt: ts(addDays(today, -14)),
+      updatedAt: ts(today),
+      demo: true,
+      title: `《星墜紀元》｜${title}`,
+      clientId: pf.id,
+      projectId: pid,
+      part: kind,
+      service: 'translation',
+      sourceLang: 'en',
+      targetLang: 'zh-TW',
+      domain: 'games',
+      tags: [],
+      unit: 'word',
+      quantity: 0,
+      rate: 0.105,
+      currency: 'USD',
+      fxToBase: fx,
+      status: 'quote',
+      receivedAt: addDays(today, -14),
+      catTool: 'Crowdin',
+      incomeCategory: '9B',
+      ...o,
+    });
+    const parts = [
+      part('trailer', '預告片字幕', { service: 'subtitling', unit: 'minute', quantity: 3, rate: 18, status: 'delivered', dueAt: addDays(today, -6), deliveredAt: addDays(today, -7), progress: 100 }),
+      part('ui', '介面文字', { quantity: 4800, status: 'delivered', dueAt: addDays(today, -2), deliveredAt: addDays(today, -3), progress: 100 }),
+      part('cutscene', '過場動畫', { service: 'subtitling', quantity: 6500, status: 'active', receivedAt: addDays(today, -4), dueAt: nextWorkday(addDays(today, 15)), progress: 30, dayStart: { date: today, progress: 22 } }),
+      part('dialogue', '劇情對話', { quantity: 38000, dueAt: nextWorkday(addDays(today, 34)), receivedAt: today }),
+      part('items', '道具與技能說明', { quantity: 9200, dueAt: nextWorkday(addDays(today, 26)), receivedAt: today }),
+      part('store', '商店頁與行銷文案', { service: 'transcreation', quantity: 1400, rate: 0.14, dueAt: nextWorkday(addDays(today, 20)), receivedAt: today }),
+      part('lqa', '語言測試 LQA', { service: 'lqa', unit: 'hour', quantity: 16, rate: 35, dueAt: nextWorkday(addDays(today, 38)), receivedAt: today }),
+    ];
+    jobs.push(...parts);
+    const [trailer, ui, cutscene, dialogue] = parts;
+    const at = (d: number) => ts(addDays(today, d));
+    projects.push({
+      id: pid,
+      createdAt: at(-14),
+      updatedAt: at(0),
+      demo: true,
+      name: '《星墜紀元》',
+      clientId: pf.id,
+      kind: 'game',
+      sourceLang: 'en',
+      targetLang: 'zh-TW',
+      dueAt: nextWorkday(addDays(today, 40)),
+      notes: '窗口：Maya（製作人）。每週五寄進度回報。\n字幕每行上限 16 個全形字，雙行為限。\n角色名以術語表為準，未列入者先保留英文並提問。',
+      publicTitle: '北美獨立遊戲 奇幻 RPG 在地化',
+      confidential: true,
+      links: [
+        { id: id('l'), label: '術語表 Glossary', url: 'https://example.com/starfall/glossary' },
+        { id: id('l'), label: '風格指南 Style guide', url: 'https://example.com/starfall/style-guide' },
+        { id: id('l'), label: '角色設定集 Character bible', url: 'https://example.com/starfall/characters' },
+      ],
+      queries: [
+        { id: id('q'), text: '角色名「Aria」要保留英文，還是音譯為「艾莉亞」？', jobId: cutscene.id, ref: 'CS_014 00:02:31', status: 'open', createdAt: at(-1) },
+        { id: id('q'), text: '商人 NPC 的口吻要偏古風還是現代口語？有沒有角色語氣的參考？', jobId: dialogue.id, ref: 'NPC_Merchant_*', status: 'open', createdAt: at(0) },
+        { id: id('q'), text: '「Respec」要譯為「重置天賦」還是「洗點」？這個按鈕的字數上限是多少？', jobId: ui.id, ref: 'UI_MENU_OPT_07', status: 'sent', createdAt: at(-5) },
+        { id: id('q'), text: '預告片最後的標語要保留英文嗎？', jobId: trailer.id, ref: '00:00:48', status: 'answered', answer: '保留英文標語，下方加中文字幕。', createdAt: at(-9), answeredAt: at(-8) },
+        { id: id('q'), text: '術語表會用共用試算表更新嗎？', status: 'answered', answer: '會，已共享到你的信箱，每週一更新。', createdAt: at(-13), answeredAt: at(-12) },
+      ],
+    });
+  }
+
+  return { clients, jobs, sessions, invoices, projects };
 };
 
 export const DEMO_PROFILE = {

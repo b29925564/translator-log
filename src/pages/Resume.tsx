@@ -16,7 +16,7 @@ import { copyText, downloadFile, printPage } from '../features/download';
 type Range = 'all' | '3y' | '5y' | 'custom';
 
 export function Resume() {
-  const { jobs, clients, settings, today, clientMap } = useData();
+  const { jobs, clients, settings, today, clientMap, projects } = useData();
   const { toast, navigate } = useUI();
   const [lang, setLang] = useState<ResumeLang>(settings.lang === 'en' ? 'en' : 'zh');
   const [range, setRange] = useState<Range>('all');
@@ -32,7 +32,7 @@ export function Resume() {
   const from = range === '3y' ? `${y - 2}-01-01` : range === '5y' ? `${y - 4}-01-01` : range === 'custom' && fromY ? `${fromY}-01-01` : undefined;
   const to = range === 'custom' && toY ? `${toY}-12-31` : undefined;
 
-  const r = useMemo(() => buildResume(jobs, clients, settings.profile, { lang, from, to, clientMode, projectCount: count }), [jobs, clients, settings.profile, lang, from, to, clientMode, count]);
+  const r = useMemo(() => buildResume(jobs, clients, settings.profile, { lang, from, to, clientMode, projectCount: count, projects }), [jobs, clients, settings.profile, lang, from, to, clientMode, count, projects]);
   const md = useMemo(() => resumeMarkdown(r), [r]);
   const zh = lang === 'zh';
   const T = (a: string, b: string) => (zh ? a : b);
@@ -61,7 +61,7 @@ export function Resume() {
   const [site, setSite] = useState(false);
   const siteHtml = useMemo(() => {
     if (!site) return '';
-    const opts = { from, to, clientMode, projectCount: count };
+    const opts = { from, to, clientMode, projectCount: count, projects };
     return buildPortfolio({
       zh: buildResume(jobs, clients, settings.profile, { ...opts, lang: 'zh' }),
       en: buildResume(jobs, clients, settings.profile, { ...opts, lang: 'en' }),
@@ -69,7 +69,7 @@ export function Resume() {
       skyline: skylineMonths(jobs.filter((j) => j.status !== 'active'), today),
       defaultLang: lang,
     });
-  }, [site, jobs, clients, settings.profile, from, to, clientMode, count, lang, today]);
+  }, [site, jobs, clients, settings.profile, from, to, clientMode, count, lang, today, projects]);
 
   return (
     <div>

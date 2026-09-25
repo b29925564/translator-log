@@ -5,9 +5,9 @@ import type { SyncMeta, TableName } from './types';
 
 export type Snapshot = Record<TableName, SyncMeta[]>;
 
-export const TABLES: TableName[] = ['jobs', 'clients', 'sessions', 'invoices', 'prefs'];
+export const TABLES: TableName[] = ['jobs', 'clients', 'sessions', 'invoices', 'prefs', 'projects'];
 
-export const emptySnapshot = (): Snapshot => ({ jobs: [], clients: [], sessions: [], invoices: [], prefs: [] });
+export const emptySnapshot = (): Snapshot => ({ jobs: [], clients: [], sessions: [], invoices: [], prefs: [], projects: [] });
 
 /** Newer updatedAt wins; ties break on a stable content comparison. */
 export const newer = (a: SyncMeta, b: SyncMeta): SyncMeta => {

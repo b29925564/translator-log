@@ -4,6 +4,7 @@ import {
   Calculator,
   Command,
   FileText,
+  FolderKanban,
   IdCard,
   Landmark,
   LayoutDashboard,
@@ -34,6 +35,7 @@ export interface NavItem {
 
 export const NAV: NavItem[] = [
   { route: '/', icon: LayoutDashboard, label: () => tx('總覽', 'Overview') },
+  { route: '/projects', icon: FolderKanban, label: () => tx('專案', 'Projects') },
   { route: '/jobs', icon: FileText, label: () => tx('案件', 'Jobs') },
   { route: '/clients', icon: Building2, label: () => tx('客戶', 'Clients') },
   { route: '/money', icon: Wallet, label: () => tx('收款', 'Payments') },
@@ -48,7 +50,7 @@ export const NAV: NavItem[] = [
 const isActive = (route: string, item: string) => (item === '/' ? route === '/' : route === item || route.startsWith(item + '/'));
 
 const NAV_GROUPS: { label: () => string; routes: string[] }[] = [
-  { label: () => tx('工作', 'Work'), routes: ['/', '/jobs', '/clients', '/money'] },
+  { label: () => tx('工作', 'Work'), routes: ['/', '/projects', '/jobs', '/clients', '/money'] },
   { label: () => tx('成果', 'Record'), routes: ['/insights', '/resume', '/wrapped'] },
   { label: () => tx('工具', 'Utilities'), routes: ['/tools', '/tax', '/settings'] },
 ];
