@@ -72,7 +72,7 @@ export function Sidebar() {
             <Plus size={16} strokeWidth={2.4} />
             {tx('新增案件', 'New job')}
           </span>
-          <span className="rounded-[2px] border border-white/25 px-1.5 font-mono text-[10.5px] leading-[18px] dark:border-black/25">N</span>
+          <span className="rounded-[2px] border border-accent-ink/25 px-1.5 font-mono text-[10.5px] leading-[18px]">N</span>
         </button>
         <button
           type="button"
