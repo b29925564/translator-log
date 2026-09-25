@@ -17,9 +17,9 @@ import {
 } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useData } from '../db/data';
-import { stopTimer } from '../db/repo';
+import { stopTimer, updateSettings } from '../db/repo';
 import { fmtDuration } from '../domain/dates';
-import { tx } from '../i18n';
+import { getLang, tx } from '../i18n';
 import { cx, Kbd, Sheet } from '../ui/kit';
 import { useUI } from '../ui/store';
 import { SyncBadge } from '../sync/SyncBadge';
@@ -98,8 +98,9 @@ export function Sidebar() {
           );
         })}
       </nav>
-      <div className="border-t border-line p-3">
+      <div className="flex flex-col gap-2 border-t border-line p-3">
         <SyncBadge />
+        <LangToggle className="self-start ml-3" />
       </div>
     </aside>
   );
@@ -152,6 +153,31 @@ export function TabBar() {
   );
 }
 
+/** Quick 中文 / English switch, always one tap away. */
+export function LangToggle({ className }: { className?: string }) {
+  const lang = getLang();
+  return (
+    <div role="group" aria-label={tx('介面語言', 'Language')} className={cx('inline-flex rounded-[9px] border border-line bg-surface-2 p-0.5 text-[12.5px]', className)}>
+      {(
+        [
+          ['zh-TW', '中文'],
+          ['en', 'EN'],
+        ] as const
+      ).map(([v, l]) => (
+        <button
+          key={v}
+          type="button"
+          aria-pressed={lang === v}
+          onClick={() => lang !== v && void updateSettings({ lang: v })}
+          className={cx('h-7 rounded-[7px] px-2.5 font-medium transition-colors', lang === v ? 'bg-surface text-ink shadow-[0_1px_2px_rgb(0_0_0/0.08)]' : 'text-muted hover:text-ink')}
+        >
+          {l}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function MoreSheet() {
   const { more, setMore, navigate } = useUI();
   const { settings } = useData();
@@ -174,8 +200,9 @@ export function MoreSheet() {
           );
         })}
       </div>
-      <div className="mt-3">
+      <div className="mt-3 flex items-center justify-between gap-3">
         <SyncBadge />
+        <LangToggle className="shrink-0" />
       </div>
     </Sheet>
   );

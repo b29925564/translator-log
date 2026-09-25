@@ -7,6 +7,7 @@ import { delLocal, getLocal, setLocal } from '../db/db';
 import { BUILTIN_DOMAINS, LANGUAGES } from '../domain/constants';
 import type { QuickParse } from '../domain/quickadd';
 import type { Client, Settings, Unit } from '../domain/types';
+import { tx } from '../i18n';
 
 export const AI_MODEL = 'claude-opus-5';
 
@@ -43,10 +44,10 @@ export class AIError extends Error {}
 const describeError = async (e: unknown): Promise<AIError> => {
   if (__DEMO_BUILD__) return new AIError(String(e));
   const { default: A } = await import('@anthropic-ai/sdk');
-  if (e instanceof A.AuthenticationError) return new AIError('API key 無效 / invalid API key');
-  if (e instanceof A.PermissionDeniedError) return new AIError('此金鑰沒有權限 / key lacks permission');
-  if (e instanceof A.RateLimitError) return new AIError('請求太頻繁，稍後再試 / rate limited');
-  if (e instanceof A.APIConnectionError) return new AIError('無法連線 / connection failed');
+  if (e instanceof A.AuthenticationError) return new AIError(tx('API 金鑰無效', 'Invalid API key'));
+  if (e instanceof A.PermissionDeniedError) return new AIError(tx('這把金鑰沒有權限', 'This key lacks permission'));
+  if (e instanceof A.RateLimitError) return new AIError(tx('請求太頻繁，請稍後再試', 'Rate limited — try again shortly'));
+  if (e instanceof A.APIConnectionError) return new AIError(tx('無法連線到 Claude', 'Could not reach Claude'));
   if (e instanceof A.APIError) return new AIError(`API ${e.status ?? ''} ${e.message}`);
   return new AIError((e as Error)?.message ?? String(e));
 };
@@ -64,7 +65,7 @@ const ask = async (params: { system: string; user: string; effort: 'low' | 'medi
       messages: [{ role: 'user', content: params.user }],
       output_config: { effort: params.effort, ...(params.schema ? { format: { type: 'json_schema', schema: params.schema } } : {}) },
     });
-    if (res.stop_reason === 'refusal') throw new AIError('Claude 無法處理這段內容 / Claude declined this request');
+    if (res.stop_reason === 'refusal') throw new AIError(tx('Claude 無法處理這段內容', 'Claude declined this request'));
     return res.content
       .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === 'text')
       .map((b) => b.text)

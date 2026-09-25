@@ -14,6 +14,12 @@
 
 ## 功能
 
+### 中英雙語（English / 繁體中文）
+
+- 整個介面都有**繁體中文**與**英文**兩種版本，隨時一鍵切換：桌機在側邊欄底部的「中文｜EN」，手機在「更多」選單，也可以在「設定 → 偏好」切換。
+- 第一次開啟時會依瀏覽器語言自動選擇（中文瀏覽器 → 繁體中文，其他 → English）。
+- 履歷、請款單的**輸出語言可以另外選**：介面用中文，照樣能產生英文履歷給國外客戶，反之亦然。
+
 ### 記錄：快到不需要思考
 
 - **一句話新增案件**：輸入「藍海翻譯社 醫療器材說明書 英翻中 12,500字 每字1.2 10/20交」，客戶、語言組合、字數、單價、截止日、領域會即時標色並自動填好。支援中英文寫法：`EN>ZH-TW`、`3.2k words`、`@ $0.08/word`、`8 cents/word`、`1.2萬字`、`0.6元/字`、`下週三`、`明天下午3點`、`月底`、`due fri`……完全在本機解析，不需要網路。
@@ -162,4 +168,4 @@ tests/       Vitest
 
 ## English summary
 
-Wordtrail is a local-first, installable web app for freelance translators. Log a job in one sentence ("Lumina app strings EN>ZH-TW 3.2k words @ $0.09/word due Fri"), track time, CAT-weighted pricing, multi-currency income and receivables, generate invoices, see where your money comes from, check whether a new offer is a good rate and whether it fits your schedule, build a bilingual CV section from your real record, and share a Spotify-Wrapped-style year in review. Data stays on your device; optional sync is end-to-end encrypted into a private Gist on your own GitHub account. The interface is available in Traditional Chinese and English.
+Wordtrail is a local-first, installable web app for freelance translators. Log a job in one sentence ("Lumina app strings EN>ZH-TW 3.2k words @ $0.09/word due Fri"), track time, CAT-weighted pricing, multi-currency income and receivables, generate invoices, see where your money comes from, check whether a new offer is a good rate and whether it fits your schedule, build a bilingual CV section from your real record, and share a Spotify-Wrapped-style year in review. Data stays on your device; optional sync is end-to-end encrypted into a private Gist on your own GitHub account. The whole interface is available in English and Traditional Chinese (switch any time from the sidebar, the More menu or Settings; the first visit follows your browser language), and résumés and invoices can be produced in either language independently of the interface.

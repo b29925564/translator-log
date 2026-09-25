@@ -14,7 +14,14 @@ import { RectStamp, RoundStamp } from '../app/Stamps';
 export function Onboarding() {
   const { settings } = useData();
   const navigate = useUI((s) => s.navigate);
-  const [lang, setL] = useState<Lang>(settings.lang);
+  // first visit: follow the browser language (Chinese → 繁體中文, anything else → English)
+  const [lang, setL] = useState<Lang>(() => {
+    try {
+      return /^zh/i.test(navigator.language) ? 'zh-TW' : 'en';
+    } catch {
+      return settings.lang;
+    }
+  });
   const [name, setName] = useState('');
   const [currency, setCurrency] = useState(settings.baseCurrency);
   const [busy, setBusy] = useState(false);

@@ -243,6 +243,8 @@ describe('demo data + stats', () => {
     const en = buildResume(demo.jobs, demo.clients, { name: '林予安', nameEn: 'Yu-An Lin' }, { lang: 'en', clientMode: 'named', projectCount: 3 });
     expect(en.summary).toMatch(/^Freelance translator since/);
     expect(en.name).toBe('Yu-An Lin');
+    expect(en.summary).not.toMatch(/agencys/);
+    expect(en.projects.every((p) => !/[\u4e00-\u9fff]/.test(p.title) || !p.title.includes('專利'))).toBe(true);
     expect(bigNumber(2_351_200, 'zh')).toBe('235 萬');
     expect(bigNumber(2_351_200, 'en')).toBe('2.35M');
   });

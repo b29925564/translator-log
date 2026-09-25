@@ -66,8 +66,12 @@ export const clientPublicName = (c: Client | undefined, mode: ClientMode, lang: 
   return c.industry ? `${c.industry} ${en}` : en.charAt(0).toUpperCase() + en.slice(1);
 };
 
+const HAS_CJK = /[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/;
+
 const projectTitle = (j: Job, lang: ResumeLang) => {
-  if (j.publicTitle) return j.publicTitle;
+  // an English résumé never shows a Chinese title for a confidential job
+  const usable = (t?: string) => !!t && !(lang === 'en' && j.confidential && HAS_CJK.test(t));
+  if (usable(j.publicTitle)) return j.publicTitle!;
   if (!j.confidential) return j.title;
   const d = domainLabel(j.domain, L(lang));
   const s = serviceLabel(j.service, L(lang));
@@ -136,10 +140,8 @@ export const buildResume = (jobs: Job[], clients: Client[], profile: Profile, op
 
   const topDomains = domains.filter((d) => d.label && d.words > 0).slice(0, 3);
   const kinds = [...new Set(done.map((j) => (j.clientId ? cmap.get(j.clientId)?.kind : undefined)).filter(Boolean))] as Client['kind'][];
-  const kindWords = kinds.map((k) => {
-    const info = CLIENT_KINDS.find((x) => x.id === k)!;
-    return lang === 'zh' ? info.zh.split('／')[0] : info.en.split(' / ')[0].toLowerCase() + 's';
-  });
+  const EN_PLURAL: Record<Client['kind'], string> = { agency: 'agencies', direct: 'direct clients', publisher: 'publishers', platform: 'platforms', other: 'other clients' };
+  const kindWords = kinds.map((k) => (lang === 'zh' ? CLIENT_KINDS.find((x) => x.id === k)!.zh.split('／')[0] : EN_PLURAL[k]));
   const mainPair = pairs[0]?.label;
   const name = lang === 'zh' ? profile.name : profile.nameEn || profile.name;
 
