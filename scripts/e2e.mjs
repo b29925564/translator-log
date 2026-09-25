@@ -281,6 +281,46 @@ await suite('Sample data, 繁體中文', { locale: 'zh-TW' }, async (page, step)
     await expectVisible(page.getByText('心臟支架使用說明書 v2.1'));
     await page.keyboard.press('Escape');
   });
+  await step('a client page lists its rate card', async () => {
+    await page.goto(BASE + '#/clients');
+    await page.getByText('藍海翻譯社').first().click();
+    const card = page.getByTestId('client-rates');
+    await expectVisible(card);
+    await expectVisible(card.getByText('校對 · EN → ZH-TW'));
+    await expectVisible(card.getByText(/最低/));
+  });
+  await step('a new job takes the rate for its service', async () => {
+    await page.getByRole('button', { name: '新增案件' }).first().click();
+    await page.getByRole('button', { name: '詳細編輯' }).click();
+    await page.locator('#job-client').selectOption({ label: '藍海翻譯社' });
+    await page.locator('#job-src').selectOption('en');
+    await page.locator('#job-tgt').selectOption('zh-TW');
+    await page.locator('#job-service').selectOption('proofreading');
+    if ((await page.locator('#job-rate').inputValue()) !== '0.4') throw new Error('proofreading rate ' + (await page.locator('#job-rate').inputValue()));
+    if ((await page.locator('#job-min').inputValue()) !== '500') throw new Error('minimum fee not filled');
+    await expectVisible(page.getByTestId('rate-source').getByText(/校對/));
+    await page.locator('#job-service').selectOption('mtpe');
+    if ((await page.locator('#job-rate').inputValue()) !== '0.6') throw new Error('MTPE rate ' + (await page.locator('#job-rate').inputValue()));
+    if ((await page.locator('#job-min').inputValue()) !== '') throw new Error('proofreading minimum fee kept for MTPE');
+  });
+  await step('a rate typed by hand stays when the service changes', async () => {
+    await page.locator('#job-rate').fill('0.7');
+    await page.locator('#job-service').selectOption('translation');
+    if ((await page.locator('#job-rate').inputValue()) !== '0.7') throw new Error('typed rate replaced');
+    await page.getByRole('button', { name: /套用客戶費率/ }).click();
+    if ((await page.locator('#job-rate').inputValue()) !== '1.1') throw new Error('client rate not applied');
+    await page.keyboard.press('Escape');
+  });
+  await step('rates can be added in the client form', async () => {
+    await page.getByRole('button', { name: '編輯' }).first().click();
+    const rows = page.getByTestId('rate-row');
+    const before = await rows.count();
+    await page.getByRole('button', { name: '再加一筆費率' }).click();
+    if ((await rows.count()) !== before + 1) throw new Error('row not added');
+    await rows.last().getByLabel('單價').fill('0.3');
+    await page.getByRole('button', { name: '儲存', exact: true }).click();
+    await expectVisible(page.getByTestId('client-rates').locator('li').nth(before));
+  });
 });
 
 await suite('Theme differs from the system', { locale: 'zh-TW', colorScheme: 'dark' }, async (page, step) => {
@@ -351,6 +391,17 @@ await suite('Phone', { locale: 'zh-TW', viewport: { width: 390, height: 844 }, i
       if (over > 1) throw new Error(`page is ${over}px wider than the screen`);
     });
   }
+  await step('the client form with a rate card fits the screen', async () => {
+    await page.keyboard.press('Escape');
+    await page.evaluate(() => (location.hash = '/clients'));
+    await page.waitForTimeout(500);
+    await page.getByText('藍海翻譯社').first().click();
+    await page.getByRole('button', { name: '編輯' }).first().click();
+    await expectVisible(page.getByTestId('rate-row'));
+    const over = await page.evaluate(() => Math.max(...[...document.querySelectorAll('[data-testid=rate-row]')].map((r) => r.getBoundingClientRect().right)) - document.documentElement.clientWidth);
+    if (over > 1) throw new Error(`rate row is ${over}px wider than the screen`);
+    await page.keyboard.press('Escape');
+  });
   await step('a project page fits the screen', async () => {
     await page.evaluate(() => (location.hash = '/projects'));
     await page.waitForTimeout(500);

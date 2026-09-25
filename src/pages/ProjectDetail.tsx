@@ -5,6 +5,7 @@ import { newJob, saveJob, saveProject, deleteProject, uid } from '../db/repo';
 import { diffDays, dateOnly } from '../domain/dates';
 import { fxRate, jobGross, jobGrossBase } from '../domain/money';
 import { PART_KINDS, partLabel, partTitle, projectStats, queriesText, shortPartName, sortQueries, templateFor } from '../domain/projects';
+import { clientPrice } from '../domain/rates';
 import { isEarned } from '../domain/stats';
 import type { Job, JobStatus, Project, ProjectQuery, Unit } from '../domain/types';
 import { getLang, tx } from '../i18n';
@@ -489,7 +490,9 @@ function AddPart({ project, onClose }: { project: Project; onClose: () => void }
   const [name, setName] = useState(partLabel(kinds[0], lang, kinds[0].numbered ? 1 : undefined));
   const [unit, setUnit] = useState<Unit>(kinds[0].unit);
   const [quantity, setQuantity] = useState<number | undefined>();
-  const [rate, setRate] = useState<number | undefined>(client?.defaultUnit === kinds[0].unit ? client.defaultRate : undefined);
+  const priceFor = (k: (typeof kinds)[number], u: Unit) =>
+    clientPrice(client, { service: k.service, sourceLang: project.sourceLang ?? settings.defaultSourceLang, targetLang: project.targetLang ?? settings.defaultTargetLang, unit: u, strictUnit: true })?.rate;
+  const [rate, setRate] = useState<number | undefined>(() => priceFor(kinds[0], kinds[0].unit));
   const [due, setDue] = useState(project.dueAt ?? '');
   const [status, setStatus] = useState<JobStatus>('quote');
   const currency = client?.currency ?? settings.baseCurrency;
@@ -499,7 +502,7 @@ function AddPart({ project, onClose }: { project: Project; onClose: () => void }
     setKindId(id);
     setName(partLabel(k, lang, k.numbered ? 1 : undefined));
     setUnit(k.unit);
-    setRate(client?.defaultUnit === k.unit ? client.defaultRate : undefined);
+    setRate(priceFor(k, k.unit));
   };
 
   const save = async () => {

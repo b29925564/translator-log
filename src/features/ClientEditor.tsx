@@ -9,6 +9,7 @@ import { Button, Field, Input, NumberInput, Select, Sheet, Textarea, Toggle } fr
 import { useUI } from '../ui/store';
 import { CatPanel } from './CatPanel';
 import { CurrencySelect } from './common';
+import { cleanRates, RateCardEditor } from './RateCardEditor';
 
 export function ClientEditor() {
   const { clientEditor, closeClientEditor, ask, toast, navigate } = useUI();
@@ -31,7 +32,7 @@ export function ClientEditor() {
 
   const save = async () => {
     if (!c.name.trim()) return;
-    const rec = await saveClient({ ...c, name: c.name.trim(), catGrid: gridOn ? c.catGrid ?? DEFAULT_CAT_GRID : undefined });
+    const rec = await saveClient({ ...c, name: c.name.trim(), catGrid: gridOn ? c.catGrid ?? DEFAULT_CAT_GRID : undefined, rates: cleanRates(c.rates) });
     clientEditor.onSaved?.(rec);
     closeClientEditor();
     toast(clientEditor.isNew ? tx(`已新增客戶「${rec.name}」`, `Added client “${rec.name}”`) : tx('已儲存', 'Saved'));
@@ -113,6 +114,13 @@ export function ClientEditor() {
         <Field label={tx('預設單價', 'Default rate')} htmlFor="cl-rate">
           <NumberInput id="cl-rate" value={c.defaultRate} onChange={(v) => set({ defaultRate: v })} placeholder="—" />
         </Field>
+        <div className="sm:col-span-2">
+          <div className="label">{tx('費率表', 'Rate card')}</div>
+          <p className="mb-2 text-[12.5px] text-muted">
+            {tx('依服務與語言組合分開記錄，例如英→中翻譯、校對、MTPE 各一個價。新增案件時會自動帶入對應的費率；沒列到的服務用上面的預設單價。', 'One rate per service and language pair, e.g. EN→ZH translation, proofreading and MTPE. New jobs pick the matching rate; anything not listed uses the default rate above.')}
+          </p>
+          <RateCardEditor client={c} onChange={(rates) => set({ rates })} fallback={{ sourceLang: settings.defaultSourceLang, targetLang: settings.defaultTargetLang }} />
+        </div>
         {settings.tax.region === 'TW' && (
           <div className="sm:col-span-2">
             <Toggle checked={!!c.withholds} onChange={(v) => set({ withholds: v })} label={tx('會代扣所得稅與二代健保', 'Withholds income tax and NHI premium')} description={tx('台灣公司給付超過 2 萬元時通常會扣繳 10% 並代扣補充保費', 'Taiwanese payers usually withhold 10% and the NHI premium above NT$20,000')} />

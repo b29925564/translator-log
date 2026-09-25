@@ -56,13 +56,14 @@ export const clientHabits = (clientId: string | undefined, jobs: Job[]) => {
 
 // ---------- pickers ----------
 
-export function LangSelect({ value, onChange, id }: { value: string; onChange: (v: string) => void; id?: string }) {
+export function LangSelect({ value, onChange, id, anyLabel, compact, 'aria-label': ariaLabel }: { value: string; onChange: (v: string) => void; id?: string; anyLabel?: string; compact?: boolean; 'aria-label'?: string }) {
   const en = getLang() === 'en';
   return (
-    <Select id={id} value={value} onChange={(e) => onChange(e.target.value)}>
+    <Select id={id} value={value} onChange={(e) => onChange(e.target.value)} aria-label={ariaLabel}>
+      {anyLabel != null && <option value="">{anyLabel}</option>}
       {LANGUAGES.map((l) => (
         <option key={l.code} value={l.code}>
-          {l.short} · {en ? l.en : l.zh}
+          {compact ? l.short : `${l.short} · ${en ? l.en : l.zh}`}
         </option>
       ))}
     </Select>

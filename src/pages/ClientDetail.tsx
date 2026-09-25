@@ -5,6 +5,7 @@ import { useData } from '../db/data';
 import { CLIENT_KINDS, unitInfo } from '../domain/constants';
 import { clientStats, groupJobs, incomeDate, monthlySeries, monthsBack, pairKey, receivables } from '../domain/stats';
 import { langInfo } from '../domain/constants';
+import { rateLabel } from '../domain/rates';
 import { getLang, tx } from '../i18n';
 import { date, domain as domainName, money, num, pct, rate as fmtRateStr } from '../ui/format';
 import { Button, Empty, Meter } from '../ui/kit';
@@ -166,6 +167,30 @@ export function ClientDetail({ id }: { id: string }) {
               })}
             />
           </section>
+          {!!client.rates?.length && (
+            <section className="card p-5" data-testid="client-rates">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <h2 className="text-[15px] font-semibold text-ink">{tx('費率表', 'Rate card')}</h2>
+                <Button size="sm" variant="ghost" icon={<Pencil size={14} />} onClick={() => openClientEditor(client)}>
+                  {tx('編輯', 'Edit')}
+                </Button>
+              </div>
+              <ul className="divide-y divide-line text-[13.5px]">
+                {client.rates.map((r) => (
+                  <li key={r.id} className="flex items-baseline justify-between gap-3 py-2 first:pt-0 last:pb-0">
+                    <span className="min-w-0 text-ink-2">
+                      {rateLabel(r, getLang())}
+                      {r.note && <span className="block text-[12.5px] text-muted">{r.note}</span>}
+                    </span>
+                    <span className="shrink-0 text-right font-medium text-ink tnum">
+                      {r.unit === 'flat' ? money(r.rate, client.currency) : `${fmtRateStr(r.rate, client.currency)} / ${en ? unitInfo(r.unit).per.en : unitInfo(r.unit).per.zh}`}
+                      {r.minimumFee ? <span className="block text-[12px] font-normal text-muted">{tx(`最低 ${money(r.minimumFee, client.currency)}`, `Min. ${money(r.minimumFee, client.currency)}`)}</span> : null}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
           {(client.defaultRate || client.notes || client.contactName || client.taxId) && (
             <section className="card p-5 text-[13.5px]">
               {client.defaultRate && (
