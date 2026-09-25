@@ -61,16 +61,16 @@ export function Money() {
         }
       />
 
-      <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="ruled mb-4 grid-cols-2 md:grid-cols-4">
         {[
           { label: tx('應收總額', 'Outstanding'), value: money(d.total, base), tone: '' },
           { label: tx('已逾期', 'Overdue'), value: money(d.overdue, base), tone: d.overdue > 0 ? 'text-bad' : '' },
           { label: tx('30 天內到期', 'Due in 30 days'), value: money(d.next30, base), tone: '' },
           { label: tx('本月已入帳（實收）', 'Received this month (net)'), value: money(d.paidThisMonth, base), tone: '' },
         ].map((t) => (
-          <div key={t.label} className="card p-4">
-            <div className="text-[12.5px] text-muted">{t.label}</div>
-            <div className={cx('mt-1 text-[21px] font-semibold text-ink', t.tone)}>{t.value}</div>
+          <div key={t.label} className="min-w-0 p-5">
+            <div className="eyebrow truncate">{t.label}</div>
+            <div className={cx('tnum mt-3 truncate text-[24px] font-medium leading-none tracking-[-0.03em] text-ink', t.tone)}>{t.value}</div>
           </div>
         ))}
       </div>

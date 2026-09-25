@@ -156,7 +156,7 @@ export function TimerButton({ job, size = 'sm' }: { job: Job; size?: 'sm' | 'md'
         void (on ? stopTimer() : startTimer(job.id));
       }}
       className={cx(
-        'grid shrink-0 place-items-center rounded-full border transition-colors',
+        'grid shrink-0 place-items-center rounded-[3px] border transition-colors',
         size === 'sm' ? 'h-8 w-8' : 'h-10 w-10',
         on ? 'border-seal bg-seal text-white' : 'border-line-strong text-ink-2 hover:border-accent hover:text-accent',
       )}
@@ -196,8 +196,8 @@ export function JobRow({ job, showClient = true, showTimer = false, showDue = fa
           )}
         </div>
         {job.status === 'active' && job.progress != null && job.progress > 0 && (
-          <div className="mt-2 h-1 w-full max-w-[220px] overflow-hidden rounded-full bg-accent-soft">
-            <div className="h-full rounded-full bg-accent" style={{ width: `${job.progress}%` }} />
+          <div className="mt-2 h-[3px] w-full max-w-[220px] overflow-hidden bg-surface-3">
+            <div className="h-full bg-ink" style={{ width: `${job.progress}%` }} />
           </div>
         )}
       </div>

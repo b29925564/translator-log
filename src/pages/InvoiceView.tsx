@@ -8,7 +8,8 @@ import { tx } from '../i18n';
 import { Button, Empty, Segmented } from '../ui/kit';
 import { useUI } from '../ui/store';
 import { printPage } from '../features/download';
-import { RectStamp } from '../app/Stamps';
+import { WGlyph } from '../app/Logo';
+import { Plaque } from '../app/Stamps';
 
 export function InvoiceView({ id }: { id: string }) {
   const { invoices, jobMap, clientMap, settings, today } = useData();
@@ -69,15 +70,19 @@ export function InvoiceView({ id }: { id: string }) {
         </div>
       </div>
 
-      <article className="print-page relative mx-auto max-w-[820px] overflow-hidden rounded-2xl border border-line bg-white p-8 text-[#15202b] sm:p-12" style={{ boxShadow: 'var(--shadow)', colorScheme: 'light' }}>
+      <article className="print-page relative mx-auto max-w-[820px] overflow-hidden rounded-[4px] border border-line bg-white p-8 text-[#0b0b0c] sm:p-12" style={{ boxShadow: 'var(--shadow)', colorScheme: 'light' }}>
         {inv.status === 'paid' && (
-          <div className="absolute right-10 top-28 opacity-80" style={{ ['--seal' as string]: '#c23b2a' }}>
-            <RectStamp title={T('已收款', 'PAID')} sub={(inv.paidAt ?? today).replace(/-/g, '.')} rotate={-8} width={170} />
+          <div className="absolute right-10 top-28">
+            <Plaque title={T('已收款', 'PAID')} sub={(inv.paidAt ?? today).replace(/-/g, '.')} color="#a8843f" width={170} />
           </div>
         )}
-        <header className="flex flex-wrap items-start justify-between gap-6 border-b-2 border-[#15202b] pb-6">
+        <header className="flex flex-wrap items-start justify-between gap-6 pb-6">
           <div>
-            <div className="font-display text-[34px] leading-none">{T('請款單', 'Invoice')}</div>
+            <div className="mb-3 flex items-center gap-2 text-[#0b0b0c]">
+              <WGlyph size={22} color="#a8843f" />
+              <span className="font-wide text-[10px] tracking-[0.3em]">Wordtrail</span>
+            </div>
+            <div className="font-display text-[40px] leading-none">{T('請款單', 'Invoice')}</div>
             <div className="mt-2 font-mono text-[13px] tracking-wide text-[#51606d]">{inv.number}</div>
           </div>
           <div className="text-right text-[13px] leading-relaxed">
@@ -89,6 +94,7 @@ export function InvoiceView({ id }: { id: string }) {
             {p.taxId && <div>{T('身分證／統編', 'Tax ID')}: {p.taxId}</div>}
           </div>
         </header>
+        <div className="h-[5px] border-y border-[#0b0b0c]" style={{ borderTopWidth: 2 }} />
 
         <section className="mt-6 grid gap-6 text-[13.5px] sm:grid-cols-2">
           <div>
@@ -158,7 +164,7 @@ export function InvoiceView({ id }: { id: string }) {
               <dt className="text-[#51606d]">{T('小計', 'Subtotal')}</dt>
               <dd className="tnum">{m(total)}</dd>
             </div>
-            <div className="mt-1 flex justify-between border-t-2 border-[#15202b] pt-3 text-[18px] font-semibold">
+            <div className="mt-1 flex justify-between border-t-2 border-[#0b0b0c] pt-3 text-[18px] font-semibold">
               <dt>{T('應付總額', 'Total due')}</dt>
               <dd className="tnum">{m(total)}</dd>
             </div>
@@ -169,12 +175,12 @@ export function InvoiceView({ id }: { id: string }) {
           {p.bank && (
             <div>
               <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#7a8793]">{T('匯款資訊', 'Payment details')}</div>
-              <div className="whitespace-pre-line text-[#15202b]">{p.bank}</div>
+              <div className="whitespace-pre-line text-[#0b0b0c]">{p.bank}</div>
             </div>
           )}
           <div>
             {client?.withholds && inv.currency === 'TWD' && <p>{T('本單金額為稅前報酬；所得稅扣繳及二代健保補充保費由給付單位依法辦理。', 'Amounts are before statutory withholding, which the payer handles.')}</p>}
-            {inv.notes && <p className="mt-2 whitespace-pre-line text-[#15202b]">{inv.notes}</p>}
+            {inv.notes && <p className="mt-2 whitespace-pre-line text-[#0b0b0c]">{inv.notes}</p>}
             <p className="mt-2">{T('感謝您的合作。', 'Thank you for your business.')}</p>
           </div>
         </footer>

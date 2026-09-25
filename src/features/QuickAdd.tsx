@@ -51,11 +51,11 @@ function HighlightInput({ value, onChange, tokens, onSubmit }: { value: string; 
   parts.push({ text: value.slice(pos) + '​' });
   const shared = 'px-4 py-3.5 text-[17px] leading-[1.7] whitespace-pre-wrap break-words font-sans';
   return (
-    <div className="relative rounded-2xl border border-line-strong bg-surface transition-shadow focus-within:border-accent focus-within:shadow-[0_0_0_3px_var(--accent-soft)]">
+    <div className="relative rounded-[4px] border border-line-strong bg-surface transition-shadow focus-within:border-ink focus-within:shadow-[0_0_0_1px_var(--ink)]">
       <div ref={mirror} aria-hidden className={cx(shared, 'pointer-events-none absolute inset-0 overflow-hidden text-transparent')}>
         {parts.map((p, i) =>
           p.kind ? (
-            <mark key={i} className="rounded-[5px] text-transparent" style={{ background: `color-mix(in srgb, ${TOKEN_COLOR[p.kind]} 22%, transparent)`, boxShadow: `inset 0 -2px 0 ${TOKEN_COLOR[p.kind]}` }}>
+            <mark key={i} className="rounded-[2px] text-transparent" style={{ background: `color-mix(in srgb, ${TOKEN_COLOR[p.kind]} 22%, transparent)`, boxShadow: `inset 0 -2px 0 ${TOKEN_COLOR[p.kind]}` }}>
               {p.text}
             </mark>
           ) : (
@@ -91,7 +91,7 @@ function Slot({ label, value, kind }: { label: string; value?: string; kind: Tok
   return (
     <div className={cx('min-w-0 rounded-xl border px-3 py-2 transition-colors', value ? 'border-line bg-surface' : 'border-dashed border-line bg-transparent')}>
       <div className="flex items-center gap-1.5 text-[11.5px] text-muted">
-        <span className="h-1.5 w-1.5 rounded-full" style={{ background: value ? TOKEN_COLOR[kind] : 'var(--line-strong)' }} />
+        <span className="h-1.5 w-1.5" style={{ background: value ? TOKEN_COLOR[kind] : 'var(--line-strong)' }} />
         {label}
       </div>
       <div className={cx('mt-0.5 truncate text-[14px]', value ? 'font-medium text-ink' : 'text-muted')}>{value ?? '—'}</div>
@@ -223,7 +223,7 @@ export function QuickAdd() {
       )}
       {aiParse && (
         <div className="mt-3 flex items-center gap-2 rounded-xl bg-accent-soft px-3 py-2 text-[13px] text-ink">
-          <Sparkles size={15} className="text-accent" /> {tx('以下欄位由 Claude 從信件中擷取，請確認', 'Fields below were extracted by Claude — please check them')}
+          <Sparkles size={15} className="text-gold" /> {tx('以下欄位由 Claude 從信件中擷取，請確認', 'Fields below were extracted by Claude — please check them')}
         </div>
       )}
 
@@ -244,7 +244,7 @@ export function QuickAdd() {
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <div className="min-w-0">
                 <div className="truncate text-[13px] text-muted">{job.title || tx('（未命名）', '(Untitled)')}</div>
-                <div className="text-[26px] font-semibold leading-tight text-ink">{money(jobGross(job), job.currency)}</div>
+                <div className="text-[26px] font-medium tracking-[-0.03em] leading-tight text-ink">{money(jobGross(job), job.currency)}</div>
                 {job.currency !== settings.baseCurrency && <div className="text-[13px] text-muted tnum">≈ {money(jobGrossBase(job), settings.baseCurrency)}</div>}
               </div>
               {(job.withholding || job.nhi) && (
@@ -312,10 +312,10 @@ export function RateScale({ bench, value, currency }: { bench: { p25: number; me
   const x = (v: number) => `${((v - lo) / (hi - lo || 1)) * 100}%`;
   return (
     <div className="mt-3">
-      <div className="relative h-2 rounded-full bg-surface-3">
-        <div className="absolute inset-y-0 rounded-full bg-heat" style={{ left: x(bench.p25), right: `calc(100% - ${x(bench.p75)})`, background: 'var(--heat-2)' }} />
+      <div className="relative h-1.5 bg-surface-3">
+        <div className="absolute inset-y-0" style={{ left: x(bench.p25), right: `calc(100% - ${x(bench.p75)})`, background: 'var(--heat-2)' }} />
         <div className="absolute top-1/2 h-3 w-px -translate-y-1/2 bg-ink-2" style={{ left: x(bench.median) }} />
-        <div className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-surface" style={{ left: x(value), background: 'var(--series-1)' }} />
+        <div className="absolute top-1/2 h-4 w-[5px] -translate-x-1/2 -translate-y-1/2 rounded-[1px] ring-2 ring-surface" style={{ left: x(value), background: 'var(--series-1)' }} />
       </div>
       <div className="mt-1.5 flex justify-between text-[11px] text-muted tnum">
         <span>P25 {fmtRateStr(bench.p25, currency)}</span>

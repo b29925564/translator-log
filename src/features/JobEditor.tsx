@@ -297,7 +297,7 @@ export function JobEditor() {
                 <div className="text-[12px] text-muted">
                   {catOn && d.cat ? tx(`加權後 ${num(weightedWords(d.cat.counts, d.cat.grid), 1)} 字 × ${fmtRateStr(d.rate, d.currency)}`, `${num(weightedWords(d.cat.counts, d.cat.grid), 1)} weighted × ${fmtRateStr(d.rate, d.currency)}`) : tx('案件總額', 'Job total')}
                 </div>
-                <div className="text-[22px] font-semibold text-ink tnum">{money(gross, d.currency)}</div>
+                <div className="text-[22px] font-medium tracking-[-0.03em] text-ink tnum">{money(gross, d.currency)}</div>
                 {d.currency !== base && <div className="text-[12.5px] text-muted tnum">≈ {money(jobGrossBase(d), base)}</div>}
               </div>
               <Toggle label={<span className="text-[13px]">{tx('手動輸入總額', 'Set total manually')}</span>} checked={overrideOn} onChange={(v) => { setOverrideOn(v); if (v) set({ amountOverride: gross }); }} />

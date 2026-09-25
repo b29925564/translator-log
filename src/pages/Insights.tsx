@@ -22,7 +22,7 @@ import { getLang, tx } from '../i18n';
 import { compact, domain as domainName, money, num, pct, rate as fmtRateStr, service as serviceName } from '../ui/format';
 import { cx, Meter, PageHeader, Segmented, Select } from '../ui/kit';
 import { useUI } from '../ui/store';
-import { RoundStamp } from '../app/Stamps';
+import { Medallion } from '../app/Stamps';
 import { fxRate } from '../domain/money';
 
 type Period = 'ytd' | 'last' | 'r12' | 'all';
@@ -176,13 +176,13 @@ export function Insights() {
         />
       </div>
 
-      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="ruled mb-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
         {statTiles.map((s) => (
-          <div key={s.label} className="card p-4">
-            <div className="text-[12.5px] text-muted">{s.label}</div>
-            <div className="mt-1 truncate text-[20px] font-semibold text-ink">{s.value}</div>
+          <div key={s.label} className="min-w-0 p-5">
+            <div className="eyebrow truncate">{s.label}</div>
+            <div className="tnum mt-3 truncate text-[24px] font-medium leading-none tracking-[-0.03em] text-ink">{s.value}</div>
             {s.delta != null && period !== 'all' && (
-              <div className={cx('mt-0.5 text-[12px] font-medium', s.delta >= 0 ? 'text-good' : 'text-bad')}>
+              <div className={cx('mt-2 text-[12px] font-medium', s.delta >= 0 ? 'text-good' : 'text-bad')}>
                 {s.delta >= 0 ? '▲' : '▼'} {pct(Math.abs(s.delta))} <span className="font-normal text-muted">{tx('vs 前期', 'vs prior')}</span>
               </div>
             )}
@@ -324,7 +324,6 @@ export function Insights() {
   );
 }
 
-const MS_COLORS = ['var(--series-1)', 'var(--accent)', 'var(--series-7)', 'var(--seal)'];
 
 function milestoneText(m: Milestone): { top: string; center: string; label: string } {
   const n = m.target;
@@ -366,11 +365,11 @@ function Milestones({ list }: { list: Milestone[] }) {
       <div className="card p-5">
         {achieved.length ? (
           <div className="flex flex-wrap justify-center gap-x-2 gap-y-4 sm:justify-start">
-            {achieved.slice(0, 18).map((m, i) => {
+            {achieved.slice(0, 18).map((m) => {
               const t = milestoneText(m);
               return (
                 <div key={m.id} className="flex w-[112px] flex-col items-center text-center" title={t.label}>
-                  <RoundStamp top={t.top} center={t.center} bottom={m.achievedAt!.slice(0, 7).replace('-', '.')} color={MS_COLORS[i % MS_COLORS.length]} rotate={((i * 37) % 21) - 10} size={96} />
+                  <Medallion top={t.top} center={t.center} bottom={m.achievedAt!.slice(0, 7).replace('-', '.')} size={100} />
                   <div className="mt-1 text-[11.5px] leading-tight text-muted">{t.label}</div>
                 </div>
               );

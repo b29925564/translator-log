@@ -71,7 +71,7 @@ export function Tax() {
         <Segmented value={year} onChange={setYear} options={years.slice(0, 6).map((y) => ({ value: y, label: tx(`${y} 年度`, y) }))} />
       </div>
 
-      <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-5">
+      <div className="ruled mb-4 grid-cols-2 md:grid-cols-5">
         {[
           { l: tx('全年收款（稅前）', 'Gross received'), v: t.gross },
           { l: tx('已扣繳稅額', 'Tax withheld'), v: t.withheld, sub: tx('可抵繳應納稅額', 'Credited against tax due') },
@@ -79,10 +79,10 @@ export function Tax() {
           { l: tx('手續費', 'Fees'), v: t.fees },
           { l: tx('實際入帳', 'Net received'), v: t.net },
         ].map((x) => (
-          <div key={x.l} className="card p-4">
-            <div className="text-[12.5px] text-muted">{x.l}</div>
-            <div className="mt-1 text-[20px] font-semibold text-ink">{money(x.v, base)}</div>
-            {x.sub && <div className="mt-0.5 text-[11.5px] text-muted">{x.sub}</div>}
+          <div key={x.l} className="min-w-0 p-5 last:col-span-2 md:last:col-span-1">
+            <div className="eyebrow truncate">{x.l}</div>
+            <div className="tnum mt-3 truncate text-[22px] font-medium leading-none tracking-[-0.03em] text-ink">{money(x.v, base)}</div>
+            {x.sub && <div className="mt-2 text-[11.5px] text-muted">{x.sub}</div>}
           </div>
         ))}
       </div>

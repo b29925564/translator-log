@@ -121,7 +121,7 @@ export function JobDetail({ id }: { id: string }) {
             <StatusPill status={job.status} />
             {due && <span className={cx('text-[13px] font-medium', due.tone === 'bad' ? 'text-bad' : due.tone === 'warn' ? 'text-warn' : 'text-ink-2')}>{tx('截稿', 'Due')} {due.text}</span>}
             {job.featured && (
-              <span className="inline-flex items-center gap-1 text-[12.5px] font-medium text-warn">
+              <span className="inline-flex items-center gap-1 text-[12.5px] font-medium text-gold">
                 <Star size={13} fill="currentColor" /> {tx('代表作', 'Featured')}
               </span>
             )}
@@ -202,7 +202,7 @@ export function JobDetail({ id }: { id: string }) {
               {(job.withholding || job.nhi || job.fees) && (
                 <div className="text-right">
                   <div className="text-[13px] text-muted">{tx('實收', 'Net received')}</div>
-                  <div className="text-[22px] font-semibold text-ink">{money(jobNet(job), job.currency)}</div>
+                  <div className="text-[22px] font-medium tracking-[-0.03em] text-ink">{money(jobNet(job), job.currency)}</div>
                 </div>
               )}
             </div>

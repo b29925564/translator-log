@@ -1,36 +1,55 @@
+import { useId } from 'react';
 import { cx } from '../ui/kit';
 
-/** The seal mark: 譯 inside a rounded passport-stamp square with a trail of dots. */
-export function LogoMark({ size = 32, className }: { size?: number; className?: string }) {
+// The mark: a W drawn in three parallel lines, cut flat at the cap height —
+// Art Deco inline lettering that doubles as speed lines, the “trail”.
+export const W_LINES = [
+  '8.2,2.17 19.54,33.59 32,5.8 44.46,33.59 55.8,2.17',
+  '3.12,4 19,48 32,19 45,48 60.88,4',
+  '-1.96,5.83 18.46,62.41 32,32.2 45.54,62.41 65.96,5.83',
+];
+
+export const BRAND_INK = '#0b0b0c';
+export const BRAND_GOLD = '#d4b36c';
+
+export function WGlyph({ size = 24, color = 'currentColor', stroke = 3, className }: { size?: number; color?: string; stroke?: number; className?: string }) {
+  const id = useId().replace(/:/g, '');
   return (
-    <svg width={size} height={size} viewBox="0 0 64 64" className={cx('shrink-0', className)} aria-hidden>
-      <rect x="2" y="2" width="60" height="60" rx="16" fill="var(--accent)" />
-      <rect x="7" y="7" width="50" height="50" rx="11" fill="none" stroke="var(--accent-ink)" strokeOpacity="0.35" strokeWidth="1.5" />
-      <text
-        x="32"
-        y="33"
-        textAnchor="middle"
-        dominantBaseline="central"
-        fontFamily="'LXGW WenKai TC', 'PingFang TC', 'Noto Sans TC', serif"
-        fontWeight="700"
-        fontSize="32"
-        fill="var(--accent-ink)"
-      >
-        譯
-      </text>
-      <circle cx="47" cy="50" r="2" fill="var(--accent-ink)" opacity="0.9" />
-      <circle cx="52.5" cy="45" r="1.5" fill="var(--accent-ink)" opacity="0.6" />
+    <svg width={size} height={size * 0.8} viewBox="-3 11 70 56" className={className} aria-hidden>
+      <defs>
+        <clipPath id={`w${id}`}>
+          <rect x="-10" y="14" width="90" height="80" />
+        </clipPath>
+      </defs>
+      <g clipPath={`url(#w${id})`} fill="none" stroke={color} strokeWidth={stroke} strokeLinejoin="miter" strokeMiterlimit={12}>
+        {W_LINES.map((p) => (
+          <polyline key={p} points={p} />
+        ))}
+      </g>
     </svg>
   );
 }
 
-export function Wordmark({ className }: { className?: string }) {
+/** App-icon tile: brass W on ink, identical in both themes. */
+export function LogoMark({ size = 32, className }: { size?: number; className?: string }) {
   return (
-    <span className={cx('inline-flex items-center gap-2.5', className)}>
-      <LogoMark size={30} />
+    <span
+      className={cx('inline-grid shrink-0 place-items-center', className)}
+      style={{ width: size, height: size, background: BRAND_INK, borderRadius: size * 0.22, boxShadow: 'inset 0 0 0 1px rgb(255 255 255 / 0.08)' }}
+      aria-hidden
+    >
+      <WGlyph size={size * 0.7} color={BRAND_GOLD} stroke={size < 28 ? 3.6 : 3} />
+    </span>
+  );
+}
+
+export function Wordmark({ className, compact }: { className?: string; compact?: boolean }) {
+  return (
+    <span className={cx('inline-flex items-center gap-3', className)}>
+      <LogoMark size={compact ? 28 : 32} />
       <span className="leading-none">
-        <span className="font-display block text-[19px] text-ink">譯跡</span>
-        <span className="mt-0.5 block font-mono text-[9.5px] uppercase tracking-[0.18em] text-muted">Wordtrail</span>
+        <span className="font-wide block text-[13.5px] tracking-[0.22em] text-ink">Wordtrail</span>
+        <span className="mt-1 block text-[10.5px] font-medium tracking-[0.42em] text-muted">譯跡</span>
       </span>
     </span>
   );

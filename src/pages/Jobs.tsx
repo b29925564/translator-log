@@ -297,7 +297,7 @@ function Board({
         >
           <div className="flex items-center justify-between gap-2 px-3 pb-2 pt-3">
             <span className="inline-flex items-center gap-2 text-[13.5px] font-semibold text-ink">
-              <span className="h-2 w-2 rounded-full" style={{ background: STATUS_COLOR[c.s] }} />
+              <span className="h-2 w-2 rounded-[1px]" style={{ background: STATUS_COLOR[c.s] }} />
               {statusLabel(c.s)}
               <span className="font-normal text-muted tnum">{c.list.length}</span>
             </span>

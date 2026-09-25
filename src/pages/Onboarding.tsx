@@ -1,4 +1,4 @@
-import { ArrowRight, CloudCog, FileClock, IdCard, Sparkles, Wallet } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { useState } from 'react';
 import { useData } from '../db/data';
 import { loadDemo, updateSettings } from '../db/repo';
@@ -8,8 +8,8 @@ import { setLang, tx } from '../i18n';
 import { Button, Field, Input, Segmented } from '../ui/kit';
 import { useUI } from '../ui/store';
 import { CurrencySelect } from '../features/common';
-import { LogoMark } from '../app/Logo';
-import { RectStamp, RoundStamp } from '../app/Stamps';
+import { BRAND_GOLD, WGlyph } from '../app/Logo';
+import { SunburstRays } from '../app/Stamps';
 
 export function Onboarding() {
   const { settings } = useData();
@@ -41,60 +41,57 @@ export function Onboarding() {
   };
 
   const features = [
-    { icon: <Sparkles size={18} />, title: tx('一句話記下案件', 'Log a job in one sentence'), body: tx('「藍海翻譯社 說明書 英翻中 5000字 每字1.2 週五交」— 客戶、字數、費率、截止日一次到位。', '“Lumina app strings EN>ZH-TW 5k words $0.09/word due Fri” — client, volume, rate and deadline in one go.') },
-    { icon: <Wallet size={18} />, title: tx('收款、扣繳、匯率一目了然', 'Payments, withholding and FX at a glance'), body: tx('多幣別自動換算，逾期款項、二代健保與報稅數字自動整理。', 'Multi-currency totals, overdue invoices, and tax figures organised for you.') },
-    { icon: <FileClock size={18} />, title: tx('知道自己真正的時薪', 'Know your real hourly rate'), body: tx('內建計時器與工作負荷預測，接案前就知道排不排得進去。', 'A built-in timer and workload forecast tell you whether a job fits before you say yes.') },
-    { icon: <IdCard size={18} />, title: tx('履歷與年度回顧，一鍵生成', 'Résumé and year in review, instantly'), body: tx('累積的每一筆紀錄，都會變成中英文履歷與可分享的年度成績單。', 'Every record becomes a bilingual CV section and a shareable year-in-review.') },
-    { icon: <CloudCog size={18} />, title: tx('手機電腦同步，資料只屬於你', 'Phone and desktop in sync, data stays yours'), body: tx('離線可用；端對端加密，存在你自己的 GitHub 私人空間。', 'Works offline; end-to-end encrypted sync to your own private GitHub storage.') },
+    { k: tx('記錄', 'Log'), title: tx('一句話記下案件', 'One sentence per job'), body: tx('客戶、語言、字數、費率、截止日，一次到位。', 'Client, languages, volume, rate and deadline in one go.') },
+    { k: tx('收款', 'Get paid'), title: tx('收款與報稅一目了然', 'Payments and taxes, sorted'), body: tx('多幣別、帳齡、請款單、扣繳與二代健保。', 'Multi-currency, aging, invoices and withholding.') },
+    { k: tx('判斷', 'Decide'), title: tx('接案前就知道值不值得', 'Know if a job is worth it'), body: tx('費率落點、真實時薪、排不排得進去。', 'Rate percentile, real hourly rate, schedule fit.') },
+    { k: tx('成果', 'Show'), title: tx('履歷與年度回顧', 'Résumé and year in review'), body: tx('每一筆紀錄都在替你寫履歷。', 'Every entry quietly writes your CV.') },
   ];
 
   return (
-    <div key={lang} className="min-h-dvh px-4 py-8 sm:px-8 lg:py-14">
-      <div className="mx-auto grid max-w-[1100px] items-start gap-x-10 gap-y-8 lg:grid-cols-[1.15fr_1fr]">
-        <div className="page-enter">
-          <div className="flex items-center gap-3">
-            <LogoMark size={52} />
-            <div>
-              <div className="font-display text-[34px] leading-none text-ink">譯跡</div>
-              <div className="mt-1 font-mono text-[11px] uppercase tracking-[0.22em] text-muted">Wordtrail</div>
-            </div>
+    <div key={lang} className="grid min-h-dvh lg:grid-cols-[1.1fr_1fr] lg:grid-rows-[auto_1fr]">
+      {/* poster */}
+      <section className="on-ink relative order-1 overflow-hidden px-6 pb-12 pt-8 text-ink sm:px-10 lg:col-start-1 lg:row-start-1 lg:px-14 lg:pt-12" style={{ background: '#0b0b0c' }}>
+        <SunburstRays origin="bottom-right" count={28} opacity={0.22} color={BRAND_GOLD} />
+        <div className="relative flex items-center gap-3">
+          <WGlyph size={34} color={BRAND_GOLD} />
+          <span className="leading-none">
+            <span className="font-wide block text-[13px] tracking-[0.26em]">Wordtrail</span>
+            <span className="mt-1 block text-[10.5px] tracking-[0.42em] text-muted">譯跡</span>
+          </span>
+        </div>
+        <div className="relative mt-16 max-w-[560px] lg:mt-24">
+          <div className="font-wide text-[11px] tracking-[0.3em]" style={{ color: BRAND_GOLD }}>
+            {tx('給自由譯者的工作紀錄', 'A work log for freelance translators')}
           </div>
-          <h1 className="font-display mt-8 max-w-[18ch] text-[38px] leading-[1.15] text-ink sm:text-[48px]">{tx('每一個字，都算數。', 'Every word counts.')}</h1>
-          <p className="mt-4 max-w-[52ch] text-[16px] leading-relaxed text-ink-2">
-            {tx('給自由譯者的工作紀錄本：從接案、交稿、請款到入帳，順手留下的每一筆，都在替你寫履歷。', 'A work log built for freelance translators. From inquiry to invoice to payment, every entry quietly writes your résumé.')}
+          <h1 className="font-display mt-5 text-[46px] leading-[1.02] sm:text-[64px] lg:text-[76px]">{tx('每一個字，都算數。', 'Every word counts.')}</h1>
+          <p className="mt-6 max-w-[46ch] text-[16px] leading-relaxed text-ink-2">
+            {tx('從接案、交稿、請款到入帳，順手留下的每一筆，都會變成收入分析、報稅數字、中英文履歷與年度回顧。', 'From inquiry to invoice to payment, every entry becomes income insight, tax figures, a bilingual CV and your year in review.')}
           </p>
         </div>
+      </section>
 
-        <div className="page-enter order-2 lg:order-none lg:col-start-1 lg:row-start-2">
-          <div className="relative hidden h-[150px] sm:block" aria-hidden>
-            <div className="absolute left-0 top-2">
-              <RoundStamp top="EN → ZH-TW" center={tx('入境', 'ENTRY')} bottom="2021 · FREELANCE" color="var(--series-1)" rotate={-10} size={128} />
-            </div>
-            <div className="absolute left-[140px] top-8">
-              <RectStamp title={tx('已收款', 'PAID')} sub="2026.09.25" rotate={7} />
-            </div>
-            <div className="absolute left-[310px] top-0">
-              <RoundStamp top="1,000,000 WORDS" center={tx('百萬字', '1M')} bottom="MILESTONE" color="var(--accent)" rotate={12} size={124} />
-            </div>
-          </div>
+      <section className="on-ink relative order-3 px-6 pb-12 pt-10 text-ink sm:px-10 lg:order-none lg:pt-0 lg:col-start-1 lg:row-start-2 lg:px-14" style={{ background: '#0b0b0c' }}>
+        <ul className="grid gap-px overflow-hidden rounded-[3px] border border-line bg-line sm:grid-cols-2">
+          {features.map((f) => (
+            <li key={f.k} className="bg-[#0b0b0c] p-5">
+              <div className="font-wide text-[10px] tracking-[0.26em]" style={{ color: BRAND_GOLD }}>
+                {f.k}
+              </div>
+              <div className="mt-3 text-[15px] font-semibold">{f.title}</div>
+              <div className="mt-1 text-[13px] leading-snug text-muted">{f.body}</div>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-6 text-[12px] text-muted">{tx('離線可用・資料只存在你的裝置・可端對端加密同步', 'Works offline · your data stays on your device · optional end-to-end encrypted sync')}</p>
+      </section>
 
-          <ul className="mt-6 grid gap-4 sm:grid-cols-2">
-            {features.map((f) => (
-              <li key={f.title} className="flex gap-3">
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-accent-soft text-accent">{f.icon}</span>
-                <span>
-                  <span className="block text-[14.5px] font-semibold text-ink">{f.title}</span>
-                  <span className="mt-0.5 block text-[13px] leading-snug text-muted">{f.body}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <section className="card page-enter order-1 p-6 sm:p-7 lg:sticky lg:top-10 lg:order-none lg:col-start-2 lg:row-span-2 lg:row-start-1" style={{ boxShadow: 'var(--shadow)' }}>
-          <h2 className="text-[18px] font-semibold text-ink">{tx('開始之前', 'Before we start')}</h2>
-          <p className="mt-1 text-[13.5px] text-muted">{tx('三個小設定，之後都能在「設定」修改。', 'Three quick choices. You can change them later in Settings.')}</p>
-          <div className="mt-5 flex flex-col gap-4">
+      {/* setup */}
+      <section className="order-2 flex items-start px-6 py-10 sm:px-10 lg:order-none lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:items-center lg:px-16">
+        <div className="page-enter w-full max-w-[420px]">
+          <div className="eyebrow">{tx('開始之前', 'Before we start')}</div>
+          <h2 className="font-display mt-3 text-[30px] leading-tight text-ink">{tx('三個小設定', 'Three quick choices')}</h2>
+          <div className="rule-deco mt-5" />
+          <div className="mt-6 flex flex-col gap-5">
             <Field label={tx('介面語言', 'Language')}>
               <Segmented
                 value={lang}
@@ -112,29 +109,31 @@ export function Onboarding() {
               <CurrencySelect id="ob-cur" value={currency} onChange={setCurrency} />
             </Field>
           </div>
-          <div className="mt-6 flex flex-col gap-2">
-            <Button variant="primary" size="lg" disabled={busy} onClick={() => void start(false)} icon={<ArrowRight size={18} />} className="flex-row-reverse">
+          <div className="mt-8 flex flex-col gap-2">
+            <Button variant="primary" size="lg" disabled={busy} onClick={() => void start(false)} className="justify-between">
               {tx('開始記錄', 'Start logging')}
+              <ArrowRight size={18} />
             </Button>
-            <Button variant="secondary" size="lg" disabled={busy} onClick={() => void start(true)}>
+            <Button variant="secondary" size="lg" disabled={busy} onClick={() => void start(true)} className="justify-between">
               {busy ? tx('載入中…', 'Loading…') : tx('先用示範資料逛逛', 'Explore with sample data')}
+              <ArrowRight size={18} className="opacity-50" />
             </Button>
             {!__DEMO_BUILD__ && (
               <button
                 type="button"
-                className="mt-2 text-[13px] font-medium text-accent hover:underline"
+                className="mt-3 self-start text-[13px] font-medium text-ink underline decoration-gold underline-offset-4"
                 onClick={async () => {
                   await start(false);
                   navigate('/settings/sync');
                 }}
               >
-                {tx('我已經在其他裝置使用譯跡 →', 'I already use Wordtrail on another device →')}
+                {tx('我已經在其他裝置使用 Wordtrail', 'I already use Wordtrail on another device')}
               </button>
             )}
           </div>
-          <p className="mt-5 text-[12px] leading-relaxed text-muted">{tx('資料預設只存在這台裝置，不會上傳到任何伺服器。示範資料之後可以在設定中一鍵清除。', 'Your data stays on this device unless you turn on sync. Sample data can be cleared in Settings with one tap.')}</p>
-        </section>
-      </div>
+          <p className="mt-8 text-[12px] leading-relaxed text-muted">{tx('資料預設只存在這台裝置，不會上傳到任何伺服器。示範資料之後可以在設定中一鍵清除。', 'Your data stays on this device unless you turn on sync. Sample data can be cleared in Settings with one tap.')}</p>
+        </div>
+      </section>
     </div>
   );
 }

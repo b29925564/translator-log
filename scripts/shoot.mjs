@@ -30,12 +30,13 @@ const routeFonts = async (ctx) => {
 };
 const modes = (process.env.MODES || 'desktop,mobile').split(',');
 const theme = process.env.THEME || 'light';
+const locale = process.env.LOCALE || 'en-US';
 
 for (const mode of modes) {
   const ctx = await browser.newContext(
     mode === 'mobile'
-      ? { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, colorScheme: theme, ignoreHTTPSErrors: true }
-      : { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1, colorScheme: theme, ignoreHTTPSErrors: true },
+      ? { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, colorScheme: theme, ignoreHTTPSErrors: true, locale }
+      : { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1, colorScheme: theme, ignoreHTTPSErrors: true, locale },
   );
   await routeFonts(ctx);
   const page = await ctx.newPage();
@@ -48,6 +49,7 @@ for (const mode of modes) {
     await page.screenshot({ path: `${out}/${mode}-onboarding.png`, fullPage: true });
     await page.getByText(/先用示範資料逛逛|Explore with sample data/).first().click();
     await page.waitForTimeout(2500);
+    await page.mouse.move(1, 1); // keep charts free of hover tooltips
   }
   for (const r of routes.length ? routes : ['/']) {
     const [path, action] = r.split('@');
@@ -58,6 +60,8 @@ for (const mode of modes) {
         if (a.startsWith('click:')) await page.getByText(a.slice(6)).first().click();
         if (a.startsWith('sel:')) await page.locator(a.slice(4)).first().click();
         if (a.startsWith('key:')) await page.keyboard.press(a.slice(4));
+        if (a === 'blur') await page.evaluate(() => document.activeElement?.blur());
+        if (a.startsWith('wait:')) await page.waitForTimeout(Number(a.slice(5)));
         if (a.startsWith('type:')) await page.keyboard.type(a.slice(5), { delay: 5 });
         await page.waitForTimeout(700);
       }

@@ -1,1 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect x="2" y="2" width="60" height="60" rx="16" fill="#0e7c6b"/><rect x="7" y="7" width="50" height="50" rx="11" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="1.5"/><text x="32" y="34" text-anchor="middle" dominant-baseline="central" font-family="'LXGW WenKai TC','PingFang TC','Noto Sans TC','Microsoft JhengHei',serif" font-weight="700" font-size="32" fill="#fff">譯</text><circle cx="47" cy="50" r="2" fill="#fff" opacity=".9"/><circle cx="52.5" cy="45" r="1.5" fill="#fff" opacity=".6"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="14" fill="#0b0b0c"/>
+  
+  <defs><clipPath id="c"><rect x="-10" y="14" width="90" height="80"/></clipPath></defs>
+  <g transform="translate(32 32.5) scale(0.66) translate(-32 -39)">
+    <g clip-path="url(#c)" fill="none" stroke="#d4b36c" stroke-width="4.2" stroke-linejoin="miter" stroke-miterlimit="12">
+      <polyline points="8.2,2.17 19.54,33.59 32,5.8 44.46,33.59 55.8,2.17"/><polyline points="3.12,4 19,48 32,19 45,48 60.88,4"/><polyline points="-1.96,5.83 18.46,62.41 32,32.2 45.54,62.41 65.96,5.83"/>
+    </g>
+  </g>
+</svg>

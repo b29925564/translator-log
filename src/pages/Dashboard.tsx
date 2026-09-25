@@ -48,10 +48,10 @@ const useCountUp = (value: number, ms = 800) => {
 function Tile({ label, value, sub, children, onClick, className }: { label: string; value: React.ReactNode; sub?: React.ReactNode; children?: React.ReactNode; onClick?: () => void; className?: string }) {
   const Comp = onClick ? 'button' : 'div';
   return (
-    <Comp type={onClick ? 'button' : undefined} onClick={onClick} className={cx('card flex min-w-0 flex-col p-4 text-left', onClick && 'transition-colors hover:border-line-strong', className)}>
-      <div className="text-[12.5px] font-medium text-muted">{label}</div>
-      <div className="mt-1 truncate text-[22px] font-semibold leading-tight text-ink">{value}</div>
-      {sub && <div className="mt-1 text-[12.5px] text-muted">{sub}</div>}
+    <Comp type={onClick ? 'button' : undefined} onClick={onClick} className={cx('flex min-w-0 flex-col p-5 text-left', onClick && 'transition-colors hover:bg-surface-2', className)}>
+      <div className="eyebrow">{label}</div>
+      <div className="mt-3 truncate text-[28px] font-medium leading-none tracking-[-0.03em] text-ink">{value}</div>
+      {sub && <div className="mt-2 text-[12.5px] text-muted">{sub}</div>}
       {children}
     </Comp>
   );
@@ -128,37 +128,40 @@ export function Dashboard() {
 
   return (
     <div className="flex flex-col gap-5">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <div className="eyebrow mb-1">{fmtDateLong(today, getLang())}</div>
-          <h1 className="font-display text-[28px] leading-tight text-ink md:text-[34px]">
-            {greeting()}
-            {firstName && tx(`，${firstName}`, `, ${firstName}`)}
-          </h1>
-          <p className="mt-1 text-[14px] text-ink-2">
-            {m.active.length
-              ? tx(`手上有 ${m.active.length} 個案件，其中 ${m.dueThisWeek} 個在 7 天內截稿。`, `${m.active.length} jobs in progress, ${m.dueThisWeek} due within 7 days.`)
-              : tx('目前沒有進行中的案件，好好休息。', 'Nothing in progress right now. Enjoy the breather.')}
-          </p>
+      <header>
+        <div className="flex flex-wrap items-end justify-between gap-4 pb-4">
+          <div>
+            <div className="eyebrow mb-2">{fmtDateLong(today, getLang())}</div>
+            <h1 className="font-display text-[34px] leading-[1.05] text-ink md:text-[46px]">
+              {greeting()}
+              {firstName && tx(`，${firstName}`, `, ${firstName}`)}
+            </h1>
+            <p className="mt-2 text-[14.5px] text-ink-2">
+              {m.active.length
+                ? tx(`手上有 ${m.active.length} 個案件，其中 ${m.dueThisWeek} 個在 7 天內截稿。`, `${m.active.length} jobs in progress, ${m.dueThisWeek} due within 7 days.`)
+                : tx('目前沒有進行中的案件，好好休息。', 'Nothing in progress right now. Enjoy the breather.')}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => openQuickAdd()}
+            className="hidden h-11 w-[340px] items-center gap-2.5 rounded-[3px] border border-line-strong bg-surface px-3.5 text-left text-[14px] text-muted transition-colors hover:border-ink hover:text-ink md:flex"
+          >
+            <Sparkles size={15} className="text-gold" />
+            <span className="flex-1 truncate">{tx('一句話新增案件…', 'Add a job in one line…')}</span>
+            <Kbd>N</Kbd>
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => openQuickAdd()}
-          className="hidden h-11 w-[340px] items-center gap-2 rounded-xl border border-line-strong bg-surface px-3.5 text-left text-[14px] text-muted transition-colors hover:border-accent md:flex"
-        >
-          <Sparkles size={16} className="text-accent" />
-          <span className="flex-1 truncate">{tx('一句話新增案件…', 'Add a job in one line…')}</span>
-          <Kbd>N</Kbd>
-        </button>
+        <div className="rule-deco" />
       </header>
 
       <div className="grid gap-4 lg:grid-cols-12">
-        <section className="card p-5 lg:col-span-7">
+        <section className="on-ink sunburst overflow-hidden rounded-[4px] border border-line p-6 text-ink lg:col-span-7" style={{ background: '#0b0b0c' }}>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <div className="text-[13px] font-medium text-muted">{tx(`${monthName}已完成收入`, `Earned in ${monthName}`)}</div>
-              <div className="mt-1 text-[44px] font-semibold leading-none tracking-tight text-ink sm:text-[52px]">{money(hero, base)}</div>
-              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]">
+              <div className="eyebrow">{tx(`${monthName} · 已完成收入`, `Earned · ${monthName}`)}</div>
+              <div className="mt-4 text-[48px] font-medium leading-none tracking-[-0.045em] text-ink sm:text-[64px]">{money(hero, base)}</div>
+              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px]">
                 {delta != null && (
                   <span className={cx('inline-flex items-center gap-0.5 font-medium', delta >= 0 ? 'text-good' : 'text-bad')}>
                     {delta >= 0 ? <ArrowUpRight size={15} /> : <ArrowDownRight size={15} />}
@@ -169,11 +172,11 @@ export function Dashboard() {
               </div>
             </div>
             <div className="sm:text-right">
-              <div className="text-[12.5px] text-muted">{tx('本月字數', 'Words this month')}</div>
-              <div className="text-[20px] font-semibold text-ink">{num(Math.round(m.wordsMonth))}</div>
+              <div className="eyebrow">{tx('本月字數', 'Words this month')}</div>
+              <div className="mt-2 text-[22px] font-medium tracking-[-0.02em] text-ink">{num(Math.round(m.wordsMonth))}</div>
             </div>
           </div>
-          <div className="mt-5">
+          <div className="mt-6">
             <ColumnChart
               height={170}
               data={m.series.map((p, i) => ({
@@ -190,18 +193,18 @@ export function Dashboard() {
             />
             <div className="mt-2 flex flex-wrap gap-x-4 text-[12px] text-ink-2">
               <span className="inline-flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: 'var(--series-1)' }} />
+                <span className="h-2.5 w-2.5 rounded-[1px]" style={{ background: 'var(--series-1)' }} />
                 {tx('已完成', 'Earned')}
               </span>
               <span className="inline-flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: 'var(--series-1)', opacity: 0.3 }} />
+                <span className="h-2.5 w-2.5 rounded-[1px]" style={{ background: 'var(--series-1)', opacity: 'var(--extra-alpha, 0.3)' }} />
                 {tx('進行中（預估）', 'In progress (est.)')}
               </span>
             </div>
           </div>
         </section>
 
-        <div className="grid grid-cols-2 gap-4 lg:col-span-5">
+        <div className="ruled grid-cols-2 lg:col-span-5">
           <Tile
             label={tx(`${year} 年收入`, `${year} income`)}
             value={money(m.ytd.income, base, { compact: true })}
@@ -244,7 +247,7 @@ export function Dashboard() {
         <section className="card overflow-hidden lg:col-span-7">
           <div className="flex items-center justify-between px-4 pb-2 pt-4">
             <h2 className="text-[15px] font-semibold text-ink">{tx('進行中', 'In progress')}</h2>
-            <button type="button" className="inline-flex items-center gap-1 text-[13px] font-medium text-accent" onClick={() => navigate('/jobs')}>
+            <button type="button" className="inline-flex items-center gap-1 text-[13px] font-medium text-ink underline decoration-gold decoration-1 underline-offset-4" onClick={() => navigate('/jobs')}>
               {tx('全部案件', 'All jobs')} <ArrowRight size={14} />
             </button>
           </div>
@@ -332,7 +335,7 @@ export function Dashboard() {
         <Heatmap daily={m.daily} from={heatFrom} to={today} format={(v) => (v ? tx(`${num(Math.round(v))} 字`, `${num(Math.round(v))} words`) : tx('沒有紀錄', 'No work logged'))} />
         <div className="mt-3 flex items-center justify-between text-[12.5px] text-muted">
           <span>{tx(`今年累計 ${compact(m.ytd.words)} 字`, `${compact(m.ytd.words)} words so far this year`)}</span>
-          <button type="button" className="inline-flex items-center gap-1 font-medium text-accent" onClick={() => navigate('/wrapped')}>
+          <button type="button" className="inline-flex items-center gap-1.5 font-medium text-ink underline decoration-gold decoration-1 underline-offset-4" onClick={() => navigate('/wrapped')}>
             <Sparkles size={14} /> {tx('看年度回顧', 'Open year in review')}
           </button>
         </div>

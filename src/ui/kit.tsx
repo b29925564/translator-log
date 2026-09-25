@@ -143,8 +143,8 @@ export function Toggle({ checked, onChange, label, description, id }: { checked:
       </span>
       <span className="relative mt-0.5 inline-flex shrink-0">
         <input id={tid} type="checkbox" className="peer sr-only" checked={checked} onChange={(e) => onChange(e.target.checked)} />
-        <span className="h-6 w-10 rounded-full bg-surface-3 transition-colors peer-checked:bg-accent peer-focus-visible:ring-2 peer-focus-visible:ring-accent" />
-        <span className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-surface shadow transition-transform peer-checked:translate-x-4" />
+        <span className="h-6 w-10 rounded-[3px] border border-line-strong bg-surface-3 transition-colors peer-checked:border-ink peer-checked:bg-ink peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink" />
+        <span className="absolute left-[3px] top-[3px] h-[18px] w-[18px] rounded-[2px] bg-surface shadow-[0_1px_2px_rgb(0_0_0/0.25)] transition-transform peer-checked:translate-x-4" />
       </span>
     </label>
   );
@@ -164,7 +164,7 @@ export function Segmented<T extends string>({
   className?: string;
 }) {
   return (
-    <div role="tablist" className={cx('inline-flex rounded-[10px] border border-line bg-surface-2 p-0.5', className)}>
+    <div role="tablist" className={cx('inline-flex rounded-[3px] border border-line-strong bg-surface p-[2px]', className)}>
       {options.map((o) => (
         <button
           key={o.value}
@@ -173,9 +173,9 @@ export function Segmented<T extends string>({
           aria-selected={o.value === value}
           onClick={() => onChange(o.value)}
           className={cx(
-            'rounded-[8px] font-medium transition-colors',
-            size === 'sm' ? 'h-7 px-2.5 text-[12.5px]' : 'h-8 px-3 text-[13.5px]',
-            o.value === value ? 'bg-surface text-ink shadow-[0_1px_2px_rgb(0_0_0/0.08)]' : 'text-muted hover:text-ink',
+            'rounded-[2px] font-medium transition-colors',
+            size === 'sm' ? 'h-7 px-2.5 text-[12.5px]' : 'h-8 px-3.5 text-[13.5px]',
+            o.value === value ? 'bg-ink text-surface' : 'text-muted hover:text-ink',
           )}
         >
           {o.label}
@@ -209,7 +209,7 @@ export const statusLabel = (s: JobStatus) =>
 export function StatusPill({ status, className }: { status: JobStatus; className?: string }) {
   return (
     <span className={cx('inline-flex items-center gap-1.5 whitespace-nowrap text-[12.5px] font-medium text-ink-2', className)}>
-      <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: STATUS_COLOR[status] }} />
+      <span className="h-2 w-2 shrink-0 rounded-[1px]" style={{ background: STATUS_COLOR[status] }} />
       {statusLabel(status)}
     </span>
   );
@@ -226,10 +226,10 @@ export function Pair({ source, target, className }: { source: string; target: st
 export function Meter({ value, max = 1, tone = 'accent', className, label }: { value: number; max?: number; tone?: 'accent' | 'good' | 'warn' | 'bad' | 'series'; className?: string; label?: string }) {
   const pct = Math.max(0, Math.min(100, (value / (max || 1)) * 100));
   const color = tone === 'series' ? 'var(--series-1)' : `var(--${tone})`;
-  const track = tone === 'accent' ? 'var(--accent-soft)' : tone === 'series' ? 'var(--heat-1)' : `var(--${tone}-soft)`;
+  const track = tone === 'accent' ? 'var(--surface-3)' : tone === 'series' ? 'var(--heat-1)' : `var(--${tone}-soft)`;
   return (
     <div
-      className={cx('h-1.5 w-full overflow-hidden rounded-full', className)}
+      className={cx('h-1 w-full overflow-hidden rounded-[1px]', className)}
       style={{ background: track }}
       role="meter"
       aria-valuemin={0}
@@ -237,7 +237,7 @@ export function Meter({ value, max = 1, tone = 'accent', className, label }: { v
       aria-valuenow={value}
       aria-label={label}
     >
-      <div className="h-full rounded-full transition-[width] duration-700" style={{ width: `${pct}%`, background: color }} />
+      <div className="h-full transition-[width] duration-700" style={{ width: `${pct}%`, background: color }} />
     </div>
   );
 }
@@ -245,7 +245,7 @@ export function Meter({ value, max = 1, tone = 'accent', className, label }: { v
 export function Empty({ icon, title, body, action }: { icon?: ReactNode; title: ReactNode; body?: ReactNode; action?: ReactNode }) {
   return (
     <div className="flex flex-col items-center px-6 py-12 text-center">
-      {icon && <div className="mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-surface-3 text-muted">{icon}</div>}
+      {icon && <div className="mb-3 grid h-12 w-12 place-items-center rounded-[3px] border border-line-strong text-muted">{icon}</div>}
       <div className="font-semibold text-ink">{title}</div>
       {body && <div className="mt-1 max-w-sm text-sm text-muted">{body}</div>}
       {action && <div className="mt-4">{action}</div>}
@@ -267,13 +267,16 @@ export function SectionTitle({ children, action, eyebrow, className }: { childre
 
 export function PageHeader({ title, eyebrow, actions, children }: { title: ReactNode; eyebrow?: ReactNode; actions?: ReactNode; children?: ReactNode }) {
   return (
-    <header className="mb-5 flex flex-wrap items-end justify-between gap-x-4 gap-y-3 pt-1">
-      <div className="min-w-0">
-        {eyebrow && <div className="eyebrow mb-1">{eyebrow}</div>}
-        <h1 className="font-display text-[28px] leading-tight text-ink md:text-[32px]">{title}</h1>
-        {children}
+    <header className="mb-6 pt-1">
+      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3 pb-4">
+        <div className="min-w-0">
+          {eyebrow && <div className="eyebrow mb-2">{eyebrow}</div>}
+          <h1 className="font-display text-[32px] leading-[1.05] text-ink md:text-[44px]">{title}</h1>
+          {children}
+        </div>
+        {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      <div className="rule-deco" />
     </header>
   );
 }
@@ -348,7 +351,7 @@ export function Sheet({
         aria-labelledby={labelledBy ?? (title ? tid : undefined)}
         tabIndex={-1}
         className={cx(
-          'relative flex max-h-[94dvh] w-full flex-col overflow-hidden rounded-t-[22px] bg-surface outline-none sm:max-h-[88dvh] sm:rounded-[18px]',
+          'relative flex max-h-[94dvh] w-full flex-col overflow-hidden rounded-t-[14px] bg-surface outline-none sm:max-h-[88dvh] sm:rounded-[6px]',
           'animate-[sheetUp_.32s_cubic-bezier(.2,.8,.2,1)] sm:animate-[pop_.22s_ease]',
           w,
         )}

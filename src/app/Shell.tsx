@@ -47,60 +47,72 @@ export const NAV: NavItem[] = [
 
 const isActive = (route: string, item: string) => (item === '/' ? route === '/' : route === item || route.startsWith(item + '/'));
 
+const NAV_GROUPS: { label: () => string; routes: string[] }[] = [
+  { label: () => tx('工作', 'Work'), routes: ['/', '/jobs', '/clients', '/money'] },
+  { label: () => tx('成果', 'Record'), routes: ['/insights', '/resume', '/wrapped'] },
+  { label: () => tx('工具', 'Utilities'), routes: ['/tools', '/tax', '/settings'] },
+];
+
 export function Sidebar() {
   const { route, navigate, openQuickAdd, setPalette } = useUI();
   const { settings, jobs, today } = useData();
   const overdue = jobs.filter((j) => j.status === 'active' && j.dueAt && j.dueAt.slice(0, 10) < today).length;
   return (
     <aside className="no-print fixed inset-y-0 left-0 z-30 hidden w-[232px] flex-col border-r border-line bg-surface lg:flex">
-      <div className="px-5 pb-4 pt-5">
+      <div className="px-5 pb-5 pt-6">
         <button type="button" onClick={() => navigate('/')} aria-label={tx('回到總覽', 'Go to overview')}>
           <Wordmark />
         </button>
       </div>
-      <div className="px-3">
+      <div className="px-4">
         <button type="button" className="btn btn-primary w-full justify-between" onClick={() => openQuickAdd()}>
           <span className="inline-flex items-center gap-2">
-            <Plus size={17} strokeWidth={2.4} />
+            <Plus size={16} strokeWidth={2.4} />
             {tx('新增案件', 'New job')}
           </span>
-          <span className="rounded bg-white/20 px-1.5 font-mono text-[11px]">N</span>
+          <span className="rounded-[2px] border border-white/25 px-1.5 font-mono text-[10.5px] leading-[18px] dark:border-black/25">N</span>
         </button>
         <button
           type="button"
           onClick={() => setPalette(true)}
-          className="mt-2 flex h-9 w-full items-center gap-2 rounded-[10px] border border-line bg-surface-2 px-3 text-[13px] text-muted transition-colors hover:text-ink"
+          className="mt-2 flex h-9 w-full items-center gap-2 rounded-[3px] border border-line-strong px-3 text-[13px] text-muted transition-colors hover:border-ink hover:text-ink"
         >
           <Command size={14} />
-          <span className="flex-1 text-left">{tx('搜尋與指令', 'Search & commands')}</span>
+          <span className="flex-1 text-left">{tx('搜尋', 'Search')}</span>
           <Kbd>⌘K</Kbd>
         </button>
       </div>
-      <nav className="mt-4 flex-1 overflow-y-auto px-3 pb-4" aria-label={tx('主選單', 'Main')}>
-        {NAV.filter((n) => !n.twOnly || settings.tax.region === 'TW').map((n) => {
-          const active = isActive(route, n.route);
-          const Icon = n.icon;
-          return (
-            <button
-              key={n.route}
-              type="button"
-              onClick={() => navigate(n.route)}
-              aria-current={active ? 'page' : undefined}
-              className={cx(
-                'group relative mb-0.5 flex h-10 w-full items-center gap-3 rounded-[10px] px-3 text-[14.5px] transition-colors',
-                active ? 'bg-accent-soft font-semibold text-ink' : 'text-ink-2 hover:bg-surface-2 hover:text-ink',
-              )}
-            >
-              <Icon size={18} strokeWidth={active ? 2.3 : 1.9} className={active ? 'text-accent' : 'text-muted group-hover:text-ink-2'} />
-              <span className="flex-1 text-left">{n.label()}</span>
-              {n.route === '/jobs' && overdue > 0 && <span className="rounded-full bg-bad px-1.5 text-[11px] font-semibold text-white tnum">{overdue}</span>}
-            </button>
-          );
-        })}
+      <nav className="mt-5 flex-1 overflow-y-auto px-4 pb-4" aria-label={tx('主選單', 'Main')}>
+        {NAV_GROUPS.map((g) => (
+          <div key={g.routes[0]} className="mb-4">
+            <div className="eyebrow mb-1.5 px-2 !text-[9.5px]">{g.label()}</div>
+            {NAV.filter((n) => g.routes.includes(n.route) && (!n.twOnly || settings.tax.region === 'TW')).map((n) => {
+              const active = isActive(route, n.route);
+              const Icon = n.icon;
+              return (
+                <button
+                  key={n.route}
+                  type="button"
+                  onClick={() => navigate(n.route)}
+                  aria-current={active ? 'page' : undefined}
+                  className={cx(
+                    'group relative flex h-9 w-full items-center gap-3 rounded-[2px] px-2 text-[14px] transition-colors',
+                    active ? 'bg-surface-3 font-semibold text-ink' : 'text-ink-2 hover:text-ink',
+                  )}
+                >
+                  {active && <span className="absolute inset-y-1.5 left-0 w-[2px] bg-gold" />}
+                  <Icon size={16} strokeWidth={active ? 2.1 : 1.7} className={active ? 'text-ink' : 'text-muted group-hover:text-ink'} />
+                  <span className="flex-1 text-left">{n.label()}</span>
+                  {n.route === '/jobs' && overdue > 0 && <span className="rounded-[2px] bg-bad px-1.5 text-[11px] font-semibold text-white tnum">{overdue}</span>}
+                </button>
+              );
+            })}
+          </div>
+        ))}
       </nav>
       <div className="flex flex-col gap-2 border-t border-line p-3">
         <SyncBadge />
-        <LangToggle className="self-start ml-3" />
+        <LangToggle className="ml-3 self-start" />
       </div>
     </aside>
   );
@@ -112,7 +124,7 @@ export function TabBar() {
   const { route, navigate, openQuickAdd, setMore } = useUI();
   return (
     <nav
-      className="no-print fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 backdrop-blur-md lg:hidden"
+      className="no-print fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface lg:hidden"
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       aria-label={tx('主選單', 'Main')}
     >
@@ -125,8 +137,8 @@ export function TabBar() {
                   type="button"
                   onClick={() => openQuickAdd()}
                   aria-label={tx('新增案件', 'New job')}
-                  className="grid h-12 w-12 place-items-center rounded-2xl bg-accent text-accent-ink transition-transform active:scale-95"
-                  style={{ boxShadow: '0 6px 18px color-mix(in srgb, var(--accent) 40%, transparent)' }}
+                  className="grid h-11 w-11 place-items-center rounded-[4px] bg-ink text-surface transition-transform active:scale-95"
+                  style={{ boxShadow: 'inset 0 -2px 0 var(--gold)' }}
                 >
                   <Plus size={24} strokeWidth={2.5} />
                 </button>
@@ -141,9 +153,10 @@ export function TabBar() {
               type="button"
               onClick={() => (item ? navigate(item.route) : setMore(true))}
               aria-current={active ? 'page' : undefined}
-              className={cx('flex h-full flex-col items-center justify-center gap-0.5 text-[11px] font-medium', active ? 'text-accent' : 'text-muted')}
+              className={cx('relative flex h-full flex-col items-center justify-center gap-0.5 text-[11px] font-medium', active ? 'text-ink' : 'text-muted')}
             >
-              <Icon size={21} strokeWidth={active ? 2.3 : 1.9} />
+              {active && <span className="absolute left-1/2 top-0 h-[2px] w-6 -translate-x-1/2 bg-gold" />}
+              <Icon size={20} strokeWidth={active ? 2.1 : 1.7} />
               {item ? item.label() : tx('更多', 'More')}
             </button>
           );
@@ -157,7 +170,7 @@ export function TabBar() {
 export function LangToggle({ className }: { className?: string }) {
   const lang = getLang();
   return (
-    <div role="group" aria-label={tx('介面語言', 'Language')} className={cx('inline-flex rounded-[9px] border border-line bg-surface-2 p-0.5 text-[12.5px]', className)}>
+    <div role="group" aria-label={tx('介面語言', 'Language')} className={cx('inline-flex rounded-[3px] border border-line-strong p-0.5 text-[12px]', className)}>
       {(
         [
           ['zh-TW', '中文'],
@@ -169,7 +182,7 @@ export function LangToggle({ className }: { className?: string }) {
           type="button"
           aria-pressed={lang === v}
           onClick={() => lang !== v && void updateSettings({ lang: v })}
-          className={cx('h-7 rounded-[7px] px-2.5 font-medium transition-colors', lang === v ? 'bg-surface text-ink shadow-[0_1px_2px_rgb(0_0_0/0.08)]' : 'text-muted hover:text-ink')}
+          className={cx('h-7 rounded-[2px] px-2.5 font-medium transition-colors', lang === v ? 'bg-ink text-surface' : 'text-muted hover:text-ink')}
         >
           {l}
         </button>
@@ -184,7 +197,7 @@ export function MoreSheet() {
   const items = NAV.filter((n) => !['/', '/jobs', '/insights'].includes(n.route) && (!n.twOnly || settings.tax.region === 'TW'));
   return (
     <Sheet open={more} onClose={() => setMore(false)} title={tx('更多', 'More')} size="sm">
-      <div className="grid grid-cols-3 gap-2 pb-2">
+      <div className="grid grid-cols-2 gap-2 pb-2 min-[380px]:grid-cols-3">
         {items.map((n) => {
           const Icon = n.icon;
           return (
@@ -192,9 +205,9 @@ export function MoreSheet() {
               key={n.route}
               type="button"
               onClick={() => navigate(n.route)}
-              className="flex flex-col items-center gap-2 rounded-2xl border border-line bg-surface-2 px-2 py-4 text-[13px] font-medium text-ink transition-colors active:bg-surface-3"
+              className="flex flex-col items-start gap-3 rounded-[3px] border border-line px-3 py-3.5 text-[13px] font-medium text-ink transition-colors active:bg-surface-3"
             >
-              <Icon size={22} className="text-accent" />
+              <Icon size={19} strokeWidth={1.8} className="text-ink" />
               {n.label()}
             </button>
           );
@@ -221,8 +234,8 @@ export function TimerPill() {
   const job = jobMap.get(running.jobId);
   return (
     <div className="no-print fixed bottom-[78px] left-1/2 z-40 -translate-x-1/2 lg:bottom-5 lg:left-[calc(50%+116px)]" style={{ marginBottom: 'env(safe-area-inset-bottom, 0px)' }}>
-      <div className="flex items-center gap-2 rounded-full border border-line bg-ink py-1.5 pl-3 pr-1.5 text-surface" style={{ boxShadow: 'var(--shadow-lg)' }}>
-        <span className="h-2 w-2 rounded-full bg-seal animate-[pulseDot_1.4s_ease_infinite]" />
+      <div className="flex items-center gap-2.5 rounded-[4px] bg-ink py-1.5 pl-3 pr-1.5 text-surface" style={{ boxShadow: 'var(--shadow-lg)' }}>
+        <span className="h-2 w-2 rounded-[1px] bg-gold animate-[pulseDot_1.4s_ease_infinite]" />
         <button type="button" className="max-w-[160px] truncate text-left text-[13px] font-medium sm:max-w-[260px]" onClick={() => job && navigate('/jobs/' + job.id)}>
           {job?.title || tx('計時中', 'Timing')}
         </button>
@@ -230,7 +243,7 @@ export function TimerPill() {
         <button
           type="button"
           onClick={() => stopTimer()}
-          className="grid h-8 w-8 place-items-center rounded-full bg-surface text-ink"
+          className="grid h-8 w-8 place-items-center rounded-[3px] bg-surface text-ink"
           aria-label={tx('停止計時', 'Stop timer')}
         >
           <Square size={13} fill="currentColor" />
@@ -247,14 +260,14 @@ export function Toasts() {
       {toasts.map((t) => (
         <div
           key={t.id}
-          className="pointer-events-auto flex max-w-md items-center gap-3 rounded-xl bg-ink px-4 py-2.5 text-[14px] text-surface animate-[pop_.2s_ease]"
+          className="pointer-events-auto flex max-w-md items-center gap-3 rounded-[4px] bg-ink px-4 py-2.5 text-[14px] text-surface animate-[pop_.2s_ease]"
           style={{ boxShadow: 'var(--shadow-lg)' }}
         >
           <span className="min-w-0 flex-1">{t.text}</span>
           {t.action && (
             <button
               type="button"
-              className="shrink-0 font-semibold text-accent-soft underline-offset-2 hover:underline"
+              className="shrink-0 font-semibold text-gold underline-offset-2 hover:underline"
               onClick={() => {
                 t.action!.run();
                 dismissToast(t.id);
@@ -293,40 +306,41 @@ export function ConfirmDialog() {
   );
 }
 
-/** The vermilion “paid” seal that thumps onto the screen. */
+/** The brass “paid” medallion: rings, a sunburst of ticks, a drawn check. */
 export function StampLayer() {
   const { stamp, clearStamp } = useUI();
   useEffect(() => {
     if (!stamp) return;
-    const t = setTimeout(clearStamp, 2000);
+    const t = setTimeout(clearStamp, 2100);
     return () => clearTimeout(t);
   }, [stamp, clearStamp]);
   if (!stamp) return null;
+  const ticks = Array.from({ length: 60 }, (_, i) => {
+    const a = (i / 60) * Math.PI * 2;
+    const long = i % 5 === 0;
+    return <line key={i} x1={100 + Math.cos(a) * (long ? 70 : 74)} y1={100 + Math.sin(a) * (long ? 70 : 74)} x2={100 + Math.cos(a) * 79} y2={100 + Math.sin(a) * 79} stroke="var(--gold)" strokeWidth={long ? 1.6 : 0.8} />;
+  });
   return (
     <div key={stamp.key} aria-live="polite" className="no-print">
       <div className="stamp-ring" />
       <div className="stamp">
-        <svg width="250" height="150" viewBox="0 0 250 150" role="img" aria-label={stamp.label}>
-          <defs>
-            <filter id="ink-rough">
-              <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3" result="n" />
-              <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.6 1.25" result="m" />
-              <feComposite in="SourceGraphic" in2="m" operator="in" />
-            </filter>
-          </defs>
-          <g filter="url(#ink-rough)" fill="none" stroke="var(--seal)">
-            <rect x="8" y="8" width="234" height="134" rx="16" strokeWidth="7" />
-            <rect x="20" y="20" width="210" height="110" rx="9" strokeWidth="2" />
-            <text x="125" y="78" textAnchor="middle" fill="var(--seal)" stroke="none" fontFamily="'LXGW WenKai TC', 'PingFang TC', serif" fontWeight="700" fontSize="46" letterSpacing="6">
+        <div className="on-ink grid place-items-center rounded-full p-3" style={{ background: '#0b0b0c', boxShadow: '0 30px 80px rgb(0 0 0 / 0.45)' }}>
+          <svg width="200" height="200" viewBox="0 0 200 200" role="img" aria-label={stamp.label}>
+            <circle cx="100" cy="100" r="96" fill="none" stroke="var(--gold)" strokeWidth="1.5" />
+            <circle cx="100" cy="100" r="90" fill="none" stroke="var(--gold)" strokeWidth="0.6" />
+            {ticks}
+            <circle cx="100" cy="100" r="62" fill="none" stroke="var(--gold)" strokeWidth="0.8" />
+            <path d="M72 101 L92 120 L130 80" fill="none" stroke="var(--gold)" strokeWidth="6" strokeLinecap="square" strokeLinejoin="miter" style={{ strokeDasharray: 90, ['--len' as string]: 90, animation: 'drawLine .5s ease .25s both' }} />
+            <text x="100" y="152" textAnchor="middle" fill="var(--gold)" style={{ fontFamily: "'Archivo', 'Noto Sans TC', sans-serif", fontStretch: '125%', fontWeight: 700, fontSize: 12, letterSpacing: '0.3em' }}>
               {stamp.label}
             </text>
             {stamp.sub && (
-              <text x="125" y="112" textAnchor="middle" fill="var(--seal)" stroke="none" fontFamily="'IBM Plex Mono', monospace" fontWeight="500" fontSize="15" letterSpacing="3">
+              <text x="100" y="56" textAnchor="middle" fill="var(--gold)" style={{ fontFamily: "'Geist Mono', monospace", fontSize: 9, letterSpacing: '0.24em' }}>
                 {stamp.sub}
               </text>
             )}
-          </g>
-        </svg>
+          </svg>
+        </div>
       </div>
     </div>
   );

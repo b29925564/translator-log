@@ -136,7 +136,7 @@ function CountTool() {
             {stats.map((s) => (
               <div key={s.l}>
                 <div className="text-[12px] text-muted">{s.l}</div>
-                <div className="text-[20px] font-semibold text-ink tnum">{num(s.v)}</div>
+                <div className="text-[20px] font-medium tracking-[-0.03em] text-ink tnum">{num(s.v)}</div>
               </div>
             ))}
           </div>
@@ -159,7 +159,7 @@ function CountTool() {
               <div className="text-[12.5px] text-muted">
                 {num(billable)} {unit === 'char' ? tx('字', 'chars') : tx('字', 'words')} × {rate ? fmtRateStr(rate, cur) : '—'}
               </div>
-              <div className="text-[26px] font-semibold text-ink">{money(amount, cur)}</div>
+              <div className="text-[26px] font-medium tracking-[-0.03em] text-ink">{money(amount, cur)}</div>
               {billable > 0 && (
                 <div className="mt-1 text-[12.5px] text-muted">
                   {tx(`約 ${num((unit === 'char' ? billable / 1.6 : billable) / speed.wph, 1)} 小時工作量`, `About ${num((unit === 'char' ? billable / 1.6 : billable) / speed.wph, 1)} hours of work`)}
@@ -270,17 +270,17 @@ function QuoteTool() {
           <div className="grid gap-4 sm:grid-cols-3">
             <div>
               <div className="text-[12.5px] text-muted">{tx('這案子的收入', 'This job pays')}</div>
-              <div className="text-[26px] font-semibold text-ink">{money(jobGross(job), q.currency)}</div>
+              <div className="text-[26px] font-medium tracking-[-0.03em] text-ink">{money(jobGross(job), q.currency)}</div>
               {q.currency !== base && <div className="text-[12.5px] text-muted">≈ {money(jobGrossBase(job), base)}</div>}
             </div>
             <div>
               <div className="text-[12.5px] text-muted">{tx('預估工時', 'Estimated work')}</div>
-              <div className="text-[26px] font-semibold text-ink">{num(hours, 1)} h</div>
+              <div className="text-[26px] font-medium tracking-[-0.03em] text-ink">{num(hours, 1)} h</div>
               <div className="text-[12.5px] text-muted">{speed.measured ? tx('依你的實測速度', 'From your measured speed') : tx('依設定速度', 'From your settings')}</div>
             </div>
             <div>
               <div className="text-[12.5px] text-muted">{tx('換算時薪', 'Works out to')}</div>
-              <div className="text-[26px] font-semibold text-ink">{hours > 0 ? money(jobGrossBase(job) / hours, base) : '—'}</div>
+              <div className="text-[26px] font-medium tracking-[-0.03em] text-ink">{hours > 0 ? money(jobGrossBase(job) / hours, base) : '—'}</div>
               <div className="text-[12.5px] text-muted">{tx('每小時', 'per hour')}</div>
             </div>
           </div>
@@ -360,7 +360,7 @@ function CatTool() {
           <div className="text-[12.5px] text-muted">{tx('全額計價', 'Without discounts')}</div>
           <div className="text-[18px] font-semibold text-ink-2 line-through decoration-muted/60">{money(total * (rate || 0), cur)}</div>
           <div className="mt-2 text-[12.5px] text-muted">{tx('加權後應收', 'After CAT weighting')}</div>
-          <div className="text-[28px] font-semibold text-ink">{money(w * (rate || 0), cur)}</div>
+          <div className="text-[28px] font-medium tracking-[-0.03em] text-ink">{money(w * (rate || 0), cur)}</div>
           {total > 0 && <div className="mt-1 text-[12.5px] text-muted">{tx(`折讓 ${pct(1 - w / total)}`, `${pct(1 - w / total)} discount`)}</div>}
         </div>
       </section>
@@ -389,7 +389,7 @@ function FxTool() {
         <div className="flex items-end gap-2">
           <div className="flex-1 rounded-xl bg-surface-2 p-3">
             <div className="text-[12.5px] text-muted">{tx('換算結果', 'Result')}</div>
-            <div className="text-[26px] font-semibold text-ink">{money(out, to)}</div>
+            <div className="text-[26px] font-medium tracking-[-0.03em] text-ink">{money(out, to)}</div>
           </div>
           <Button iconOnly variant="ghost" icon={<ArrowLeftRight size={16} />} aria-label={tx('對調', 'Swap')} onClick={() => { setFrom(to); setTo(from); }} />
           <Field label={tx('到', 'To')}>

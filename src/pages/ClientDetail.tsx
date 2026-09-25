@@ -77,17 +77,17 @@ export function ClientDetail({ id }: { id: string }) {
         </div>
       </header>
 
-      <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="ruled mb-4 grid-cols-2 md:grid-cols-4">
         {[
           { label: tx('累計收入', 'Total income'), value: money(s.income, base, { compact: true }), sub: tx(`佔總收入 ${pct(s.share)}`, `${pct(s.share)} of all income`) },
           { label: tx('案件／字數', 'Jobs / words'), value: num(s.jobs), sub: tx(`${num(s.words)} 字`, `${num(s.words)} words`) },
           { label: tx('每字均價', 'Per word'), value: s.ratePerWord ? fmtRateStr(s.ratePerWord, base) : '—', sub: median && s.ratePerWord ? tx(`你的中位數 ${fmtRateStr(median, base)}`, `Your median ${fmtRateStr(median, base)}`) : undefined },
           { label: tx('平均付款天數', 'Avg days to pay'), value: s.avgDaysToPay != null ? `${Math.round(s.avgDaysToPay)}` : '—', sub: s.onTimeShare != null ? tx(`準時 ${pct(s.onTimeShare)}`, `${pct(s.onTimeShare)} on time`) : undefined },
         ].map((t) => (
-          <div key={t.label} className="card p-4">
-            <div className="text-[12.5px] text-muted">{t.label}</div>
-            <div className="mt-1 text-[22px] font-semibold text-ink">{t.value}</div>
-            {t.sub && <div className="mt-0.5 text-[12px] text-muted">{t.sub}</div>}
+          <div key={t.label} className="min-w-0 p-5">
+            <div className="eyebrow truncate">{t.label}</div>
+            <div className="tnum mt-3 truncate text-[24px] font-medium leading-none tracking-[-0.03em] text-ink">{t.value}</div>
+            {t.sub && <div className="mt-2 text-[12px] text-muted">{t.sub}</div>}
           </div>
         ))}
       </div>

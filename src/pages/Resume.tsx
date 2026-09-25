@@ -151,11 +151,11 @@ export function Resume() {
               <pre className="whitespace-pre-wrap font-sans text-[14px] leading-relaxed text-ink">{md}</pre>
             </section>
           ) : (
-            <article className="print-page mx-auto max-w-[820px] rounded-2xl border border-line bg-white p-8 text-[#15202b] sm:p-12" style={{ boxShadow: 'var(--shadow)', colorScheme: 'light' }}>
-              <header className="border-b-2 border-[#15202b] pb-5">
+            <article className="print-page mx-auto max-w-[820px] rounded-[4px] border border-line bg-white p-8 text-[#0b0b0c] sm:p-12" style={{ boxShadow: 'var(--shadow)', colorScheme: 'light' }}>
+              <header className="pb-5">
                 <div className="flex flex-wrap items-end justify-between gap-3">
                   <div>
-                    <h2 className="font-display text-[36px] leading-none">{r.name || T('你的名字', 'Your Name')}</h2>
+                    <h2 className="font-display text-[40px] leading-none">{r.name || T('你的名字', 'Your Name')}</h2>
                     {zh && settings.profile.nameEn && <div className="mt-1.5 text-[14px] tracking-wide text-[#51606d]">{settings.profile.nameEn}</div>}
                   </div>
                   <div className="text-right text-[12.5px] leading-relaxed text-[#51606d]">
@@ -163,8 +163,9 @@ export function Resume() {
                     {settings.profile.website && <div>{settings.profile.website}</div>}
                   </div>
                 </div>
-                <p className="mt-3 text-[15px] font-medium text-[#0e7c6b]">{r.headline}</p>
+                <p className="mt-3 text-[15px] font-medium text-[#87672b]">{r.headline}</p>
               </header>
+              <div className="h-[5px] border-y border-[#0b0b0c]" style={{ borderTopWidth: 2 }} />
 
               <section className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
                 {[
@@ -174,7 +175,7 @@ export function Resume() {
                   { v: String(r.stats.years), l: T('自由譯者年資', 'Years freelancing'), u: zh ? '年' : '' },
                 ].map((s) => (
                   <div key={s.l}>
-                    <div className="text-[28px] font-semibold leading-none">
+                    <div className="text-[30px] font-medium leading-none tracking-[-0.03em]">
                       {s.v}
                       <span className="ml-0.5 text-[15px] font-medium text-[#51606d]">{s.u}</span>
                     </div>
@@ -195,8 +196,8 @@ export function Resume() {
                           <span>{d.label}</span>
                           <span className="text-[#51606d] tnum">{d.words ? (zh ? `${bigNumber(d.words, 'zh')}字` : `${bigNumber(d.words, 'en')} words`) : T(`${d.jobs} 件`, `${d.jobs} projects`)}</span>
                         </div>
-                        <div className="mt-1 h-1.5 rounded-full bg-[#e7ecea]">
-                          <div className="h-full rounded-full bg-[#2a78d6]" style={{ width: `${Math.max(3, (d.words / maxDomain) * 100)}%` }} />
+                        <div className="mt-1.5 h-[3px] bg-[#e7e7e4]">
+                          <div className="h-full bg-[#0b0b0c]" style={{ width: `${Math.max(3, (d.words / maxDomain) * 100)}%` }} />
                         </div>
                       </li>
                     ))}
@@ -219,7 +220,7 @@ export function Resume() {
                       <h3 className="mb-2 text-[11.5px] font-semibold uppercase tracking-[0.14em] text-[#7a8793]">{T('服務項目', 'Services')}</h3>
                       <div className="flex flex-wrap gap-1.5">
                         {r.services.slice(0, 6).map((s) => (
-                          <span key={s.label} className="rounded-md border border-[#c9d2d8] px-2 py-0.5 text-[12px]">
+                          <span key={s.label} className="rounded-[2px] border border-[#c9c9c4] px-2 py-0.5 text-[12px]">
                             {s.label}
                           </span>
                         ))}
@@ -231,7 +232,7 @@ export function Resume() {
                       <h3 className="mb-2 text-[11.5px] font-semibold uppercase tracking-[0.14em] text-[#7a8793]">{T('CAT 工具', 'CAT tools')}</h3>
                       <div className="flex flex-wrap gap-1.5">
                         {r.tools.slice(0, 6).map((s) => (
-                          <span key={s} className="rounded-md bg-[#e7ecea] px-2 py-0.5 font-mono text-[11.5px]">
+                          <span key={s} className="rounded-[2px] bg-[#ececea] px-2 py-0.5 font-mono text-[11.5px]">
                             {s}
                           </span>
                         ))}
@@ -276,7 +277,7 @@ export function Resume() {
             <ul className="divide-y divide-line border-t border-line">
               {featuredPool.map((j) => (
                 <li key={j.id} className="flex items-center gap-3 px-4 py-2.5">
-                  <button type="button" onClick={() => void saveJob({ ...j, featured: !j.featured })} aria-pressed={!!j.featured} aria-label={tx('代表作', 'Featured')} className={cx('grid h-8 w-8 shrink-0 place-items-center rounded-full transition-colors', j.featured ? 'text-warn' : 'text-line-strong hover:text-muted')}>
+                  <button type="button" onClick={() => void saveJob({ ...j, featured: !j.featured })} aria-pressed={!!j.featured} aria-label={tx('代表作', 'Featured')} className={cx('grid h-8 w-8 shrink-0 place-items-center rounded-full transition-colors', j.featured ? 'text-gold' : 'text-line-strong hover:text-muted')}>
                     <Star size={18} fill={j.featured ? 'currentColor' : 'none'} />
                   </button>
                   <span className="min-w-0 flex-1">

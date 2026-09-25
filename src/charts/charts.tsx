@@ -228,7 +228,7 @@ export function ColumnChart({
                 style={{ cursor: onSelect ? 'pointer' : 'default' }}
               >
                 <rect x={padL + slot * i} y={padT} width={slot} height={plotH} fill="transparent" />
-                {he > 0 && <path d={barPath(cx0, y(d.value + (d.extra || 0)), bw, Math.max(0, he - gap))} fill={color} opacity={0.3} />}
+                {he > 0 && <path d={barPath(cx0, y(d.value + (d.extra || 0)), bw, Math.max(0, he - gap))} fill={color} style={{ opacity: 'var(--extra-alpha, 0.3)' }} />}
                 {hv > 0 && <path d={he > 0 ? `M${cx0},${y(0)}V${y(d.value)}H${cx0 + bw}V${y(0)}Z` : barPath(cx0, y(d.value), bw, hv)} fill={color} opacity={hover == null || hover === i ? 1 : 0.55} />}
                 {(i % labelEvery === 0 || d.highlight) && (
                   <text x={padL + slot * i + slot / 2} y={height - 6} textAnchor="middle" fontSize={11} fill={d.highlight ? 'var(--ink)' : 'var(--muted)'} fontWeight={d.highlight ? 600 : 400}>
@@ -618,7 +618,7 @@ export function Sparkline({ values, width = 96, height = 28, color = 'var(--seri
 
 export function SegmentBar({ parts }: { parts: { key: string; value: number; color: string; label: string; display: string }[] }) {
   const total = parts.reduce((s, p) => s + p.value, 0);
-  if (!total) return <div className="h-2.5 rounded-full bg-surface-3" />;
+  if (!total) return <div className="h-2.5 rounded-[2px] bg-surface-3" />;
   let acc = 0;
   return (
     <div>
