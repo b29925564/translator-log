@@ -24,6 +24,7 @@ import { useSpeed } from '../features/common';
 import { insightView } from '../features/insightText';
 import { SkylineHero } from '../features/SkylineHero';
 import { TodayPlan } from '../features/TodayPlan';
+import { ProjectsMini } from '../features/ProjectsMini';
 import { FirstSteps } from '../features/FirstSteps';
 import { Odometer } from '../ui/motion';
 
@@ -131,7 +132,8 @@ export function Dashboard() {
         <div className="min-w-0 lg:col-span-7">
           <TodayPlan />
         </div>
-        <div className="ruled min-w-0 grid-cols-2 lg:col-span-5">
+        <div className="flex min-w-0 flex-col gap-4 lg:col-span-5">
+        <div className="ruled min-w-0 grid-cols-2">
           <Tile
             label={tx(`${monthName} · 已完成收入`, `Earned · ${monthName}`)}
             value={<Odometer text={money(m.earnedNow.income, base)} />}
@@ -183,6 +185,8 @@ export function Dashboard() {
             value={m.hourly ? money(m.hourly, base) : '—'}
             sub={m.hourly ? tx('近 90 天計時案件', 'Timed jobs, last 90 days') : tx('用計時器累積數據', 'Use the timer to measure')}
           />
+        </div>
+        <ProjectsMini />
         </div>
       </div>
 

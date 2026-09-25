@@ -123,6 +123,45 @@ await suite('New user, English', { locale: 'en-US' }, async (page, step) => {
     if (!doc || !doc.includes('Mei Chen') || !doc.startsWith('<!doctype html>')) throw new Error('portfolio HTML missing or incomplete');
     await page.keyboard.press('Escape');
   });
+  await step('a big project splits into parts from a template', async () => {
+    await page.evaluate(() => (location.hash = '/projects'));
+    await expectVisible(page.getByText('大案子，拆開來管'));
+    await page.getByRole('button', { name: '新增專案' }).first().click();
+    await page.getByRole('textbox', { name: '專案名稱' }).fill('Starfall');
+    await page.locator('#pj-client').selectOption({ label: 'Harbor & Quill' });
+    await expectVisible(page.getByText('將建立 4 個部分'));
+    await page.getByRole('button', { name: '建立專案' }).click();
+    await expectVisible(page.getByRole('heading', { name: 'Starfall' }));
+    for (const part of ['預告片字幕', '過場動畫', '劇情對話', '介面文字']) await expectVisible(page.locator('li').filter({ hasText: part }));
+  });
+  await step('adding a part and starting it puts it on the Today plan', async () => {
+    await page.getByRole('button', { name: '新增部分' }).first().click();
+    await page.getByRole('button', { name: '道具與技能說明' }).click();
+    await page.getByLabel('份量').fill('3000');
+    await page.getByLabel('截止日').fill('2099-01-01');
+    await page.getByRole('button', { name: '新增', exact: true }).click();
+    await expectVisible(page.getByText('部分（5）'));
+    await page.locator('li').filter({ hasText: '道具與技能說明' }).getByRole('button', { name: '開始' }).click();
+    await expectVisible(page.locator('li').filter({ hasText: '道具與技能說明' }).getByText('進行中'));
+    await page.evaluate(() => (location.hash = '/'));
+    await expectVisible(page.locator('li').filter({ hasText: 'Starfall｜道具與技能說明' }));
+    await expectVisible(page.getByRole('heading', { name: '專案' }));
+  });
+  await step('the query log tracks questions until answered', async () => {
+    await page.evaluate(() => (location.hash = '/projects'));
+    await page.locator('button.card').filter({ hasText: 'Starfall' }).click();
+    await page.getByLabel('新問題').fill('Keep character names in English?');
+    await page.getByLabel('相關部分').selectOption({ label: '過場動畫' });
+    await page.getByLabel('參照').fill('CS_001');
+    await page.getByRole('button', { name: '加入', exact: true }).first().click();
+    await expectVisible(page.getByText('1 個待回覆'));
+    await page.getByLabel('標為已寄出').first().click();
+    await expectVisible(page.getByText('已寄出', { exact: true }));
+    await page.getByLabel('記錄回覆').first().click();
+    await page.getByLabel('回覆', { exact: true }).fill('Yes, keep them.');
+    await page.getByRole('button', { name: '儲存', exact: true }).click();
+    await expectVisible(page.getByText('0 個待回覆'));
+  });
   await step('text shared into the app opens Quick Add', async () => {
     await page.goto(BASE + '?text=' + encodeURIComponent('Pixelforge patch notes 2000 words $0.1/word'));
     await expectVisible(page.getByText('一句話新增案件').first());
@@ -156,6 +195,20 @@ await suite('Sample data, 繁體中文', { locale: 'zh-TW' }, async (page, step)
     await expectVisible(page.getByText('里程碑紀念章'));
     if ((await page.locator('.tilt').count()) < 3) throw new Error('medals missing');
   });
+  await step('the sample game project is organised by part', async () => {
+    await page.goto(BASE + '#/projects');
+    await page.locator('button.card').filter({ hasText: '星墜紀元' }).click();
+    await expectVisible(page.getByText('時程'));
+    const rows = await page.locator('svg[aria-label^="7 個部分"]').count();
+    if (!rows) throw new Error('timeline missing');
+    await expectVisible(page.getByText('3 個待回覆'));
+  });
+  await step('delivered parts go on one invoice', async () => {
+    await page.getByRole('button', { name: /請款 2 個已交稿部分/ }).click();
+    await expectVisible(page.getByText('2 個項目，合計'));
+    await page.getByRole('button', { name: '建立', exact: true }).click();
+    await expectVisible(page.getByRole('button', { name: '標記已付款' }));
+  });
   await step('command palette finds a job', async () => {
     await page.keyboard.press('Control+k');
     await page.getByPlaceholder(/搜尋/).fill('心臟');
@@ -173,7 +226,7 @@ await suite('Phone', { locale: 'zh-TW', viewport: { width: 390, height: 844 }, i
     await page.getByRole('button', { name: '更多' }).click();
     await expectVisible(page.getByRole('button', { name: '履歷' }));
   });
-  for (const route of ['/', '/jobs', '/clients', '/money', '/insights', '/resume', '/tools', '/tax', '/settings', '/wrapped']) {
+  for (const route of ['/', '/projects', '/jobs', '/clients', '/money', '/insights', '/resume', '/tools', '/tax', '/settings', '/wrapped']) {
     await step(`${route} fits the screen`, async () => {
       await page.keyboard.press('Escape');
       await page.evaluate((r) => (location.hash = r), route);
@@ -182,6 +235,14 @@ await suite('Phone', { locale: 'zh-TW', viewport: { width: 390, height: 844 }, i
       if (over > 1) throw new Error(`page is ${over}px wider than the screen`);
     });
   }
+  await step('a project page fits the screen', async () => {
+    await page.evaluate(() => (location.hash = '/projects'));
+    await page.waitForTimeout(500);
+    await page.locator('button.card').first().click();
+    await page.waitForTimeout(800);
+    const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    if (over > 1) throw new Error(`page is ${over}px wider than the screen`);
+  });
   await step('focus mode fits the screen', async () => {
     await page.evaluate(() => (location.hash = '/'));
     await page.waitForTimeout(500);

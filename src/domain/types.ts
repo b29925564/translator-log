@@ -96,6 +96,51 @@ export interface Job extends SyncMeta {
   featured?: boolean;
   confidential?: boolean;
   publicTitle?: string;
+
+  /** The project this job is a part of, e.g. the cutscenes of a game. */
+  projectId?: string;
+  /** Kind of part within the project (trailer, dialogue, chapter…). */
+  part?: string;
+}
+
+export type ProjectKind = 'game' | 'series' | 'book' | 'software' | 'custom';
+
+/** A question for the client, kept with the project until it is answered. */
+export interface ProjectQuery {
+  id: string;
+  text: string;
+  /** The part (job) it concerns. */
+  jobId?: string;
+  /** String ID, timecode, page or line the question points at. */
+  ref?: string;
+  status: 'open' | 'sent' | 'answered';
+  answer?: string;
+  createdAt: number;
+  answeredAt?: number;
+}
+
+export interface ProjectLink {
+  id: string;
+  label: string;
+  url: string;
+}
+
+/** A large engagement split into parts; each part is an ordinary job. */
+export interface Project extends SyncMeta {
+  name: string;
+  clientId?: string;
+  kind: ProjectKind;
+  sourceLang?: string;
+  targetLang?: string;
+  /** Final deadline for the whole project. */
+  dueAt?: string;
+  notes?: string;
+  links: ProjectLink[];
+  queries: ProjectQuery[];
+  /** Hide the title on résumés and the portfolio site (NDA). */
+  confidential?: boolean;
+  publicTitle?: string;
+  archived?: boolean;
 }
 
 export interface Client extends SyncMeta {
@@ -147,7 +192,7 @@ export interface Pref extends SyncMeta {
   value: unknown;
 }
 
-export type TableName = 'jobs' | 'clients' | 'sessions' | 'invoices' | 'prefs';
+export type TableName = 'jobs' | 'clients' | 'sessions' | 'invoices' | 'prefs' | 'projects';
 
 export interface Profile {
   name: string;

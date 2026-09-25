@@ -7,6 +7,7 @@ import { LogoMark } from './app/Logo';
 import { QuickAdd } from './features/QuickAdd';
 import { JobEditor } from './features/JobEditor';
 import { ClientEditor } from './features/ClientEditor';
+import { ProjectEditor } from './features/ProjectEditor';
 import { matchRoute, useUI } from './ui/store';
 import { startAutoSync } from './sync/engine';
 import { loadAIKey } from './ai/claude';
@@ -29,6 +30,8 @@ const Tools = lazy(() => import('./pages/Tools').then((m) => ({ default: m.Tools
 const Tax = lazy(() => import('./pages/Tax').then((m) => ({ default: m.Tax })));
 const SettingsPage = lazy(() => import('./pages/Settings').then((m) => ({ default: m.SettingsPage })));
 const Focus = lazy(() => import('./pages/Focus').then((m) => ({ default: m.Focus })));
+const Projects = lazy(() => import('./pages/Projects').then((m) => ({ default: m.Projects })));
+const ProjectDetail = lazy(() => import('./pages/ProjectDetail').then((m) => ({ default: m.ProjectDetail })));
 const Pair = lazy(() => import('./pages/Pair').then((m) => ({ default: m.Pair })));
 
 function Route() {
@@ -37,6 +40,8 @@ function Route() {
   if (route === '/' || route === '') return <Dashboard />;
   if (matchRoute(route, '/jobs')) return <Jobs />;
   if ((p = matchRoute(route, '/jobs/:id'))) return <JobDetail id={p.id} />;
+  if (matchRoute(route, '/projects')) return <Projects />;
+  if ((p = matchRoute(route, '/projects/:id'))) return <ProjectDetail id={p.id} />;
   if (matchRoute(route, '/clients')) return <Clients />;
   if ((p = matchRoute(route, '/clients/:id'))) return <ClientDetail id={p.id} />;
   if (matchRoute(route, '/money')) return <Money />;
@@ -85,7 +90,7 @@ function useGlobalShortcuts() {
         clearTimeout(gTimer);
         gTimer = setTimeout(() => (g = false), 900);
       } else if (g) {
-        const map: Record<string, string> = { d: '/', j: '/jobs', c: '/clients', m: '/money', i: '/insights', r: '/resume', t: '/tools', s: '/settings' };
+        const map: Record<string, string> = { d: '/', p: '/projects', j: '/jobs', c: '/clients', m: '/money', i: '/insights', r: '/resume', t: '/tools', s: '/settings' };
         if (map[e.key]) navigate(map[e.key]);
         g = false;
       }
@@ -213,6 +218,7 @@ function AppBody() {
       <QuickAdd />
       <JobEditor />
       <ClientEditor />
+      <ProjectEditor />
       <CommandPalette />
       <ConfirmDialog />
       <Toasts />

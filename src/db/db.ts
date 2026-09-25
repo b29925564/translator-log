@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie';
-import type { Client, Invoice, Job, Pref, Session } from '../domain/types';
+import type { Client, Invoice, Job, Pref, Project, Session } from '../domain/types';
 
 /** Device-only key/value rows (sync credentials, device id, theme…). Never synced. */
 export interface LocalRow {
@@ -13,6 +13,7 @@ export class WordtrailDB extends Dexie {
   sessions!: EntityTable<Session, 'id'>;
   invoices!: EntityTable<Invoice, 'id'>;
   prefs!: EntityTable<Pref, 'id'>;
+  projects!: EntityTable<Project, 'id'>;
   local!: EntityTable<LocalRow, 'key'>;
 
   constructor(name = 'wordtrail', options?: ConstructorParameters<typeof Dexie>[1]) {
@@ -24,6 +25,11 @@ export class WordtrailDB extends Dexie {
       invoices: 'id, clientId, number, updatedAt',
       prefs: 'id, updatedAt',
       local: 'key',
+    });
+    // v2: projects, and jobs indexed by project
+    this.version(2).stores({
+      jobs: 'id, clientId, status, updatedAt, dueAt, deliveredAt, projectId',
+      projects: 'id, clientId, updatedAt',
     });
   }
 }

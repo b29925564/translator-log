@@ -37,7 +37,7 @@ const qtyLabel = (u: Unit) =>
 
 export function JobEditor() {
   const { jobEditor, closeJobEditor, ask, toast, navigate } = useUI();
-  const { jobs, settings, clientMap, today } = useData();
+  const { jobs, settings, clientMap, today, projects } = useData();
   const [d, setD] = useState<Job | null>(null);
   const [overrideOn, setOverrideOn] = useState(false);
   const [catOn, setCatOn] = useState(false);
@@ -182,6 +182,28 @@ export function JobEditor() {
             <Field label={tx('客戶', 'Client')} htmlFor="job-client">
               <ClientSelect id="job-client" value={d.clientId} onChange={(id) => applyClient(id)} />
             </Field>
+            {projects.length > 0 && (
+              <Field label={tx('所屬專案', 'Project')} htmlFor="job-project">
+                <Select
+                  id="job-project"
+                  value={d.projectId ?? ''}
+                  onChange={(e) => {
+                    const pj = projects.find((x) => x.id === e.target.value);
+                    set({ projectId: pj?.id, part: pj ? d.part : undefined });
+                    if (pj?.clientId && !d.clientId) applyClient(pj.clientId);
+                  }}
+                >
+                  <option value="">{tx('（不屬於專案）', '(None)')}</option>
+                  {projects
+                    .filter((pj) => !pj.archived || pj.id === d.projectId)
+                    .map((pj) => (
+                      <option key={pj.id} value={pj.id}>
+                        {pj.name}
+                      </option>
+                    ))}
+                </Select>
+              </Field>
+            )}
             <Field label={tx('服務類型', 'Service')} htmlFor="job-service">
               <Select id="job-service" value={d.service} onChange={(e) => set({ service: e.target.value as Job['service'] })}>
                 {SERVICES.map((s) => (

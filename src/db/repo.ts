@@ -4,7 +4,7 @@ import { DEFAULT_SETTINGS } from '../domain/constants';
 import { todayISO } from '../domain/dates';
 import { generateDemo, DEMO_PROFILE } from '../domain/demo';
 import { mergeSnapshots, TABLES, type Snapshot } from '../domain/merge';
-import type { Client, Invoice, Job, JobStatus, Pref, Session, Settings, SyncMeta, TableName } from '../domain/types';
+import type { Client, Invoice, Job, JobStatus, Pref, Project, Session, Settings, SyncMeta, TableName } from '../domain/types';
 import type { Table } from 'dexie';
 import { db, getLocal, setLocal, uid, type LocalRow } from './db';
 
@@ -198,6 +198,47 @@ export const deleteSession = async (id: string) => {
   changed();
 };
 
+// ---------- projects ----------
+
+export const newProject = (over: Partial<Project> = {}): Project => {
+  const t = now();
+  return { id: uid(), createdAt: t, updatedAt: t, name: '', kind: 'custom', links: [], queries: [], ...over };
+};
+
+export const saveProject = async (p: Project) => {
+  const rec = clean({ ...p, updatedAt: now() });
+  await db.projects.put(rec);
+  changed();
+  return rec;
+};
+
+/** Saves a project and its first parts together. */
+export const createProject = async (p: Project, parts: Job[]) => {
+  const t = now();
+  await db.transaction('rw', db.projects, db.jobs, async () => {
+    await db.projects.put(clean({ ...p, updatedAt: t }));
+    for (const j of parts) await db.jobs.put(clean({ ...j, projectId: p.id, updatedAt: t }));
+  });
+  changed();
+};
+
+/** Deletes a project; its parts are either deleted too or kept as standalone jobs. */
+export const deleteProject = async (id: string, withParts: boolean) => {
+  const t = now();
+  await db.transaction('rw', db.projects, db.jobs, db.sessions, async () => {
+    await db.projects.update(id, { deletedAt: t, updatedAt: t });
+    const parts = await db.jobs.where('projectId').equals(id).toArray();
+    for (const j of parts) {
+      if (withParts) {
+        await db.jobs.update(j.id, { deletedAt: t, updatedAt: t });
+        const ss = await db.sessions.where('jobId').equals(j.id).toArray();
+        for (const s of ss) await db.sessions.update(s.id, { deletedAt: t, updatedAt: t });
+      } else await db.jobs.put(clean({ ...j, projectId: undefined, part: undefined, updatedAt: t }));
+    }
+  });
+  changed();
+};
+
 // ---------- invoices ----------
 
 export const saveInvoice = async (inv: Invoice, jobs: Job[]) => {
@@ -244,7 +285,7 @@ export const snapshot = async (): Promise<Snapshot> => {
 };
 
 export const applyRecords = async (snap: Partial<Snapshot>) => {
-  await db.transaction('rw', [db.jobs, db.clients, db.sessions, db.invoices, db.prefs], async () => {
+  await db.transaction('rw', [db.jobs, db.clients, db.sessions, db.invoices, db.prefs, db.projects], async () => {
     for (const t of TABLES) {
       const rows = snap[t];
       if (rows?.length) await tableOf(t).bulkPut(rows);
@@ -269,7 +310,7 @@ export const exportBackup = async (): Promise<BackupFile> => ({
 export const importBackup = async (file: BackupFile, mode: 'merge' | 'replace') => {
   if (file?.app !== 'wordtrail' || !file.data) throw new Error('not-a-backup');
   if (mode === 'replace') {
-    await db.transaction('rw', [db.jobs, db.clients, db.sessions, db.invoices, db.prefs], async () => {
+    await db.transaction('rw', [db.jobs, db.clients, db.sessions, db.invoices, db.prefs, db.projects], async () => {
       for (const t of TABLES) await tableOf(t).clear();
     });
     await applyRecords(file.data);
@@ -282,7 +323,7 @@ export const importBackup = async (file: BackupFile, mode: 'merge' | 'replace') 
 
 export const loadDemo = async () => {
   const demo = generateDemo(todayISO());
-  await applyRecords({ jobs: demo.jobs, clients: demo.clients, sessions: demo.sessions, invoices: demo.invoices });
+  await applyRecords({ jobs: demo.jobs, clients: demo.clients, sessions: demo.sessions, invoices: demo.invoices, projects: demo.projects });
   const current = await readSettings();
   if (!current.profile.name) await updateSettings({ profile: { ...current.profile, ...DEMO_PROFILE } });
   await updateSettings({ goals: { yearIncome: 2_000_000, yearWords: 900_000 }, onboarded: true });
@@ -294,8 +335,8 @@ export const hasDemo = async () => (await db.jobs.filter((j) => !!j.demo && !j.d
 export const clearDemo = async () => {
   const t = now();
   const synced = !!(await getLocal('sync'));
-  await db.transaction('rw', [db.jobs, db.clients, db.sessions, db.invoices], async () => {
-    for (const tn of ['jobs', 'clients', 'sessions', 'invoices'] as const) {
+  await db.transaction('rw', [db.jobs, db.clients, db.sessions, db.invoices, db.projects], async () => {
+    for (const tn of ['jobs', 'clients', 'sessions', 'invoices', 'projects'] as const) {
       const table = tableOf(tn);
       const ids = (await table.filter((r) => !!r.demo).toArray()).map((r) => r.id);
       if (synced) for (const id of ids) await table.update(id, { deletedAt: t, updatedAt: t });
@@ -308,7 +349,7 @@ export const clearDemo = async () => {
 };
 
 export const wipeAll = async () => {
-  await db.transaction('rw', [db.jobs, db.clients, db.sessions, db.invoices, db.prefs, db.local], async () => {
+  await db.transaction('rw', [db.jobs, db.clients, db.sessions, db.invoices, db.prefs, db.projects, db.local], async () => {
     for (const t of TABLES) await tableOf(t).clear();
     await db.local.clear();
   });

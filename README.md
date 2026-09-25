@@ -28,6 +28,21 @@
 - **今日計畫**：依每個進行中案件剩下的字數、截止日與你的工作日，算出「今天要翻多少字才來得及」；逾期、今天截稿、超出每日工時會分別標示。記錄進度時可以拖動滑桿或按「+500 字」，今天完成多少、還差多少一目了然，全部達標時會頒一枚「今日達標」紀念章。右上角是下一個截稿的即時倒數。
 - **專注模式**：全螢幕的 Deco 時鐘，選 25／50／90 分鐘或不限時，按下開始就會啟動該案件的計時器（計入真實時薪與速度），螢幕保持常亮；時間到會響一聲柔和的鐘聲，並請你記錄這一節完成的字數，最後顯示本節時間、字數與每小時速度。
 
+### 大專案：拆成部分來管理
+
+![專案](docs/screenshots/project.png)
+
+客戶說「接下來有個大專案」，而且分成預告片、過場動畫、劇情對話、介面文字……很多部分？
+
+- **從範本建立專案**：遊戲在地化、影集／節目（一次建立第 1–N 集）、書籍（第 1–N 章）、軟體／App 或自訂。勾選包含哪些部分，一次建好；還在詢價就先標成「待確認」，確認後一鍵「開始」。
+- **每個部分都是完整的案件**：各自的字數或影片分鐘數、費率、截止日、進度與計時，自動進入今日計畫、工作負荷、收入統計與天際線。
+- **專案總覽**：依工作量加權的完成度、已完成／進行中／待確認的部分數、總字數與影片分鐘數、總金額與已完成金額、距離最終截稿還有幾天。
+- **時程圖**：每個部分從收件到截稿一條線，已完成的份量填滿、待確認的以虛線表示，標出今天與最終截稿日。
+- **問題清單**：翻譯時遇到不確定的地方（角色名要不要音譯、字數上限、語氣）隨手記下，附上相關部分與字串 ID／時間碼；一鍵「複製給客戶」整理成編號清單貼進信件，再標成已寄出，收到回覆後記下答案，不再有問題石沉大海。
+- **參考資料與備註**：術語表、風格指南、角色設定集的連結，以及窗口、交稿格式、字數限制等備註都放在專案裡。
+- **一次請款**：已交稿的部分可以合併成一張請款單。
+- **履歷與個人網站**：多個部分合併成一個代表案例（例如「奇幻 RPG 在地化，60,000 字，7 個部分」）；標為保密（NDA）時只顯示對外名稱。
+
 ### 中英雙語（English / 繁體中文）
 
 - 整個介面都有**繁體中文**與**英文**兩種版本，隨時一鍵切換：桌機在側邊欄底部的「中文｜EN」，手機在「更多」選單，也可以在「設定 → 偏好」切換。
@@ -192,4 +207,4 @@ tests/       Vitest
 
 ## English summary
 
-Wordtrail is a local-first, installable web app for freelance translators. It opens on a pair of Art Deco elevator doors and a Career Skyline, where every month you've worked is a lit tower. A daily plan tells you how many words each job needs today to land its deadline, and a full-screen Focus mode runs the timer with a Deco clock. Log a job in one sentence, typed or spoken, or share a client email into the app ("Lumina app strings EN>ZH-TW 3.2k words @ $0.09/word due Fri"), track time, CAT-weighted pricing, multi-currency income and receivables, generate invoices, see where your money comes from, check whether a new offer is a good rate and whether it fits your schedule, build a bilingual CV section from your real record, export a bilingual portfolio website, and share a Spotify-Wrapped-style year in review. Data stays on your device; optional sync is end-to-end encrypted into a private Gist on your own GitHub account. The whole interface is available in English and Traditional Chinese (switch any time from the sidebar, the More menu or Settings; the first visit follows your browser language), and résumés and invoices can be produced in either language independently of the interface.
+Wordtrail is a local-first, installable web app for freelance translators. It opens on a pair of Art Deco elevator doors and a Career Skyline, where every month you've worked is a lit tower. A daily plan tells you how many words each job needs today to land its deadline, and a full-screen Focus mode runs the timer with a Deco clock. Big engagements become projects split into parts (trailer, cutscenes, dialogue, UI; episodes; chapters), with a schedule chart, per-part pricing and progress, a query log for questions to the client, reference links and one invoice for delivered parts. Log a job in one sentence, typed or spoken, or share a client email into the app ("Lumina app strings EN>ZH-TW 3.2k words @ $0.09/word due Fri"), track time, CAT-weighted pricing, multi-currency income and receivables, generate invoices, see where your money comes from, check whether a new offer is a good rate and whether it fits your schedule, build a bilingual CV section from your real record, export a bilingual portfolio website, and share a Spotify-Wrapped-style year in review. Data stays on your device; optional sync is end-to-end encrypted into a private Gist on your own GitHub account. The whole interface is available in English and Traditional Chinese (switch any time from the sidebar, the More menu or Settings; the first visit follows your browser language), and résumés and invoices can be produced in either language independently of the interface.

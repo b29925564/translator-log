@@ -28,7 +28,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 export function JobDetail({ id }: { id: string }) {
-  const { jobMap, clientMap, sessions, settings, today, jobs, running } = useData();
+  const { jobMap, clientMap, sessions, settings, today, jobs, running, projectMap } = useData();
   const { navigate, openJobEditor, ask, toast, fireStamp } = useUI();
   const job = jobMap.get(id);
   const [adding, setAdding] = useState(false);
@@ -91,12 +91,19 @@ export function JobDetail({ id }: { id: string }) {
     await saveSession({ id: uid(), jobId: job.id, start: s, end: e, createdAt: Date.now(), updatedAt: Date.now() });
     setAdding(false);
   };
+  const project = job.projectId ? projectMap.get(job.projectId) : undefined;
 
   return (
     <div>
-      <button type="button" onClick={() => navigate('/jobs')} className="mb-3 inline-flex items-center gap-1.5 text-[13.5px] font-medium text-muted hover:text-ink">
-        <ArrowLeft size={16} /> {tx('案件', 'Jobs')}
-      </button>
+      {project ? (
+        <button type="button" onClick={() => navigate('/projects/' + project.id)} className="mb-3 inline-flex items-center gap-1.5 text-[13.5px] font-medium text-muted hover:text-ink">
+          <ArrowLeft size={16} /> {tx('專案', 'Project')} · <span className="text-ink">{project.name}</span>
+        </button>
+      ) : (
+        <button type="button" onClick={() => navigate('/jobs')} className="mb-3 inline-flex items-center gap-1.5 text-[13.5px] font-medium text-muted hover:text-ink">
+          <ArrowLeft size={16} /> {tx('案件', 'Jobs')}
+        </button>
+      )}
 
       <header className="mb-5 flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
