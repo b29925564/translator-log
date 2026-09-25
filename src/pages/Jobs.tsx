@@ -15,6 +15,8 @@ import { useUI } from '../ui/store';
 import { JobRow } from '../features/common';
 import { downloadFile } from '../features/download';
 
+const NO_PROJECT = '__none';
+
 type StatusFilter = 'all' | 'active' | 'unpaid' | 'paid' | 'quote' | 'cancelled';
 
 const readPref = (k: string, d: string) => {
@@ -33,13 +35,14 @@ const writePref = (k: string, v: string) => {
 };
 
 export function Jobs() {
-  const { jobs, clients, clientMap, settings, today } = useData();
+  const { jobs, clients, clientMap, projects, projectMap, settings, today } = useData();
   const { openQuickAdd, navigate, fireStamp } = useUI();
   const [q, setQ] = useState('');
   const [status, setStatus] = useState<StatusFilter>('all');
   const [year, setYear] = useState<string>('all');
   const [clientId, setClientId] = useState<string>('');
   const [dom, setDom] = useState<string>('');
+  const [projectId, setProjectId] = useState<string>('');
   const [view, setView] = useState<'list' | 'board'>(() => (readPref('wt:jobsView', 'list') as 'list' | 'board'));
   useEffect(() => writePref('wt:jobsView', view), [view]);
 
@@ -59,9 +62,11 @@ export function Jobs() {
         if (year !== 'all' && !incomeDate(j).startsWith(year)) return false;
         if (clientId && j.clientId !== clientId) return false;
         if (dom && j.domain !== dom) return false;
+        if (projectId === NO_PROJECT ? !!j.projectId : projectId && j.projectId !== projectId) return false;
         if (nq) {
           const c = j.clientId ? clientMap.get(j.clientId)?.name ?? '' : '';
-          const hay = `${j.title} ${c} ${j.poNumber ?? ''} ${j.notes ?? ''} ${domainLabel(j.domain, 'zh-TW')} ${domainLabel(j.domain, 'en')} ${langInfo(j.sourceLang).short} ${langInfo(j.targetLang).short}`.toLowerCase();
+          const pj = j.projectId ? projectMap.get(j.projectId)?.name ?? '' : '';
+          const hay = `${j.title} ${c} ${pj} ${j.poNumber ?? ''} ${j.notes ?? ''} ${domainLabel(j.domain, 'zh-TW')} ${domainLabel(j.domain, 'en')} ${langInfo(j.sourceLang).short} ${langInfo(j.targetLang).short}`.toLowerCase();
           if (!hay.includes(nq)) return false;
         }
         return true;
@@ -70,7 +75,7 @@ export function Jobs() {
         const rank = (j: Job) => (j.status === 'active' || j.status === 'quote' ? 1 : 0);
         return rank(b) - rank(a) || incomeDate(b).localeCompare(incomeDate(a)) || b.updatedAt - a.updatedAt;
       });
-  }, [jobs, q, status, year, clientId, dom, clientMap]);
+  }, [jobs, q, status, year, clientId, dom, projectId, clientMap, projectMap]);
 
   const groups = useMemo(() => {
     const out: { key: string; label: string; jobs: Job[] }[] = [];
@@ -91,7 +96,7 @@ export function Jobs() {
 
   const exportCSV = () => {
     const rows: (string | number | undefined)[][] = [
-      ['id', 'title', 'client', 'status', 'source', 'target', 'service', 'domain', 'unit', 'quantity', 'words', 'rate', 'currency', 'gross', 'net', `gross_${base}`, 'received', 'due', 'delivered', 'invoiced', 'paid', 'cat_tool', 'po', 'notes'],
+      ['id', 'title', 'client', 'status', 'source', 'target', 'service', 'domain', 'unit', 'quantity', 'words', 'rate', 'currency', 'gross', 'net', `gross_${base}`, 'received', 'due', 'delivered', 'invoiced', 'paid', 'cat_tool', 'po', 'notes', 'project'],
       ...filtered.map((j) => [
         j.id,
         j.title,
@@ -117,6 +122,7 @@ export function Jobs() {
         j.catTool,
         j.poNumber,
         j.notes,
+        j.projectId ? projectMap.get(j.projectId)?.name : '',
       ]),
     ];
     void downloadFile(`witimemo-jobs-${today}.csv`, toCSV(rows), 'text/csv');
@@ -182,6 +188,19 @@ export function Jobs() {
               </option>
             ))}
           </Select>
+          {projects.length > 0 && (
+            <Select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="w-auto max-w-[180px]" aria-label={tx('專案', 'Project')}>
+              <option value="">{tx('所有專案', 'All projects')}</option>
+              <option value={NO_PROJECT}>{tx('不屬於專案', 'Not in a project')}</option>
+              {projects
+                .filter((p) => !p.archived || p.id === projectId)
+                .map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+            </Select>
+          )}
           <Select value={dom} onChange={(e) => setDom(e.target.value)} className="w-auto max-w-[160px]" aria-label={tx('領域', 'Field')}>
             <option value="">{tx('所有領域', 'All fields')}</option>
             {domains.map((d) => (

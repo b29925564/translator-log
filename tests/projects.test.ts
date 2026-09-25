@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { generateDemo } from '../src/domain/demo';
 import { mergeSnapshots, emptySnapshot } from '../src/domain/merge';
-import { partKind, partLabel, partTitle, projectStats, queriesText, shortPartName, sortQueries } from '../src/domain/projects';
+import { candidateJobs, isOngoing, partKind, partLabel, partTitle, projectDone, projectStats, queriesText, shortPartName, sortQueries, templateFor } from '../src/domain/projects';
 import type { Job, Project } from '../src/domain/types';
 
 const job = (over: Partial<Job> = {}): Job => ({
@@ -119,5 +119,29 @@ describe('résumé', () => {
     expect(r.projects[0]).toMatchObject({ title: 'Fantasy RPG localisation', words: 24000, year: 2026 });
     expect(r.projects[0].detail).toContain('2 parts');
     expect(r.stats.jobs).toBe(3);
+  });
+});
+
+describe('ongoing projects', () => {
+  it('start with no parts and stay open when every job so far is done', () => {
+    const p = project({ kind: 'ongoing' });
+    expect(isOngoing(p)).toBe(true);
+    expect(templateFor('ongoing').selected).toEqual([]);
+    const s = projectStats(p, [job({ projectId: 'p1', status: 'paid' })], '2026-09-25');
+    expect(projectDone(p, s)).toBe(false);
+    expect(projectDone({ ...p, archived: true }, s)).toBe(true);
+    expect(projectDone(project(), s)).toBe(true);
+  });
+  it('offers unfiled jobs, likely matches first', () => {
+    const jobs = [
+      job({ id: 'old', title: 'Unrelated', receivedAt: '2026-09-20' }),
+      job({ id: 'filed', title: 'Starfall patch', projectId: 'other' }),
+      job({ id: 'gone', title: 'Starfall store page', deletedAt: 1 }),
+      job({ id: 'client', title: 'Batch 7', clientId: 'c1', receivedAt: '2026-01-01' }),
+      job({ id: 'name', title: '《Starfall》 dialogue batch 2', receivedAt: '2026-02-01' }),
+    ];
+    const out = candidateJobs({ name: 'Starfall', clientId: 'c1' }, jobs);
+    expect(out.map((x) => x.job.id)).toEqual(['name', 'client', 'old']);
+    expect(out.map((x) => x.likely)).toEqual([true, true, false]);
   });
 });

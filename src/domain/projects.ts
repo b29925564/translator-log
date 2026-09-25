@@ -47,6 +47,7 @@ export interface ProjectTemplate {
 }
 
 export const PROJECT_TEMPLATES: ProjectTemplate[] = [
+  { kind: 'ongoing', zh: '陸續接案', en: 'Ongoing', parts: [], selected: [] },
   { kind: 'game', zh: '遊戲在地化', en: 'Game localisation', parts: ['trailer', 'cutscene', 'dialogue', 'ui', 'items', 'store', 'patch', 'lqa'], selected: ['trailer', 'cutscene', 'dialogue', 'ui'] },
   { kind: 'series', zh: '影集／節目', en: 'Series or show', parts: ['episode', 'trailer', 'store'], selected: ['episode', 'trailer'], count: 8 },
   { kind: 'book', zh: '書籍', en: 'Book', parts: ['chapter', 'store'], selected: ['chapter'], count: 12 },
@@ -149,4 +150,32 @@ export const queriesText = (project: Project, parts: Job[], lang: 'zh-TW' | 'en'
 export const sortQueries = (qs: ProjectQuery[]) => {
   const rank = { open: 0, sent: 1, answered: 2 } as const;
   return [...qs].sort((a, b) => rank[a.status] - rank[b.status] || b.createdAt - a.createdAt);
+};
+
+/** An ongoing project collects jobs as they arrive instead of being split up front. */
+export const isOngoing = (p: Pick<Project, 'kind'>) => p.kind === 'ongoing';
+
+/** Finished: archived, or every part done (an ongoing project stays open until archived, since more jobs may come). */
+export const projectDone = (p: Project, s: Pick<ProjectStats, 'parts' | 'done'>) => !!p.archived || (!isOngoing(p) && s.parts > 0 && s.done === s.parts);
+
+const norm = (x: string) => x.toLowerCase().replace(/[\s　「」『』《》〈〉()（）\[\]【】_\-–—·:：|｜]+/g, '');
+
+/**
+ * Jobs that could be moved into a project: ones not in any project yet,
+ * likely matches first (same client, title mentioning the project), then the
+ * most recent.
+ */
+export const candidateJobs = (project: Pick<Project, 'name' | 'clientId'>, jobs: Job[]): { job: Job; likely: boolean }[] => {
+  const name = norm(project.name);
+  const score = (j: Job) => {
+    let n = 0;
+    if (project.clientId && j.clientId === project.clientId) n += 1;
+    if (name.length >= 2 && norm(j.title).includes(name)) n += 2;
+    return n;
+  };
+  return jobs
+    .filter((j) => !j.deletedAt && !j.projectId)
+    .map((j) => ({ job: j, s: score(j) }))
+    .sort((a, b) => b.s - a.s || (b.job.receivedAt ?? '').localeCompare(a.job.receivedAt ?? '') || b.job.createdAt - a.job.createdAt)
+    .map(({ job, s }) => ({ job, likely: s > 0 }));
 };
