@@ -8,7 +8,7 @@ import { tx } from '../i18n';
 import { Button, Empty, Segmented } from '../ui/kit';
 import { useUI } from '../ui/store';
 import { printPage } from '../features/download';
-import { WGlyph } from '../app/Logo';
+import { BrandName, WGlyph } from '../app/Logo';
 import { Plaque } from '../app/Stamps';
 
 export function InvoiceView({ id }: { id: string }) {
@@ -80,7 +80,7 @@ export function InvoiceView({ id }: { id: string }) {
           <div>
             <div className="mb-3 flex items-center gap-2 text-[#0b0b0c]">
               <WGlyph size={22} color="#a8843f" />
-              <span className="font-wide text-[10px] tracking-[0.3em]">Wordtrail</span>
+              <BrandName gold="#a8843f" className="font-wide text-[10px] tracking-[0.3em]" />
             </div>
             <div className="font-display text-[40px] leading-none">{T('請款單', 'Invoice')}</div>
             <div className="mt-2 font-mono text-[13px] tracking-wide text-[#51606d]">{inv.number}</div>

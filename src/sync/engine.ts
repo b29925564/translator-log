@@ -103,7 +103,7 @@ export const syncNow = async (): Promise<void> => {
   return inflight;
 };
 
-/** Connects this device. Reuses an existing Wordtrail gist when one exists. */
+/** Connects this device. Reuses an existing sync gist when one exists. */
 export const connect = async (token: string, passphrase: string): Promise<{ created: boolean }> => {
   const me = await whoAmI(token);
   const existing = await findSyncGist(token);

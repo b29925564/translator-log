@@ -10,7 +10,7 @@ import { money, num, pct } from '../ui/format';
 import { cx } from '../ui/kit';
 import { useUI } from '../ui/store';
 import { Medallion, SunburstRays } from '../app/Stamps';
-import { BRAND_GOLD, W_LINES, WGlyph } from '../app/Logo';
+import { BRAND_GOLD, BRAND_ZH, BrandName, W_LINES, WGlyph } from '../app/Logo';
 import { downloadFile } from '../features/download';
 
 const PERSONA: Record<Persona, { zh: string; en: string; zhBody: string; enBody: string }> = {
@@ -245,7 +245,7 @@ export function Wrapped() {
     // 0 cover
     <div key="c" className="flex h-full flex-col items-center justify-center text-center">
       <In className="relative grid place-items-center">
-        <Medallion top={`WORDTRAIL · ${year}`} center="" bottom={tx('年度回顧', 'YEAR IN REVIEW')} color={BRAND_GOLD} size={196} rays={72} />
+        <Medallion top={`WITIMEMO · ${year}`} center="" bottom={tx('年度回顧', 'YEAR IN REVIEW')} color={BRAND_GOLD} size={196} rays={72} />
         <WGlyph size={62} color={BRAND_GOLD} className="absolute" />
       </In>
       <In d={250}>
@@ -307,7 +307,7 @@ export function Wrapped() {
     // 3 persona
     <div key="p" className="flex h-full flex-col justify-center">
       <In className="flex items-center gap-4">
-        <Medallion top={tx('譯者人格', 'TRANSLATOR TYPE')} center={String(year)} bottom="WORDTRAIL" color={BRAND_GOLD} size={92} rays={40} />
+        <Medallion top={tx('譯者人格', 'TRANSLATOR TYPE')} center={String(year)} bottom="WITIMEMO" color={BRAND_GOLD} size={92} rays={40} />
         {r.topDomain && (
           <p className="text-[16px] leading-snug text-ink-2">
             {tx(`你最常翻譯的是「${domainLabel(r.topDomain.key, 'zh-TW')}」，佔全年 ${pct(r.topDomain.share)}`, `Your top field was ${domainLabel(r.topDomain.key, 'en')}: ${pct(r.topDomain.share)} of your words`)}
@@ -424,7 +424,7 @@ export function Wrapped() {
         <div className="relative flex items-center justify-between">
           <span className="flex items-center gap-2.5">
             <WGlyph size={22} color={BRAND_GOLD} />
-            <span className="font-wide text-[10px] tracking-[0.3em]">Wordtrail</span>
+            <BrandName gold={BRAND_GOLD} className="font-wide text-[10px] tracking-[0.3em]" />
           </span>
           <span className="font-wide text-[10px] tracking-[0.3em] text-gold">{year}</span>
         </div>
@@ -489,7 +489,7 @@ export function Wrapped() {
           <span className="flex items-center gap-2.5">
             <WGlyph size={18} color={BRAND_GOLD} stroke={3.6} />
             <span className="font-wide text-[10px] tracking-[0.3em] text-ink-2">
-              Wordtrail <span className="text-gold">· {year}</span>
+              <BrandName gold={BRAND_GOLD} /> <span className="text-gold">· {year}</span>
             </span>
           </span>
           <div className="flex gap-1">
@@ -536,7 +536,7 @@ export function Wrapped() {
               className={goldBtn}
               onClick={async () => {
                 const blob = await (await fetch(shareUrl)).blob();
-                void downloadFile(`wordtrail-${year}.png`, blob, 'image/png');
+                void downloadFile(`witimemo-${year}.png`, blob, 'image/png');
               }}
             >
               <Download size={17} /> {tx('下載／分享', 'Save / share')}
@@ -673,11 +673,11 @@ async function renderShareCard(r: YearReview, o: { year: number; persona: string
   c.width = W;
   c.height = H;
   const g = c.getContext('2d')!;
-  const zhText = o.persona + o.domain + o.name + '譯跡我的翻譯足跡個字案件客戶工作日主力領域譯者人格年度回顧';
+  const zhText = o.persona + o.domain + o.name + BRAND_ZH + '我的翻譯足跡個字案件客戶工作日主力領域譯者人格年度回顧';
   try {
     await Promise.all([
-      document.fonts.load('500 80px "Archivo"', 'WORDTRAIL0123456789,.'),
-      document.fonts.load('600 80px "Archivo"', 'WORDTRAIL'),
+      document.fonts.load('500 80px "Archivo"', 'WITIMEO0123456789,.'),
+      document.fonts.load('600 80px "Archivo"', 'WITIMEO'),
       document.fonts.load('500 60px "Noto Sans TC"', zhText),
       document.fonts.load('700 60px "Noto Sans TC"', zhText),
     ]);
@@ -697,6 +697,13 @@ async function renderShareCard(r: YearReview, o: { year: number; persona: string
     g.textAlign = opts.align ?? 'left';
     style(opts.stretch ?? 'normal', opts.spacing ?? 0);
     g.fillText(s, x, y);
+  };
+  /** The two-tone name; returns where it ends. */
+  const brand = (x: number, y: number, font: string, spacing: number, gold: string, ink: string) => {
+    text('WITI', x, y, font, gold, { stretch: 'expanded', spacing });
+    const x2 = x + g.measureText('WITI').width;
+    text('MEMO', x2, y, font, ink, { stretch: 'expanded', spacing });
+    return x2 + g.measureText('MEMO').width;
   };
   const hline = (y: number, w = 1.5, color = 'rgba(255,255,255,0.18)') => {
     g.fillStyle = color;
@@ -744,8 +751,8 @@ async function renderShareCard(r: YearReview, o: { year: number; persona: string
     g.stroke();
   }
   g.restore();
-  text('WORDTRAIL', M + 104, 132, `600 26px ${sans}`, '#f2f2ef', { stretch: 'expanded', spacing: 7 });
-  text('譯跡', M + 104, 166, `500 20px ${sans}`, 'rgba(242,242,239,0.55)', { spacing: 10 });
+  brand(M + 104, 132, `600 26px ${sans}`, 7, GOLD, '#f2f2ef');
+  text(BRAND_ZH, M + 104, 166, `500 20px ${sans}`, 'rgba(242,242,239,0.55)', { spacing: 10 });
   text(String(o.year), W - M, 132, `600 26px ${sans}`, GOLD, { stretch: 'expanded', spacing: 12, align: 'right' });
   text(tx('年度回顧', 'YEAR IN REVIEW'), W - M, 166, `600 17px ${sans}`, 'rgba(242,242,239,0.55)', { stretch: 'expanded', spacing: 5, align: 'right' });
 
@@ -791,9 +798,10 @@ async function renderShareCard(r: YearReview, o: { year: number; persona: string
   if (o.domain) text(tx(`主力領域：${o.domain}`, `Top field: ${o.domain}`), M, 1162, `500 32px ${sans}`, 'rgba(242,242,239,0.82)');
 
   // footer
-  text('WORDTRAIL · 譯跡', M, H - 86, `600 20px ${sans}`, 'rgba(242,242,239,0.45)', { stretch: 'expanded', spacing: 6 });
+  const bx = brand(M, H - 86, `600 20px ${sans}`, 6, 'rgba(212,179,108,0.7)', 'rgba(242,242,239,0.45)');
+  text(` · ${BRAND_ZH}`, bx, H - 86, `600 20px ${sans}`, 'rgba(242,242,239,0.45)', { stretch: 'expanded', spacing: 6 });
   // the mark's three strokes, run out as speed lines
-  const tw = g.measureText('WORDTRAIL · 譯跡').width;
+  const tw = bx - M + g.measureText(` · ${BRAND_ZH}`).width;
   g.fillStyle = 'rgba(212,179,108,0.6)';
   [-102, -94, -86].forEach((y, k) => g.fillRect(M + tw + 28, H + y - 7, W - M * 2 - tw - 28, k === 1 ? 2 : 1));
   return c.toDataURL('image/png');

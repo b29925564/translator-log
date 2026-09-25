@@ -51,7 +51,7 @@ export function Tax() {
         .sort((a, b) => a.paidAt!.localeCompare(b.paidAt!))
         .map((j) => [j.paidAt, j.clientId ? clientMap.get(j.clientId)?.name : '', j.title, j.incomeCategory ?? '9B', j.currency, jobGross(j), j.withholding ?? 0, j.nhi ?? 0, j.fees ?? 0, Math.round(jobGross(j) * (j.fxToBase || 1))]),
     ];
-    void downloadFile(`wordtrail-tax-${year}.csv`, toCSV(rows), 'text/csv');
+    void downloadFile(`witimemo-tax-${year}.csv`, toCSV(rows), 'text/csv');
   };
 
   const g9b = t.lines.find((l) => l.category === '9B')?.gross ?? 0;

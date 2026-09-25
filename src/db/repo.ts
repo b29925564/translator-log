@@ -294,6 +294,7 @@ export const applyRecords = async (snap: Partial<Snapshot>) => {
 };
 
 export interface BackupFile {
+  /** Format marker from before the rename; kept so older files still open. */
   app: 'wordtrail';
   version: 1;
   exportedAt: string;

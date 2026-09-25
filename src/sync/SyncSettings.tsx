@@ -9,7 +9,7 @@ import { WrongPassphraseError } from './crypto';
 import { GistError } from './gist';
 import { ago, syncErrorText } from './SyncBadge';
 
-const TOKEN_URL = 'https://github.com/settings/tokens/new?scopes=gist&description=Wordtrail%20sync';
+const TOKEN_URL = 'https://github.com/settings/tokens/new?scopes=gist&description=Witimemo%20sync';
 
 export function SyncSettings() {
   const { status, login, lastSyncAt, error, lastStats } = useSync();
@@ -143,7 +143,7 @@ export function SyncSettings() {
             <div className="flex items-center justify-center gap-2 text-[14.5px] font-semibold text-ink sm:justify-start">
               <KeyRound size={16} className="text-accent" /> {tx('用另一台裝置掃描', 'Scan with your other device')}
             </div>
-            <p className="mt-1 text-[13px] leading-relaxed text-muted">{tx('手機相機掃描後會開啟譯跡，輸入同一組密語即可完成配對。連結本身已加密，沒有密語無法使用。', 'The camera opens Wordtrail; enter the same passphrase to finish. The link is encrypted and useless without the passphrase.')}</p>
+            <p className="mt-1 text-[13px] leading-relaxed text-muted">{tx('手機相機掃描後會開啟記譯，輸入同一組密語即可完成配對。連結本身已加密，沒有密語無法使用。', 'The camera opens Witimemo; enter the same passphrase to finish. The link is encrypted and useless without the passphrase.')}</p>
             <Button size="sm" variant="ghost" className="mt-2" icon={<Copy size={14} />} onClick={() => void copyText(pair.link)}>
               {tx('複製配對連結', 'Copy pairing link')}
             </Button>

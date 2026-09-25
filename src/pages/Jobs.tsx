@@ -119,7 +119,7 @@ export function Jobs() {
         j.notes,
       ]),
     ];
-    void downloadFile(`wordtrail-jobs-${today}.csv`, toCSV(rows), 'text/csv');
+    void downloadFile(`witimemo-jobs-${today}.csv`, toCSV(rows), 'text/csv');
   };
 
   const chips: { v: StatusFilter; label: string }[] = [

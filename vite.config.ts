@@ -29,8 +29,8 @@ export default defineConfig(({ mode }) => {
             injectRegister: false,
             includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
             manifest: {
-              name: '譯跡 Wordtrail',
-              short_name: '譯跡',
+              name: '記譯 Witimemo',
+              short_name: '記譯',
               description: '自由譯者的案件紀錄、收款追蹤、履歷產生與年度回顧',
               lang: 'zh-Hant-TW',
               theme_color: '#0b0b0c',
@@ -83,8 +83,8 @@ export default defineConfig(({ mode }) => {
                 },
               },
               screenshots: [
-                { src: 'screenshots/wide.png', sizes: '1440x900', type: 'image/png', form_factor: 'wide', label: 'Wordtrail overview' },
-                { src: 'screenshots/narrow.png', sizes: '780x1688', type: 'image/png', form_factor: 'narrow', label: 'Wordtrail on a phone' },
+                { src: 'screenshots/wide.png', sizes: '1440x900', type: 'image/png', form_factor: 'wide', label: 'Witimemo overview' },
+                { src: 'screenshots/narrow.png', sizes: '780x1688', type: 'image/png', form_factor: 'narrow', label: 'Witimemo on a phone' },
               ],
             },
             workbox: {

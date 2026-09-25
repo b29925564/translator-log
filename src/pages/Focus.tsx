@@ -104,7 +104,7 @@ export function Focus({ id }: { id: string }) {
 
   useEffect(() => {
     const prev = document.title;
-    document.title = `${mine ? '● ' : ''}${clock(length ? Math.max(0, left) : elapsed)} · Wordtrail`;
+    document.title = `${mine ? '● ' : ''}${clock(length ? Math.max(0, left) : elapsed)} · Witimemo`;
     return () => {
       document.title = prev;
     };

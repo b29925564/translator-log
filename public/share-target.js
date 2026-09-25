@@ -1,4 +1,4 @@
-// Files shared into the installed app (Android share sheet → Wordtrail) arrive
+// Files shared into the installed app (Android share sheet → Witimemo) arrive
 // as a POST the page cannot read, so the service worker parks the file in a
 // cache and hands the page a flag; shared text travels on as query params.
 self.addEventListener('fetch', (event) => {

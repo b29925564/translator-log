@@ -154,7 +154,7 @@ function AppBody() {
     void loadAIKey();
   }, []);
 
-  // text shared into the installed app (Android share sheet → Wordtrail)
+  // text shared into the installed app (Android share sheet → Witimemo)
   const shareReady = ready && (settings.onboarded || jobs.length > 0);
   useEffect(() => {
     if (!shareReady) return;

@@ -88,8 +88,8 @@ html,body{margin:0}
 </style></head><body><div class="wrap">
 <svg width="1200" height="630" style="position:absolute;inset:0" stroke="${GOLD}" stroke-opacity=".2" stroke-width="1.2" fill="none">${rays}
 <circle cx="1200" cy="630" r="220"/><circle cx="1200" cy="630" r="440"/><circle cx="1200" cy="630" r="660"/></svg>
-<div class="brand"><svg width="64" height="52" viewBox="0 0 64 52">${glyph(32, 26, 0.9, 3)}</svg><div><div class="wide name">Wordtrail</div><div class="zh">譯跡</div></div></div>
-<div class="wide kicker">A work log for freelance translators</div>
+<div class="brand"><svg width="64" height="52" viewBox="0 0 64 52">${glyph(32, 26, 0.9, 3)}</svg><div><div class="wide name"><span style="color:${GOLD}">WITI</span>MEMO</div><div class="zh">記譯</div></div></div>
+<div class="wide kicker">A work log for translators &amp; interpreters</div>
 <div class="t">Every word counts.</div>
 <div class="t2">每一個字，都算數。</div>
 <div class="wide tags">Jobs · Payments · Taxes · Résumé · Year in review</div>

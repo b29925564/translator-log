@@ -7,7 +7,8 @@ export interface LocalRow {
   value: unknown;
 }
 
-export class WordtrailDB extends Dexie {
+// 'wordtrail' predates the rename; renaming the database would strand everyone's data
+export class WitimemoDB extends Dexie {
   jobs!: EntityTable<Job, 'id'>;
   clients!: EntityTable<Client, 'id'>;
   sessions!: EntityTable<Session, 'id'>;
@@ -38,7 +39,7 @@ export class WordtrailDB extends Dexie {
 // unavailable, so it keeps everything in memory instead.
 const memory = __DEMO_BUILD__ ? await import('fake-indexeddb').then((m) => ({ indexedDB: m.indexedDB, IDBKeyRange: m.IDBKeyRange })) : undefined;
 
-export const db = new WordtrailDB('wordtrail', memory);
+export const db = new WitimemoDB('wordtrail', memory);
 
 export const uid = (): string => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();

@@ -36,9 +36,9 @@ const fold = (line: string) => {
 
 const compact = (iso: string) => iso.replace(/[-:]/g, '');
 
-export const buildICS = (events: CalEvent[], calName = '譯跡 Wordtrail'): string => {
+export const buildICS = (events: CalEvent[], calName = '記譯 Witimemo'): string => {
   const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Wordtrail//Translator Log//ZH', 'CALSCALE:GREGORIAN', `X-WR-CALNAME:${esc(calName)}`];
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Witimemo//Translator Log//ZH', 'CALSCALE:GREGORIAN', `X-WR-CALNAME:${esc(calName)}`];
   for (const e of events) {
     lines.push('BEGIN:VEVENT', `UID:${e.uid}@wordtrail`, `DTSTAMP:${stamp}`);
     if (e.when.includes('T')) {
