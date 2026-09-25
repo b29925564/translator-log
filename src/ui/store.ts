@@ -46,6 +46,9 @@ interface UIState {
   toast: (text: string, opts?: Omit<Toast, 'id' | 'text'>) => void;
   dismissToast: (id: number) => void;
 
+  /** True while the opening “elevator doors” sequence covers the app. */
+  overture: boolean;
+
   stamp: { key: number; label: string; sub?: string } | null;
   fireStamp: (label: string, sub?: string) => void;
   clearStamp: () => void;
@@ -113,6 +116,8 @@ export const useUI = create<UIState>((set, get) => ({
     setTimeout(() => get().dismissToast(id), opts?.action ? 6000 : 3200);
   },
   dismissToast: (id) => set({ toasts: get().toasts.filter((t) => t.id !== id) }),
+
+  overture: false,
 
   stamp: null,
   fireStamp: (label, sub) => {

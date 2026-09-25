@@ -438,12 +438,30 @@ export const parseQuickAdd = (input: string, ctx: QuickContext): QuickParse => {
     .trim();
   let title = leftover;
   if (!out.clientId) {
-    const cm = /([\p{L}\p{N}&.\-]+(?:公司|翻譯社|出版社|出版|集團|工作室|事務所|語言|翻譯|翻訳|株式会社|有限公司)|[A-Z][\w&.-]*(?:\s+[A-Z][\w&.-]*)*\s+(?:Inc\.?|Ltd\.?|LLC|Corp\.?|Co\.|GmbH|Localization|Translations?|Language Services|Studios?|Games|Publishing|Media))/u.exec(title);
-    if (cm) {
-      out.newClientName = cm[1].trim();
+    const WORD = "[A-Z][\\p{L}\\p{N}.'’-]*";
+    const NOT_NAMES = /^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December|Today|Tomorrow|Next)\b/;
+    let found: { name: string; start: number; end: number } | undefined;
+    // 1. an organisation suffix: 藍海翻譯社, Lumina Localization, Atlas Patent Partners
+    const cm = new RegExp(
+      `([\\p{L}\\p{N}&.\\-]+(?:公司|翻譯社|出版社|出版|集團|工作室|事務所|語言|翻譯|翻訳|株式会社|有限公司)|${WORD}(?:\\s+(?:&|and|\\+|${WORD}))*\\s+(?:Inc\\.?|Ltd\\.?|LLC|LLP|PLC|Corp\\.?|Co\\.|GmbH|AG|Limited|Company|Localization|Localisation|Translations?|Language Services|Studios?|Games|Publishing|Media|Partners|Group|Agency|Labs?|Press|Books|Consulting|Solutions|Communications|International|Technologies|Software|Pharmaceuticals?|Legal|Law|Entertainment|Interactive|Films?|Pictures|Productions?))`,
+      'u',
+    ).exec(title);
+    if (cm) found = { name: cm[1], start: cm.index, end: cm.index + cm[0].length };
+    // 2. an explicit marker: “for Harbor & Quill”, “from Acme”, “客戶：光譜行銷”
+    if (!found) {
+      const m = new RegExp(`(?:^|\\s)(?:for|from|via|client:?)\\s+(${WORD}(?:\\s+(?:&|and|\\+|${WORD}))*)`, 'u').exec(title) ?? /(?:客戶|業主)[:：]\s*([^\s]+)/u.exec(title);
+      if (m && !NOT_NAMES.test(m[1])) found = { name: m[1], start: m.index, end: m.index + m[0].length };
+    }
+    // 3. a leading name joined by “&”: Harbor & Quill clinical protocol
+    if (!found) {
+      const m = new RegExp(`^(${WORD}(?:\\s+${WORD})*\\s+(?:&|and|\\+)\\s+${WORD}(?:\\s+${WORD})*)(?=\\s+[a-z\\p{Script=Han}])`, 'u').exec(title);
+      if (m) found = { name: m[1], start: 0, end: m[0].length };
+    }
+    if (found) {
+      out.newClientName = found.name.trim();
       const i = input.indexOf(out.newClientName);
       if (i >= 0) tokens.push({ kind: 'client', start: i, end: i + out.newClientName.length });
-      title = (title.slice(0, cm.index) + title.slice(cm.index + cm[0].length)).trim();
+      title = (title.slice(0, found.start) + ' ' + title.slice(found.end)).replace(/\s+/g, ' ').trim();
     }
   }
   title = title.replace(/^(的|幫|for)\s+/i, '').replace(/\s+的$/, '').trim();

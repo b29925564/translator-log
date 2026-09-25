@@ -269,10 +269,10 @@ export const generateDemo = (today: string, seed = 42): DemoData => {
 
   // a realistic “right now”: a few jobs in progress and a couple of open quotes
   const current: { spec: number; title: string; qty: number; dueIn: number; progress: number; status: JobStatus; time?: string }[] = [
-    { spec: 0, title: '心臟支架使用說明書 v2.1', qty: 8600, dueIn: 1, progress: 70, status: 'active' },
-    { spec: 1, title: 'Fintech app onboarding flow', qty: 3400, dueIn: 3, progress: 35, status: 'active' },
-    { spec: 4, title: '手遊 2.5 週年活動劇情', qty: 12000, dueIn: 6, progress: 20, status: 'active' },
-    { spec: 6, title: '技術授權契約中譯英', qty: 5200, dueIn: 9, progress: 0, status: 'active' },
+    { spec: 0, title: '心臟支架使用說明書 v2.1', qty: 8600, dueIn: 2, progress: 80, status: 'active' },
+    { spec: 1, title: 'Fintech app onboarding flow', qty: 3400, dueIn: 4, progress: 45, status: 'active' },
+    { spec: 4, title: '手遊 2.5 週年活動劇情', qty: 12000, dueIn: 9, progress: 30, status: 'active' },
+    { spec: 6, title: '技術授權契約中譯英', qty: 5200, dueIn: 12, progress: 10, status: 'active' },
     { spec: 5, title: 'Winter DLC quest text', qty: 7500, dueIn: 14, progress: 0, status: 'quote' },
   ];
   for (const c of current) {
@@ -302,6 +302,8 @@ export const generateDemo = (today: string, seed = 42): DemoData => {
       receivedAt: c.status === 'quote' ? today : addDays(today, -Math.max(2, Math.round(c.qty / 2500))),
       dueAt: due,
       progress: c.progress,
+      // part of today's work is already done, so the Today plan starts mid-day
+      dayStart: c.progress >= 10 ? { date: today, progress: c.progress - 10 } : undefined,
       catTool: spec.tool,
       incomeCategory: '9B',
       confidential: spec.c.kind === 'agency',

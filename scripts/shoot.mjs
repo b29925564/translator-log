@@ -60,6 +60,7 @@ for (const mode of modes) {
         if (a.startsWith('click:')) await page.getByText(a.slice(6)).first().click();
         if (a.startsWith('sel:')) await page.locator(a.slice(4)).first().click();
         if (a.startsWith('key:')) await page.keyboard.press(a.slice(4));
+        if (a === 'top') await page.evaluate(() => window.scrollTo(0, 0));
         if (a === 'blur') await page.evaluate(() => document.activeElement?.blur());
         if (a.startsWith('wait:')) await page.waitForTimeout(Number(a.slice(5)));
         if (a.startsWith('type:')) await page.keyboard.type(a.slice(5), { delay: 5 });

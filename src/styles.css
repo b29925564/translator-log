@@ -316,6 +316,8 @@
   /* ------------------------------------------------------------------ components */
 
   .card {
+    /* never let wide content (heatmaps, tables) stretch a grid column */
+    min-width: 0;
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 4px;
@@ -447,6 +449,61 @@
 
 .page-enter { animation: rise 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 
+/* ------------------------------------------------------------------ motion */
+
+@keyframes seamIn { from { opacity: 0; transform: scaleY(0); } to { opacity: 1; transform: scaleY(1); } }
+@keyframes raysIn { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: none; } }
+@keyframes trackIn { from { opacity: 0; letter-spacing: 1.1em; padding-left: 1.1em; } to { opacity: 1; letter-spacing: 0.42em; padding-left: 0.42em; } }
+@keyframes ruleIn { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes growY { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes sweep { from { transform: rotate(var(--from, -28deg)); } to { transform: rotate(var(--to, 28deg)); } }
+@keyframes twinkle { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+@keyframes beacon { 0%, 100% { opacity: 0.35; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.15); } }
+@keyframes spinSlower { to { transform: rotate(360deg); } }
+
+/* staggered entrances; held while the opening doors are shut */
+.stagger > * { animation: rise 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.stagger > :nth-child(2) { animation-delay: 0.07s; }
+.stagger > :nth-child(3) { animation-delay: 0.14s; }
+.stagger > :nth-child(4) { animation-delay: 0.21s; }
+.stagger > :nth-child(5) { animation-delay: 0.28s; }
+.stagger > :nth-child(6) { animation-delay: 0.35s; }
+.stagger > :nth-child(7) { animation-delay: 0.42s; }
+.stagger > :nth-child(n + 8) { animation-delay: 0.49s; }
+.grow-bar { transform-box: fill-box; transform-origin: 50% 100%; animation: growY 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+html[data-overture] .stagger > *,
+html[data-overture] .grow-bar,
+html[data-overture] .page-enter,
+html[data-overture] .hold-motion,
+html[data-overture] .hold-motion * { animation-play-state: paused !important; }
+
+/* mechanical counter */
+.odometer { display: inline-flex; align-items: flex-start; line-height: 1; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.odo-static { display: inline-block; height: 1em; line-height: 1; }
+.odo-col { display: inline-block; height: 1em; overflow: hidden; line-height: 1; }
+.odo-strip { display: flex; flex-direction: column; transition: transform 1.8s cubic-bezier(0.16, 1, 0.3, 1); will-change: transform; }
+.odo-strip > span { display: block; height: 1em; line-height: 1; }
+
+/* brass that tilts toward the pointer */
+.tilt {
+  position: relative;
+  transform: perspective(700px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+  will-change: transform;
+}
+.tilt[data-hover] { transition-duration: 0.1s; }
+.tilt-sheen {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgb(255 236 190 / 0.55), transparent 48%);
+  mix-blend-mode: soft-light;
+  opacity: 0;
+  transition: opacity 0.35s;
+}
+.tilt[data-hover] .tilt-sheen { opacity: 1; }
+
 /* ------------------------------------------------------------------ the “paid” medallion */
 
 @keyframes medalIn {
@@ -497,3 +554,6 @@
   @page { size: A4; margin: 14mm; }
 }
 .print-only { display: none; }
+
+@keyframes skRise { from { transform: translateY(var(--rise, 100px)); } to { transform: none; } }
+.sk-rise { animation: skRise 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) both; }

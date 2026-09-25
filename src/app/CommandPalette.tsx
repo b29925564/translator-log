@@ -1,4 +1,4 @@
-import { Building2, CornerDownLeft, FileText, Plus, Search } from 'lucide-react';
+import { Building2, CornerDownLeft, Crosshair, FileText, Plus, Search } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useData } from '../db/data';
@@ -42,9 +42,13 @@ export function CommandPalette() {
     const nq = norm(q.trim());
     const out: Item[] = [];
     const close = () => setPalette(false);
+    const urgent = jobs.filter((j) => j.status === 'active').sort((a, b) => (a.dueAt ?? '9999').localeCompare(b.dueAt ?? '9999'))[0];
     const actions: Item[] = [
       { id: 'a-new', group: tx('動作', 'Actions'), label: tx('新增案件', 'New job'), sub: q.trim() ? tx(`用「${q.trim()}」建立`, `Create from “${q.trim()}”`) : undefined, icon: <Plus size={16} />, run: () => { close(); openQuickAdd(q.trim()); } },
       { id: 'a-client', group: tx('動作', 'Actions'), label: tx('新增客戶', 'New client'), icon: <Building2 size={16} />, run: () => { close(); openClientEditor(undefined, true); } },
+      ...(urgent
+        ? [{ id: 'a-focus', group: tx('動作', 'Actions'), label: tx('開始專注', 'Start a focus session'), sub: urgent.title, icon: <Crosshair size={16} />, run: () => { close(); navigate('/focus/' + urgent.id); } }]
+        : []),
       ...NAV.filter((n) => !n.twOnly || settings.tax.region === 'TW').map((n) => ({
         id: 'n-' + n.route,
         group: tx('前往', 'Go to'),
@@ -53,7 +57,7 @@ export function CommandPalette() {
         run: () => { close(); navigate(n.route); },
       })),
     ];
-    if (!nq) return [...actions.slice(0, 2), ...[...jobs].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 6).map((j) => jobItem(j)), ...actions.slice(2)];
+    if (!nq) return [...actions.filter((a) => a.id.startsWith('a-')), ...[...jobs].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 6).map((j) => jobItem(j)), ...actions.filter((a) => !a.id.startsWith('a-'))];
     function jobItem(j: (typeof jobs)[number]): Item {
       const c = j.clientId ? clientMap.get(j.clientId) : undefined;
       return {

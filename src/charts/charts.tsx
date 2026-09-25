@@ -59,7 +59,7 @@ export interface TipRow {
   value: string;
 }
 
-function Tip({ x, y, title, rows, width }: { x: number; y: number; title: string; rows: TipRow[]; width: number }) {
+export function Tip({ x, y, title, rows, width }: { x: number; y: number; title: string; rows: TipRow[]; width: number }) {
   const left = Math.min(Math.max(8, x - 90), Math.max(8, width - 188));
   return (
     <div
@@ -228,8 +228,8 @@ export function ColumnChart({
                 style={{ cursor: onSelect ? 'pointer' : 'default' }}
               >
                 <rect x={padL + slot * i} y={padT} width={slot} height={plotH} fill="transparent" />
-                {he > 0 && <path d={barPath(cx0, y(d.value + (d.extra || 0)), bw, Math.max(0, he - gap))} fill={color} style={{ opacity: 'var(--extra-alpha, 0.3)' }} />}
-                {hv > 0 && <path d={he > 0 ? `M${cx0},${y(0)}V${y(d.value)}H${cx0 + bw}V${y(0)}Z` : barPath(cx0, y(d.value), bw, hv)} fill={color} opacity={hover == null || hover === i ? 1 : 0.55} />}
+                {he > 0 && <path className="grow-bar" d={barPath(cx0, y(d.value + (d.extra || 0)), bw, Math.max(0, he - gap))} fill={color} style={{ opacity: 'var(--extra-alpha, 0.3)', animationDelay: `${i * 40 + 250}ms` }} />}
+                {hv > 0 && <path className="grow-bar" style={{ animationDelay: `${i * 40}ms` }} d={he > 0 ? `M${cx0},${y(0)}V${y(d.value)}H${cx0 + bw}V${y(0)}Z` : barPath(cx0, y(d.value), bw, hv)} fill={color} opacity={hover == null || hover === i ? 1 : 0.55} />}
                 {(i % labelEvery === 0 || d.highlight) && (
                   <text x={padL + slot * i + slot / 2} y={height - 6} textAnchor="middle" fontSize={11} fill={d.highlight ? 'var(--ink)' : 'var(--muted)'} fontWeight={d.highlight ? 600 : 400}>
                     {d.label}

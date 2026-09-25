@@ -56,17 +56,36 @@ export const pairLabel = (j: Pick<Job, 'sourceLang' | 'targetLang'>, lang: Resum
   return `${s.short} → ${t.short}`;
 };
 
+const HAS_CJK = /[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/;
+
+const COUNTRY: Record<string, { zh: string; en: string }> = {
+  TW: { zh: '台灣', en: 'Taiwanese' },
+  US: { zh: '美國', en: 'US-based' },
+  JP: { zh: '日本', en: 'Japanese' },
+  CN: { zh: '中國', en: 'Chinese' },
+  HK: { zh: '香港', en: 'Hong Kong' },
+  KR: { zh: '韓國', en: 'Korean' },
+  GB: { zh: '英國', en: 'UK-based' },
+  UK: { zh: '英國', en: 'UK-based' },
+  CA: { zh: '加拿大', en: 'Canadian' },
+  DE: { zh: '德國', en: 'German' },
+  FR: { zh: '法國', en: 'French' },
+  SG: { zh: '新加坡', en: 'Singapore' },
+};
+
 export const clientPublicName = (c: Client | undefined, mode: ClientMode, lang: ResumeLang): string | undefined => {
   if (!c || mode === 'hidden') return undefined;
   if (mode === 'named') return c.name;
-  if (c.publicLabel) return c.publicLabel;
+  // a label written in the other language is replaced by a generated one
+  if (c.publicLabel && HAS_CJK.test(c.publicLabel) === (lang === 'zh')) return c.publicLabel;
   const kind = CLIENT_KINDS.find((k) => k.id === c.kind);
-  if (lang === 'zh') return `${c.industry ?? ''}${kind?.id === 'agency' ? '語言服務公司' : kind?.id === 'direct' ? '企業客戶' : kind?.zh ?? '客戶'}`;
-  const en = kind?.id === 'agency' ? 'language service provider' : kind?.id === 'direct' ? 'corporate client' : (kind?.en ?? 'client').toLowerCase();
-  return c.industry ? `${c.industry} ${en}` : en.charAt(0).toUpperCase() + en.slice(1);
+  const where = c.country ? COUNTRY[c.country.toUpperCase()] : undefined;
+  const industry = c.industry && HAS_CJK.test(c.industry) === (lang === 'zh') ? c.industry : '';
+  if (lang === 'zh') return `${where?.zh ?? ''}${industry}${kind?.id === 'agency' ? '語言服務公司' : kind?.id === 'direct' ? '企業客戶' : kind?.id === 'publisher' ? '出版社' : kind?.zh ?? '客戶'}`;
+  const en = kind?.id === 'agency' ? 'language service provider' : kind?.id === 'direct' ? 'corporate client' : kind?.id === 'publisher' ? 'publisher' : (kind?.en ?? 'client').toLowerCase();
+  const label = [where?.en, industry, en].filter(Boolean).join(' ');
+  return label.charAt(0).toUpperCase() + label.slice(1);
 };
-
-const HAS_CJK = /[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/;
 
 const projectTitle = (j: Job, lang: ResumeLang) => {
   // an English résumé never shows a Chinese title for a confidential job

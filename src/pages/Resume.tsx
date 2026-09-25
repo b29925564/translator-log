@@ -1,14 +1,15 @@
-import { Copy, Download, Printer, Star, Wand2 } from 'lucide-react';
+import { Copy, Download, Globe, Printer, Star, Wand2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useData } from '../db/data';
 import { saveJob } from '../db/repo';
 import { jobWords } from '../domain/money';
 import { bigNumber, buildResume, resumeMarkdown, type ClientMode, type ResumeLang } from '../domain/resume';
-import { incomeDate, isEarned } from '../domain/stats';
+import { incomeDate, isEarned, skylineMonths } from '../domain/stats';
+import { buildPortfolio } from '../features/portfolio';
 import { tx } from '../i18n';
 import { aiAvailable, aiPolishResume } from '../ai/claude';
 import { date, num } from '../ui/format';
-import { Button, cx, Field, Pair, PageHeader, Segmented, Select } from '../ui/kit';
+import { Button, cx, Field, Pair, PageHeader, Segmented, Select, Sheet } from '../ui/kit';
 import { useUI } from '../ui/store';
 import { copyText, downloadFile, printPage } from '../features/download';
 
@@ -57,6 +58,18 @@ export function Resume() {
   };
 
   const maxDomain = Math.max(1, ...r.domains.map((d) => d.words));
+  const [site, setSite] = useState(false);
+  const siteHtml = useMemo(() => {
+    if (!site) return '';
+    const opts = { from, to, clientMode, projectCount: count };
+    return buildPortfolio({
+      zh: buildResume(jobs, clients, settings.profile, { ...opts, lang: 'zh' }),
+      en: buildResume(jobs, clients, settings.profile, { ...opts, lang: 'en' }),
+      profile: settings.profile,
+      skyline: skylineMonths(jobs.filter((j) => j.status !== 'active'), today),
+      defaultLang: lang,
+    });
+  }, [site, jobs, clients, settings.profile, from, to, clientMode, count, lang, today]);
 
   return (
     <div>
@@ -65,6 +78,9 @@ export function Resume() {
         title={tx('履歷產生器', 'Résumé builder')}
         actions={
           <>
+            <Button size="sm" variant="secondary" icon={<Globe size={15} />} onClick={() => setSite(true)}>
+              {tx('個人網站', 'Portfolio site')}
+            </Button>
             <Button size="sm" variant="ghost" icon={<Copy size={15} />} onClick={() => void copyText(ai.text ?? md)}>
               {tx('複製文字', 'Copy text')}
             </Button>
@@ -296,6 +312,25 @@ export function Resume() {
           </section>
         </div>
       </div>
+      <Sheet
+        open={site}
+        onClose={() => setSite(false)}
+        size="xl"
+        title={tx('你的個人網站', 'Your portfolio website')}
+        subtitle={tx('中英雙語、一個檔案，可放上 GitHub Pages、Netlify 或自己的網域。內容依左側的設定產生。', 'Bilingual, one file: host it on GitHub Pages, Netlify or your own domain. Built from the options on the left.')}
+        footer={
+          <>
+            <span className="mr-auto hidden text-[12px] text-muted sm:block">{tx(`客戶名稱：${clientMode === 'named' ? '具名' : clientMode === 'hidden' ? '不顯示' : '匿名'}`, `Client names: ${clientMode}`)}</span>
+            <Button variant="primary" icon={<Download size={15} />} onClick={() => void downloadFile(`portfolio-${(settings.profile.nameEn || 'translator').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.html`, siteHtml, 'text/html')}>
+              {tx('下載網站檔案', 'Download website')}
+            </Button>
+          </>
+        }
+      >
+        <div className="overflow-hidden rounded-[4px] border border-line">
+          <iframe title={tx('個人網站預覽', 'Portfolio preview')} srcDoc={siteHtml} className="block h-[64dvh] w-full bg-white" sandbox="allow-scripts" />
+        </div>
+      </Sheet>
     </div>
   );
 }

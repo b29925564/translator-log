@@ -6,3 +6,4 @@ dist-demo
 coverage
 .vite
 test-results
+e2e-output

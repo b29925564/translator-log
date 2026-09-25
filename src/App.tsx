@@ -12,6 +12,7 @@ import { startAutoSync } from './sync/engine';
 import { loadAIKey } from './ai/claude';
 import { loadDemo } from './db/repo';
 import { DemoBanner } from './app/DemoBanner';
+import { Overture } from './app/Overture';
 import { Dashboard } from './pages/Dashboard';
 import { Jobs } from './pages/Jobs';
 import { JobDetail } from './pages/JobDetail';
@@ -27,6 +28,7 @@ const Wrapped = lazy(() => import('./pages/Wrapped').then((m) => ({ default: m.W
 const Tools = lazy(() => import('./pages/Tools').then((m) => ({ default: m.Tools })));
 const Tax = lazy(() => import('./pages/Tax').then((m) => ({ default: m.Tax })));
 const SettingsPage = lazy(() => import('./pages/Settings').then((m) => ({ default: m.SettingsPage })));
+const Focus = lazy(() => import('./pages/Focus').then((m) => ({ default: m.Focus })));
 const Pair = lazy(() => import('./pages/Pair').then((m) => ({ default: m.Pair })));
 
 function Route() {
@@ -94,6 +96,16 @@ function useGlobalShortcuts() {
 }
 
 export default function App() {
+  const { ready } = useData();
+  return (
+    <>
+      <AppBody />
+      <Overture ready={ready} />
+    </>
+  );
+}
+
+function AppBody() {
   const { ready, settings, jobs } = useData();
   const route = useUI((s) => s.route);
   const navigate = useUI((s) => s.navigate);
@@ -124,6 +136,29 @@ export default function App() {
     void loadAIKey();
   }, []);
 
+  // text shared into the installed app (Android share sheet → Wordtrail)
+  const shareReady = ready && (settings.onboarded || jobs.length > 0);
+  useEffect(() => {
+    if (!shareReady) return;
+    let params: URLSearchParams;
+    try {
+      params = new URLSearchParams(window.location.search);
+    } catch {
+      return;
+    }
+    const shared = ['title', 'text', 'url']
+      .map((k) => params.get(k)?.trim())
+      .filter((v, i, a): v is string => !!v && a.indexOf(v) === i)
+      .join('\n');
+    if (!shared) return;
+    try {
+      history.replaceState(null, '', window.location.pathname + window.location.hash);
+    } catch {
+      /* ignore */
+    }
+    openQuickAdd(shared);
+  }, [shareReady, openQuickAdd]);
+
   useEffect(() => {
     if (route === '/new') {
       navigate('/', { replace: true });
@@ -142,6 +177,16 @@ export default function App() {
     );
 
   if (!settings.onboarded && jobs.length === 0) return __DEMO_BUILD__ ? <Splash /> : <Onboarding />;
+
+  const focus = matchRoute(route, '/focus/:id');
+  if (focus)
+    return (
+      <Suspense fallback={<Splash />}>
+        <Focus id={focus.id} />
+        <Toasts />
+        <StampLayer />
+      </Suspense>
+    );
 
   if (route === '/wrapped')
     return (

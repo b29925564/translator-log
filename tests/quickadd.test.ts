@@ -105,3 +105,25 @@ describe('parseQuickAdd', () => {
     expect(parseQuickAdd('test 2026-12-01', ctx).dueAt).toBe('2026-12-01');
   });
 });
+
+describe('new client guesses', () => {
+  const ctx = { clients: [], today: '2026-03-02', baseCurrency: 'TWD', defaultTargetLang: 'zh-TW' };
+  it('reads a leading “A & B” name as a new client', () => {
+    const r = parseQuickAdd('Harbor & Quill clinical protocol EN>ZH-TW 4000 words $0.11/word due in 5 days', ctx);
+    expect(r.newClientName).toBe('Harbor & Quill');
+    expect(r.title).toBe('clinical protocol');
+  });
+  it('understands “for <client>”', () => {
+    const r = parseQuickAdd('patent claims for Atlas IP 6000 words 12 cents/word', ctx);
+    expect(r.newClientName).toBe('Atlas IP');
+    expect(r.title).toBe('patent claims');
+  });
+  it('recognises organisation suffixes', () => {
+    expect(parseQuickAdd('Atlas Patent Partners patent claims 6k words', ctx).newClientName).toBe('Atlas Patent Partners');
+    expect(parseQuickAdd('光譜行銷有限公司 年度活動 中翻英 3000字', ctx).newClientName).toBe('光譜行銷有限公司');
+  });
+  it('does not mistake a Title Case job title for a client', () => {
+    expect(parseQuickAdd('Winter DLC quest text 7500 words', ctx).newClientName).toBeUndefined();
+    expect(parseQuickAdd('Device labelling pack 2000 words due Friday', ctx).newClientName).toBeUndefined();
+  });
+});

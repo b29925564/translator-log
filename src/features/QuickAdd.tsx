@@ -1,4 +1,4 @@
-import { CalendarClock, CornerDownLeft, Gauge, Sparkles, Wand2 } from 'lucide-react';
+import { CalendarClock, CornerDownLeft, Gauge, Mic, Sparkles, Wand2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useData } from '../db/data';
 import { saveJob } from '../db/repo';
@@ -14,6 +14,7 @@ import { Button, cx, Kbd, Sheet, statusLabel } from '../ui/kit';
 import { useUI } from '../ui/store';
 import { useSpeed } from './common';
 import { jobFromParse, persistNewClient } from './jobFactory';
+import { useDictation } from './dictation';
 
 const TOKEN_COLOR: Record<TokenKind, string> = {
   client: 'var(--series-7)',
@@ -37,7 +38,7 @@ const EXAMPLES = () => [
 ];
 
 /** Textarea with a mirror layer behind it that tints every recognised token. */
-function HighlightInput({ value, onChange, tokens, onSubmit }: { value: string; onChange: (v: string) => void; tokens: QuickParse['tokens']; onSubmit: () => void }) {
+function HighlightInput({ value, onChange, tokens, onSubmit, extra }: { value: string; onChange: (v: string) => void; tokens: QuickParse['tokens']; onSubmit: () => void; extra?: React.ReactNode }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const mirror = useRef<HTMLDivElement>(null);
   const parts: { text: string; kind?: TokenKind }[] = [];
@@ -79,10 +80,11 @@ function HighlightInput({ value, onChange, tokens, onSubmit }: { value: string; 
           }
         }}
         placeholder={tx('例如：藍海翻譯社 醫療器材說明書 英翻中 12,500字 每字1.2 10/20交', 'e.g. Lumina app strings EN>ZH-TW 3,200 words @ $0.09/word due Friday')}
-        className={cx(shared, 'relative block w-full resize-none bg-transparent text-ink caret-accent outline-none placeholder:text-muted')}
+        className={cx(shared, 'relative block w-full resize-none bg-transparent pb-12 text-ink caret-accent outline-none placeholder:text-muted')}
         aria-label={tx('用一句話描述案件', 'Describe the job in one line')}
         spellCheck={false}
       />
+      {extra}
     </div>
   );
 }
@@ -167,6 +169,35 @@ export function QuickAdd() {
     }
   };
 
+  const spokenFrom = useRef('');
+  const dict = useDictation((heard, final) => {
+    const base = spokenFrom.current;
+    setText(base + (base && !/\s$/.test(base) ? ' ' : '') + heard.trim());
+    setAiParse(null);
+    if (final) spokenFrom.current = '';
+  });
+  const mic = dict.supported ? (
+    <div className="pointer-events-none absolute bottom-2 right-2 flex items-center gap-2">
+      {dict.listening && <span className="text-[12px] font-medium text-gold animate-[pulseDot_1.2s_ease_infinite]">{tx('聆聽中…', 'Listening…')}</span>}
+      <button
+        type="button"
+        onClick={() => {
+          if (dict.listening) dict.stop();
+          else {
+            spokenFrom.current = text;
+            dict.start();
+          }
+        }}
+        className={cx('pointer-events-auto grid h-9 w-9 place-items-center rounded-[3px] border transition-colors', dict.listening ? 'border-gold bg-gold text-[#0b0b0c]' : 'border-line-strong bg-surface text-ink-2 hover:border-ink hover:text-ink')}
+        aria-label={dict.listening ? tx('停止語音輸入', 'Stop dictation') : tx('用說的新增', 'Dictate the job')}
+        aria-pressed={dict.listening}
+        title={tx('用說的新增', 'Dictate the job')}
+      >
+        <Mic size={16} />
+      </button>
+    </div>
+  ) : null;
+
   const client = job?.clientId ? clientMap.get(job.clientId) ?? built?.newClient : undefined;
   const dueOk = analysis?.finish && job?.dueAt ? analysis.finish <= dateOnly(job.dueAt) : undefined;
 
@@ -199,6 +230,7 @@ export function QuickAdd() {
         }}
         tokens={aiParse ? [] : parsed.tokens}
         onSubmit={() => canSave && save()}
+        extra={mic}
       />
 
       {!text.trim() && (

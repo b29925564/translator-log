@@ -80,6 +80,12 @@ const clean = <T extends object>(o: T): T => {
 };
 
 export const saveJob = async (job: Job) => {
+  // remember where the day started so the Today plan can show words done today
+  const prev = await db.jobs.get(job.id);
+  const today = todayISO();
+  if (prev && (prev.progress ?? 0) !== (job.progress ?? 0) && prev.dayStart?.date !== today && job.dayStart?.date !== today) {
+    job = { ...job, dayStart: { date: today, progress: prev.progress ?? 0 } };
+  }
   const rec = clean({ ...job, updatedAt: now() });
   await db.jobs.put(rec);
   changed();

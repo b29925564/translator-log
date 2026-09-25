@@ -1,5 +1,5 @@
-import { ArrowDownRight, ArrowRight, ArrowUpRight, FileText, Plus, Sparkles } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { ArrowDownRight, ArrowRight, ArrowUpRight, Sparkles } from 'lucide-react';
+import { useMemo } from 'react';
 import { ColumnChart, Heatmap, LoadChart, monthLabel } from '../charts/charts';
 import { useData } from '../db/data';
 import { addDays, dateOnly, diffDays, fmtDateLong, startOfMonth } from '../domain/dates';
@@ -18,32 +18,14 @@ import {
 } from '../domain/stats';
 import { getLang, tx } from '../i18n';
 import { compact, greeting, money, num, pct } from '../ui/format';
-import { Button, cx, Empty, Kbd, Meter, SectionTitle } from '../ui/kit';
+import { cx, Kbd, Meter, SectionTitle } from '../ui/kit';
 import { useUI } from '../ui/store';
-import { JobRow, useSpeed } from '../features/common';
+import { useSpeed } from '../features/common';
 import { insightView } from '../features/insightText';
-
-const useCountUp = (value: number, ms = 800) => {
-  const [v, setV] = useState(value);
-  useEffect(() => {
-    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
-      setV(value);
-      return;
-    }
-    const start = performance.now();
-    const from = 0;
-    let raf = 0;
-    const step = (t: number) => {
-      const k = Math.min(1, (t - start) / ms);
-      const e = 1 - Math.pow(1 - k, 3);
-      setV(from + (value - from) * e);
-      if (k < 1) raf = requestAnimationFrame(step);
-    };
-    raf = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf);
-  }, [value, ms]);
-  return v;
-};
+import { SkylineHero } from '../features/SkylineHero';
+import { TodayPlan } from '../features/TodayPlan';
+import { FirstSteps } from '../features/FirstSteps';
+import { Odometer } from '../ui/motion';
 
 function Tile({ label, value, sub, children, onClick, className }: { label: string; value: React.ReactNode; sub?: React.ReactNode; children?: React.ReactNode; onClick?: () => void; className?: string }) {
   const Comp = onClick ? 'button' : 'div';
@@ -93,118 +75,79 @@ export function Dashboard() {
     return { earnedNow, earnedPrev, pipeline, series, ytd, ytdWithBooked, outstanding, overdue, hourly, active, load, daily, st, ins, dueThisWeek, wordsMonth };
   }, [jobs, clients, sessions, settings, today, hours, speed.wph, year]);
 
-  const hero = useCountUp(m.earnedNow.income);
   const delta = m.earnedPrev.income > 0 ? (m.earnedNow.income - m.earnedPrev.income) / m.earnedPrev.income : undefined;
   const goal = settings.goals.yearIncome;
   const firstName = settings.profile.name ? (getLang() === 'en' ? (settings.profile.nameEn || settings.profile.name).split(' ')[0] : settings.profile.name.slice(-2)) : '';
   const heatFrom = addDays(today, -364);
   const monthName = new Intl.DateTimeFormat(getLang() === 'en' ? 'en-US' : 'zh-TW', { month: 'long' }).format(new Date());
 
-  if (jobs.length === 0) {
-    return (
-      <div>
-        <header className="mb-6">
-          <div className="eyebrow mb-1">{fmtDateLong(today, getLang())}</div>
-          <h1 className="font-display text-[30px] text-ink">
+  const header = (
+    <header>
+      <div className="flex flex-wrap items-end justify-between gap-4 pb-4">
+        <div>
+          <div className="eyebrow mb-2">{fmtDateLong(today, getLang())}</div>
+          <h1 className="font-display text-[34px] leading-[1.05] text-ink md:text-[46px]">
             {greeting()}
             {firstName && tx(`，${firstName}`, `, ${firstName}`)}
           </h1>
-        </header>
-        <div className="card">
-          <Empty
-            icon={<FileText size={22} />}
-            title={tx('記下第一個案件', 'Log your first job')}
-            body={tx('用一句話描述就好，例如「藍海翻譯社 說明書 英翻中 5000字 每字1.2 週五交」。', 'Just describe it in one line, e.g. “Lumina app strings EN>ZH-TW 5,000 words $0.09/word due Friday”.')}
-            action={
-              <Button variant="primary" icon={<Plus size={17} />} onClick={() => openQuickAdd()}>
-                {tx('新增案件', 'New job')}
-              </Button>
-            }
-          />
+          <p className="mt-2 text-[14.5px] text-ink-2">
+            {jobs.length === 0
+              ? tx('這是你的工作紀錄本。先記下一個案件，其他的交給我。', 'This is your work log. Note down one job and the rest follows.')
+              : m.active.length
+                ? tx(`手上有 ${m.active.length} 個案件，其中 ${m.dueThisWeek} 個在 7 天內截稿。`, `${m.active.length} jobs in progress, ${m.dueThisWeek} due within 7 days.`)
+                : tx('目前沒有進行中的案件，好好休息。', 'Nothing in progress right now. Enjoy the breather.')}
+          </p>
         </div>
+        <button
+          type="button"
+          onClick={() => openQuickAdd()}
+          className="hidden h-11 w-[340px] items-center gap-2.5 rounded-[3px] border border-line-strong bg-surface px-3.5 text-left text-[14px] text-muted transition-colors hover:border-ink hover:text-ink md:flex"
+        >
+          <Sparkles size={15} className="text-gold" />
+          <span className="flex-1 truncate">{tx('一句話新增案件…', 'Add a job in one line…')}</span>
+          <Kbd>N</Kbd>
+        </button>
+      </div>
+      <div className="rule-deco" />
+    </header>
+  );
+
+  if (jobs.length === 0) {
+    return (
+      <div className="stagger flex flex-col gap-5">
+        {header}
+        <SkylineHero />
+        <FirstSteps />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      <header>
-        <div className="flex flex-wrap items-end justify-between gap-4 pb-4">
-          <div>
-            <div className="eyebrow mb-2">{fmtDateLong(today, getLang())}</div>
-            <h1 className="font-display text-[34px] leading-[1.05] text-ink md:text-[46px]">
-              {greeting()}
-              {firstName && tx(`，${firstName}`, `, ${firstName}`)}
-            </h1>
-            <p className="mt-2 text-[14.5px] text-ink-2">
-              {m.active.length
-                ? tx(`手上有 ${m.active.length} 個案件，其中 ${m.dueThisWeek} 個在 7 天內截稿。`, `${m.active.length} jobs in progress, ${m.dueThisWeek} due within 7 days.`)
-                : tx('目前沒有進行中的案件，好好休息。', 'Nothing in progress right now. Enjoy the breather.')}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => openQuickAdd()}
-            className="hidden h-11 w-[340px] items-center gap-2.5 rounded-[3px] border border-line-strong bg-surface px-3.5 text-left text-[14px] text-muted transition-colors hover:border-ink hover:text-ink md:flex"
-          >
-            <Sparkles size={15} className="text-gold" />
-            <span className="flex-1 truncate">{tx('一句話新增案件…', 'Add a job in one line…')}</span>
-            <Kbd>N</Kbd>
-          </button>
-        </div>
-        <div className="rule-deco" />
-      </header>
+    <div className="stagger flex flex-col gap-5">
+      {header}
+      <SkylineHero />
 
-      <div className="grid gap-4 lg:grid-cols-12">
-        <section className="on-ink sunburst overflow-hidden rounded-[4px] border border-line p-6 text-ink lg:col-span-7" style={{ background: '#0b0b0c' }}>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <div className="eyebrow">{tx(`${monthName} · 已完成收入`, `Earned · ${monthName}`)}</div>
-              <div className="mt-4 text-[48px] font-medium leading-none tracking-[-0.045em] text-ink sm:text-[64px]">{money(hero, base)}</div>
-              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px]">
+      <div className="grid items-start gap-4 lg:grid-cols-12">
+        <div className="min-w-0 lg:col-span-7">
+          <TodayPlan />
+        </div>
+        <div className="ruled min-w-0 grid-cols-2 lg:col-span-5">
+          <Tile
+            label={tx(`${monthName} · 已完成收入`, `Earned · ${monthName}`)}
+            value={<Odometer text={money(m.earnedNow.income, base)} />}
+            className="col-span-2"
+            sub={
+              <span className="flex flex-wrap gap-x-3 gap-y-0.5">
                 {delta != null && (
                   <span className={cx('inline-flex items-center gap-0.5 font-medium', delta >= 0 ? 'text-good' : 'text-bad')}>
-                    {delta >= 0 ? <ArrowUpRight size={15} /> : <ArrowDownRight size={15} />}
+                    {delta >= 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
                     {pct(Math.abs(delta))} {tx('較上月同期', 'vs. same point last month')}
                   </span>
                 )}
-                {m.pipeline > 0 && <span className="text-muted">+ {money(m.pipeline, base)} {tx('進行中', 'in progress')}</span>}
-              </div>
-            </div>
-            <div className="sm:text-right">
-              <div className="eyebrow">{tx('本月字數', 'Words this month')}</div>
-              <div className="mt-2 text-[22px] font-medium tracking-[-0.02em] text-ink">{num(Math.round(m.wordsMonth))}</div>
-            </div>
-          </div>
-          <div className="mt-6">
-            <ColumnChart
-              height={170}
-              data={m.series.map((p, i) => ({
-                key: p.month,
-                label: monthLabel(p.month),
-                value: p.earned,
-                extra: p.projected,
-                highlight: i === m.series.length - 1,
-              }))}
-              format={(v) => money(v, base)}
-              valueLabel={tx('已完成', 'Earned')}
-              extraLabel={tx('進行中（預估）', 'In progress (est.)')}
-              onSelect={() => navigate('/insights')}
-            />
-            <div className="mt-2 flex flex-wrap gap-x-4 text-[12px] text-ink-2">
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-[1px]" style={{ background: 'var(--series-1)' }} />
-                {tx('已完成', 'Earned')}
+                {m.pipeline > 0 && <span>+ {money(m.pipeline, base, { compact: true })} {tx('進行中', 'in progress')}</span>}
               </span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-[1px]" style={{ background: 'var(--series-1)', opacity: 'var(--extra-alpha, 0.3)' }} />
-                {tx('進行中（預估）', 'In progress (est.)')}
-              </span>
-            </div>
-          </div>
-        </section>
-
-        <div className="ruled grid-cols-2 lg:col-span-5">
+            }
+          />
           <Tile
             label={tx(`${year} 年收入`, `${year} income`)}
             value={money(m.ytd.income, base, { compact: true })}
@@ -244,25 +187,44 @@ export function Dashboard() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-12">
-        <section className="card overflow-hidden lg:col-span-7">
-          <div className="flex items-center justify-between px-4 pb-2 pt-4">
-            <h2 className="text-[15px] font-semibold text-ink">{tx('進行中', 'In progress')}</h2>
-            <button type="button" className="inline-flex items-center gap-1 text-[13px] font-medium text-ink underline decoration-gold decoration-1 underline-offset-4" onClick={() => navigate('/jobs')}>
-              {tx('全部案件', 'All jobs')} <ArrowRight size={14} />
-            </button>
+        <section className="card min-w-0 p-4 sm:p-5 lg:col-span-7">
+          <SectionTitle
+            eyebrow={tx(`本月 ${num(Math.round(m.wordsMonth))} 字`, `${num(Math.round(m.wordsMonth))} words this month`)}
+            action={
+              <button type="button" className="inline-flex items-center gap-1 text-[13px] font-medium text-ink underline decoration-gold decoration-1 underline-offset-4" onClick={() => navigate('/insights')}>
+                {tx('洞察', 'Insights')} <ArrowRight size={14} />
+              </button>
+            }
+          >
+            {tx('近 12 個月收入', 'Income, last 12 months')}
+          </SectionTitle>
+          <ColumnChart
+            height={180}
+            data={m.series.map((p, i) => ({
+              key: p.month,
+              label: monthLabel(p.month),
+              value: p.earned,
+              extra: p.projected,
+              highlight: i === m.series.length - 1,
+            }))}
+            format={(v) => money(v, base)}
+            valueLabel={tx('已完成', 'Earned')}
+            extraLabel={tx('進行中（預估）', 'In progress (est.)')}
+            onSelect={() => navigate('/insights')}
+          />
+          <div className="mt-2 flex flex-wrap gap-x-4 text-[12px] text-ink-2">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-[1px]" style={{ background: 'var(--series-1)' }} />
+              {tx('已完成', 'Earned')}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-[1px]" style={{ background: 'var(--series-1)', opacity: 'var(--extra-alpha, 0.3)' }} />
+              {tx('進行中（預估）', 'In progress (est.)')}
+            </span>
           </div>
-          {m.active.length ? (
-            <div className="hairline-list border-t border-line">
-              {m.active.slice(0, 6).map((j) => (
-                <JobRow key={j.id} job={j} showTimer showDue />
-              ))}
-            </div>
-          ) : (
-            <Empty title={tx('沒有進行中的案件', 'Nothing in progress')} body={tx('按 N 或右下角的 + 新增。', 'Press N or tap + to add one.')} />
-          )}
         </section>
 
-        <section className="card p-4 lg:col-span-5">
+        <section className="card min-w-0 p-4 sm:p-5 lg:col-span-5">
           <SectionTitle eyebrow={tx(`速度 ${num(speed.wph)} 字/時`, `${num(speed.wph)} words/h`)}>{tx('未來兩週負荷', 'Next two weeks')}</SectionTitle>
           <LoadChart data={m.load.map((d) => ({ date: d.date, hours: d.hours, capacity: d.capacity }))} />
           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-ink-2">

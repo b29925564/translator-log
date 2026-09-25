@@ -45,13 +45,26 @@ export default defineConfig(({ mode }) => {
                 { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
                 { src: 'icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
               ],
+              id: './',
               shortcuts: [
-                { name: '新增案件', short_name: '新增', url: './#/new' },
-                { name: '案件列表', short_name: '案件', url: './#/jobs' },
+                { name: '新增案件 New job', short_name: '新增', url: './#/new', icons: [{ src: 'icon-192.png', sizes: '192x192' }] },
+                { name: '案件列表 Jobs', short_name: '案件', url: './#/jobs', icons: [{ src: 'icon-192.png', sizes: '192x192' }] },
+                { name: '年度回顧 Year in review', short_name: '回顧', url: './#/wrapped', icons: [{ src: 'icon-192.png', sizes: '192x192' }] },
+              ],
+              // share an email or PO from any app straight into Quick Add
+              share_target: {
+                action: './',
+                method: 'GET',
+                params: { title: 'title', text: 'text', url: 'url' },
+              },
+              screenshots: [
+                { src: 'screenshots/wide.png', sizes: '1440x900', type: 'image/png', form_factor: 'wide', label: 'Wordtrail overview' },
+                { src: 'screenshots/narrow.png', sizes: '780x1688', type: 'image/png', form_factor: 'narrow', label: 'Wordtrail on a phone' },
               ],
             },
             workbox: {
               globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+              globIgnores: ['screenshots/**'],
               navigateFallback: 'index.html',
               runtimeCaching: [
                 {

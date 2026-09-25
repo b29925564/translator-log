@@ -1,4 +1,4 @@
-import { ArrowLeft, CalendarPlus, Check, Copy, MoreHorizontal, Pencil, Plus, Star, Trash2, X } from 'lucide-react';
+import { ArrowLeft, CalendarPlus, Check, Copy, Crosshair, MoreHorizontal, Pencil, Plus, Star, Trash2, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useData } from '../db/data';
 import { deleteJob, deleteSession, newJob, restoreJob, saveJob, saveSession, setJobStatus, uid } from '../db/repo';
@@ -128,6 +128,11 @@ export function JobDetail({ id }: { id: string }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {job.status === 'active' && (
+            <Button icon={<Crosshair size={15} />} onClick={() => navigate('/focus/' + job.id)}>
+              {tx('專注', 'Focus')}
+            </Button>
+          )}
           {job.status === 'active' && <TimerButton job={job} size="md" />}
           <Button icon={<Pencil size={15} />} onClick={() => openJobEditor(job, false)}>
             {tx('編輯', 'Edit')}

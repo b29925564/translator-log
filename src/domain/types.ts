@@ -85,6 +85,8 @@ export interface Job extends SyncMeta {
   paidAt?: string;
   paymentDueAt?: string;
   progress?: number; // 0–100
+  /** Progress at the start of the most recent day it changed, for “done today”. */
+  dayStart?: { date: string; progress: number };
   invoiceId?: string;
 
   catTool?: string;

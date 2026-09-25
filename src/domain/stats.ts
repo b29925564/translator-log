@@ -789,3 +789,156 @@ export const insights = (args: {
 
   return out;
 };
+
+// ---------- career skyline ----------
+
+export interface SkylineMonth {
+  month: string; // YYYY-MM
+  words: number;
+  jobs: number;
+  income: number;
+  /** Words of active jobs, drawn as scaffolding on the current month. */
+  pending: number;
+  /** Months merged into this tower (3 for a quarter). */
+  span?: number;
+}
+
+/** Merges months into calendar quarters for narrow screens; `month` stays the quarter's first month. */
+export const skylineQuarters = (months: SkylineMonth[]): SkylineMonth[] => {
+  const out: SkylineMonth[] = [];
+  for (const m of months) {
+    const [y, mm] = m.month.split('-').map(Number);
+    const key = `${y}-${String(Math.floor((mm - 1) / 3) * 3 + 1).padStart(2, '0')}`;
+    const last = out[out.length - 1];
+    if (last && last.month === key) {
+      last.words += m.words;
+      last.jobs += m.jobs;
+      last.income += m.income;
+      last.pending += m.pending;
+    } else out.push({ ...m, month: key, span: 3 });
+  }
+  return out;
+};
+
+/** One entry per calendar month from the first earned job to `today`, gaps included. */
+export const skylineMonths = (jobs: Job[], today: string): SkylineMonth[] => {
+  const earned = jobs.filter((j) => isEarned(j) && !j.deletedAt);
+  const current = monthKey(today);
+  if (!earned.length) {
+    const pending = jobs.filter((j) => j.status === 'active' && !j.deletedAt).reduce((s, j) => s + jobWords(j), 0);
+    return pending > 0 ? [{ month: current, words: 0, jobs: 0, income: 0, pending }] : [];
+  }
+  const first = earned.reduce((m, j) => (monthKey(incomeDate(j)) < m ? monthKey(incomeDate(j)) : m), current);
+  const out: SkylineMonth[] = [];
+  const idx = new Map<string, number>();
+  let [y, m] = first.split('-').map(Number);
+  // cap at 20 years so a stray date can't explode the chart
+  for (let guard = 0; guard < 240; guard++) {
+    const key = `${y}-${String(m).padStart(2, '0')}`;
+    idx.set(key, out.length);
+    out.push({ month: key, words: 0, jobs: 0, income: 0, pending: 0 });
+    if (key >= current) break;
+    m++;
+    if (m > 12) {
+      m = 1;
+      y++;
+    }
+  }
+  for (const j of earned) {
+    const i = idx.get(monthKey(incomeDate(j)));
+    if (i == null) continue;
+    out[i].words += jobWords(j);
+    out[i].jobs += 1;
+    out[i].income += jobGrossBase(j);
+  }
+  const last = out[out.length - 1];
+  for (const j of jobs) if (j.status === 'active' && !j.deletedAt) last.pending += jobWords(j) * (1 - (j.progress || 0) / 100);
+  return out;
+};
+
+// ---------- today plan ----------
+
+export type PlanState = 'overdue' | 'today' | 'tight' | 'ok' | 'rest' | 'event';
+
+export interface PlanItem {
+  job: Job;
+  /** What the amounts below are counted in. */
+  unit: 'word' | 'char' | 'minute';
+  total: number;
+  /** Left at the start of today. */
+  remaining: number;
+  /** Suggested for today to stay on schedule. */
+  target: number;
+  doneToday: number;
+  hours: number;
+  /** Working days left including today, when today is one. */
+  daysLeft: number;
+  due?: string;
+  state: PlanState;
+}
+
+export interface TodayPlan {
+  items: PlanItem[];
+  hours: number;
+  capacity: number;
+  /** Share of today's targets already done, 0–1. */
+  progress: number;
+  isWorkDay: boolean;
+}
+
+const planHours = (j: Job, amount: number, unit: PlanItem['unit'], wph: number) => {
+  if (unit === 'minute') return (amount * 6) / 60;
+  const w = unit === 'char' ? amount / CHARS_PER_WORD : amount;
+  const factor = j.service === 'review' || j.service === 'proofreading' ? 0.35 : j.service === 'mtpe' ? 0.6 : 1;
+  return (w * factor) / Math.max(50, wph);
+};
+
+/** Splits each active job's remaining work evenly over the working days before its deadline. */
+export const todayPlan = (jobs: Job[], work: WorkSettings, today: string, wph: number): TodayPlan => {
+  const isWorkDay = work.workDays.includes(weekday(today));
+  const items: PlanItem[] = [];
+  for (const j of jobs) {
+    if (j.status !== 'active' || j.deletedAt) continue;
+    const due = j.dueAt ? dateOnly(j.dueAt) : undefined;
+    if (j.unit === 'hour') {
+      items.push({ job: j, unit: 'minute', total: 0, remaining: 0, target: 0, doneToday: 0, hours: due === today ? j.quantity || 0 : 0, daysLeft: 0, due, state: 'event' });
+      continue;
+    }
+    const unit: PlanItem['unit'] = j.unit === 'minute' ? 'minute' : j.unit === 'char' ? 'char' : 'word';
+    const total = j.unit === 'minute' ? j.quantity || 0 : jobWords(j) || (j.unit === 'page' ? (j.quantity || 0) * 250 : 0);
+    const now = j.progress || 0;
+    const base = j.dayStart?.date === today ? j.dayStart.progress : now;
+    const remaining = Math.max(0, total * (1 - base / 100));
+    const doneToday = Math.max(0, (total * (now - base)) / 100);
+    const end = due ?? addDays(today, 7);
+    const days = end < today ? [] : workingDays(today, end, work.workDays);
+    let state: PlanState;
+    let target: number;
+    if (end < today) {
+      state = 'overdue';
+      target = remaining;
+    } else if (end === today) {
+      state = 'today';
+      target = remaining;
+    } else if (!days.length) {
+      // no working day before the deadline: it has to happen anyway
+      state = 'tight';
+      target = remaining / (diffDays(today, end) + 1);
+    } else if (!isWorkDay) {
+      state = 'rest';
+      target = 0;
+    } else {
+      state = 'ok';
+      target = remaining / days.length;
+    }
+    items.push({ job: j, unit, total, remaining, target, doneToday, hours: planHours(j, target, unit, wph), daysLeft: days.length, due, state });
+  }
+  const rank: Record<PlanState, number> = { overdue: 0, today: 1, event: 2, tight: 3, ok: 4, rest: 5 };
+  items.sort((a, b) => rank[a.state] - rank[b.state] || (a.job.dueAt ?? '9999').localeCompare(b.job.dueAt ?? '9999'));
+  const hours = items.reduce((s, x) => s + x.hours, 0);
+  const capacity = isWorkDay ? work.hoursPerDay : 0;
+  if (hours > work.hoursPerDay) for (const x of items) if (x.state === 'ok') x.state = 'tight';
+  const want = items.reduce((s, x) => s + planHours(x.job, x.target, x.unit, wph), 0);
+  const got = items.reduce((s, x) => s + planHours(x.job, Math.min(x.doneToday, x.target || x.doneToday), x.unit, wph), 0);
+  return { items, hours, capacity, progress: want > 0 ? Math.min(1, got / want) : items.length && items.every((x) => x.target === 0) ? 1 : 0, isWorkDay };
+};

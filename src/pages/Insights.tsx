@@ -23,6 +23,7 @@ import { compact, domain as domainName, money, num, pct, rate as fmtRateStr, ser
 import { cx, Meter, PageHeader, Segmented, Select } from '../ui/kit';
 import { useUI } from '../ui/store';
 import { Medallion } from '../app/Stamps';
+import { Tilt } from '../ui/motion';
 import { fxRate } from '../domain/money';
 
 type Period = 'ytd' | 'last' | 'r12' | 'all';
@@ -358,8 +359,8 @@ function Milestones({ list }: { list: Milestone[] }) {
     <section className="mt-6">
       <div className="mb-3 flex items-end justify-between">
         <div>
-          <div className="eyebrow mb-0.5">{tx(`已蓋 ${achieved.length} 枚`, `${achieved.length} stamps collected`)}</div>
-          <h2 className="text-[15px] font-semibold text-ink">{tx('里程碑護照', 'Milestone passport')}</h2>
+          <div className="eyebrow mb-0.5">{tx(`已獲得 ${achieved.length} 枚`, `${achieved.length} medals earned`)}</div>
+          <h2 className="text-[15px] font-semibold text-ink">{tx('里程碑紀念章', 'Milestone medals')}</h2>
         </div>
       </div>
       <div className="card p-5">
@@ -369,14 +370,16 @@ function Milestones({ list }: { list: Milestone[] }) {
               const t = milestoneText(m);
               return (
                 <div key={m.id} className="flex w-[112px] flex-col items-center text-center" title={t.label}>
-                  <Medallion top={t.top} center={t.center} bottom={m.achievedAt!.slice(0, 7).replace('-', '.')} size={100} />
+                  <Tilt className="rounded-full">
+                    <Medallion top={t.top} center={t.center} bottom={m.achievedAt!.slice(0, 7).replace('-', '.')} size={100} />
+                  </Tilt>
                   <div className="mt-1 text-[11.5px] leading-tight text-muted">{t.label}</div>
                 </div>
               );
             })}
           </div>
         ) : (
-          <p className="text-[13px] text-muted">{tx('完成第一個案件，就會蓋下第一枚印章。', 'Deliver your first job to earn your first stamp.')}</p>
+          <p className="text-[13px] text-muted">{tx('完成第一個案件，就會獲得第一枚紀念章。', 'Deliver your first job to earn your first medal.')}</p>
         )}
         {next.length > 0 && (
           <div className="mt-5 grid gap-3 border-t border-line pt-4 sm:grid-cols-2 lg:grid-cols-4">
