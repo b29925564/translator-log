@@ -5,6 +5,7 @@ import { assignToProject, newJob, saveJob, saveProject, deleteProject, uid } fro
 import { diffDays, dateOnly } from '../domain/dates';
 import { fxRate, jobGross, jobGrossBase } from '../domain/money';
 import { isOngoing, PART_KINDS, partLabel, partTitle, projectStats, queriesText, shortPartName, sortQueries, templateFor } from '../domain/projects';
+import { clientPrice, matchClientRate } from '../domain/rates';
 import { isEarned } from '../domain/stats';
 import type { Job, JobStatus, Project, ProjectQuery, Unit } from '../domain/types';
 import { getLang, tx } from '../i18n';
@@ -84,17 +85,23 @@ export function ProjectDetail({ id }: { id: string }) {
     const last = [...parts].sort((a, b) => b.createdAt - a.createdAt)[0];
     const h = last ? undefined : clientHabits(p.clientId, jobs);
     const currency = last?.currency ?? client?.currency ?? settings.baseCurrency;
+    const service = last?.service ?? h?.service ?? 'translation';
+    const sourceLang = p.sourceLang ?? last?.sourceLang ?? settings.defaultSourceLang;
+    const targetLang = p.targetLang ?? last?.targetLang ?? settings.defaultTargetLang;
+    // the client's current rate card wins over what the last job was billed at
+    const card = matchClientRate(client, { service, sourceLang, targetLang, unit: last?.unit });
     openJobEditor(
       newJob({
         projectId: p.id,
         clientId: p.clientId ?? last?.clientId,
-        service: last?.service ?? h?.service ?? 'translation',
-        sourceLang: p.sourceLang ?? last?.sourceLang ?? settings.defaultSourceLang,
-        targetLang: p.targetLang ?? last?.targetLang ?? settings.defaultTargetLang,
+        service,
+        sourceLang,
+        targetLang,
         domain: last?.domain ?? h?.domain,
         catTool: last?.catTool ?? h?.catTool,
-        unit: last?.unit ?? client?.defaultUnit ?? h?.unit ?? 'word',
-        rate: last?.rate ?? client?.defaultRate ?? h?.rate ?? 0,
+        unit: card?.unit ?? last?.unit ?? client?.defaultUnit ?? h?.unit ?? 'word',
+        rate: card?.rate ?? last?.rate ?? client?.defaultRate ?? h?.rate ?? 0,
+        minimumFee: card ? card.minimumFee : last?.minimumFee,
         currency,
         fxToBase: fxRate(currency, settings.baseCurrency, settings.fx.rates),
         status: 'active',
@@ -567,7 +574,9 @@ function AddPart({ project, onClose }: { project: Project; onClose: () => void }
   const [name, setName] = useState(partLabel(kinds[0], lang, kinds[0].numbered ? 1 : undefined));
   const [unit, setUnit] = useState<Unit>(kinds[0].unit);
   const [quantity, setQuantity] = useState<number | undefined>();
-  const [rate, setRate] = useState<number | undefined>(client?.defaultUnit === kinds[0].unit ? client.defaultRate : undefined);
+  const priceFor = (k: (typeof kinds)[number], u: Unit) =>
+    clientPrice(client, { service: k.service, sourceLang: project.sourceLang ?? settings.defaultSourceLang, targetLang: project.targetLang ?? settings.defaultTargetLang, unit: u, strictUnit: true })?.rate;
+  const [rate, setRate] = useState<number | undefined>(() => priceFor(kinds[0], kinds[0].unit));
   const [due, setDue] = useState(project.dueAt ?? '');
   const [status, setStatus] = useState<JobStatus>('quote');
   const currency = client?.currency ?? settings.baseCurrency;
@@ -577,7 +586,7 @@ function AddPart({ project, onClose }: { project: Project; onClose: () => void }
     setKindId(id);
     setName(partLabel(k, lang, k.numbered ? 1 : undefined));
     setUnit(k.unit);
-    setRate(client?.defaultUnit === k.unit ? client.defaultRate : undefined);
+    setRate(priceFor(k, k.unit));
   };
 
   const save = async () => {

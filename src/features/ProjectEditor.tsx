@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useData } from '../db/data';
 import { createProject, newJob, newProject, saveProject } from '../db/repo';
 import { fxRate } from '../domain/money';
+import { clientPrice } from '../domain/rates';
 import { isOngoing, PART_KINDS, PROJECT_TEMPLATES, partLabel, partTitle, templateFor, type PartKind } from '../domain/projects';
 import type { Job, JobStatus, Project, ProjectKind } from '../domain/types';
 import { getLang, tx } from '../i18n';
@@ -89,7 +90,7 @@ export function ProjectEditor() {
         service: kind.service,
         unit: kind.unit,
         quantity: 0,
-        rate: client?.defaultUnit === kind.unit ? client.defaultRate ?? 0 : habits?.unit === kind.unit ? habits.rate ?? 0 : 0,
+        rate: clientPrice(client, { service: kind.service, sourceLang: project.sourceLang ?? settings.defaultSourceLang, targetLang: project.targetLang ?? settings.defaultTargetLang, unit: kind.unit, strictUnit: true })?.rate ?? (habits?.unit === kind.unit ? habits.rate ?? 0 : 0),
         currency,
         fxToBase: fxRate(currency, settings.baseCurrency, settings.fx.rates),
         sourceLang: project.sourceLang ?? settings.defaultSourceLang,

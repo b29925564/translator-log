@@ -32,12 +32,24 @@ interface ClientSpec {
 
 const SPECS: ClientSpec[] = [
   {
-    c: { name: '藍海翻譯社', kind: 'agency', country: 'TW', currency: 'TWD', paymentTermsDays: 30, withholds: true, defaultRate: 1.1, defaultUnit: 'word', publicLabel: '台灣語言服務公司', color: 0 },
+    c: { name: '藍海翻譯社', kind: 'agency', country: 'TW', currency: 'TWD', paymentTermsDays: 30, withholds: true, defaultRate: 1.1, defaultUnit: 'word', publicLabel: '台灣語言服務公司', color: 0,
+      rates: [
+        { id: 'demo-rate-bh1', service: 'translation', sourceLang: 'en', targetLang: 'zh-TW', unit: 'word', rate: 1.1 },
+        { id: 'demo-rate-bh2', service: 'proofreading', sourceLang: 'en', targetLang: 'zh-TW', unit: 'word', rate: 0.4, minimumFee: 500 },
+        { id: 'demo-rate-bh3', service: 'mtpe', sourceLang: 'en', targetLang: 'zh-TW', unit: 'word', rate: 0.6 },
+        { id: 'demo-rate-bh4', service: 'translation', sourceLang: 'zh-TW', targetLang: 'en', unit: 'char', rate: 1.6, note: '中譯英' },
+      ] },
     weight: 5, from: '2022-01-01', pair: ['en', 'zh-TW'], unit: 'word', rate: 1.0, rateGrowth: 0.05, service: 'translation', domains: ['medical', 'pharma', 'tech'], words: [3200, 0.9],
     titles: ['輸液幫浦使用說明書 v3.2', '血糖儀 IFU 改版', '臨床試驗受試者同意書', '醫療器材風險管理報告', '藥品仿單中譯', '伺服器產品白皮書', '手術機器人操作手冊', '病人衛教手冊'], tool: 'Trados Studio', fx: 1,
   },
   {
-    c: { name: 'Lumina Localization', kind: 'agency', country: 'US', currency: 'USD', paymentTermsDays: 45, defaultRate: 0.09, defaultUnit: 'word', publicLabel: 'US-based localization provider', industry: '', color: 1, catGrid: DEFAULT_CAT_GRID },
+    c: { name: 'Lumina Localization', kind: 'agency', country: 'US', currency: 'USD', paymentTermsDays: 45, defaultRate: 0.09, defaultUnit: 'word', publicLabel: 'US-based localization provider', industry: '', color: 1, catGrid: DEFAULT_CAT_GRID,
+      rates: [
+        { id: 'demo-rate-lu1', service: 'translation', sourceLang: 'en', targetLang: 'zh-TW', unit: 'word', rate: 0.09 },
+        { id: 'demo-rate-lu2', service: 'mtpe', sourceLang: 'en', targetLang: 'zh-TW', unit: 'word', rate: 0.05 },
+        { id: 'demo-rate-lu3', service: 'review', sourceLang: 'en', targetLang: 'zh-TW', unit: 'word', rate: 0.035 },
+        { id: 'demo-rate-lu4', service: 'lqa', unit: 'hour', rate: 30 },
+      ] },
     weight: 6, from: '2022-03-01', pair: ['en', 'zh-TW'], unit: 'word', rate: 0.08, rateGrowth: 0.06, service: 'translation', domains: ['software', 'marketing', 'tech'], words: [2400, 1.0],
     titles: ['SaaS onboarding emails', 'Mobile banking app UI strings', 'Smart home product page', 'Cloud security whitepaper', 'Help center articles batch 7', 'Holiday campaign landing page', 'Release notes 5.2'], tool: 'Phrase', fx: 31,
   },

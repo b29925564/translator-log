@@ -62,6 +62,17 @@ const xlsxOf = (rows) => {
   );
 };
 
+/** Waits for an input to show `want`; number fields sync their text a frame after the value changes. */
+const expectValue = async (locator, want, what, timeout = 3000) => {
+  const end = Date.now() + timeout;
+  let got;
+  while (Date.now() < end) {
+    got = await locator.inputValue();
+    if (got === want) return;
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  throw new Error(`${what}: ${JSON.stringify(got)}, expected ${JSON.stringify(want)}`);
+};
 const expectVisible = async (locator, timeout = 5000) => locator.first().waitFor({ state: 'visible', timeout });
 const skipOverture = async (page) => {
   const doors = page.locator('div.fixed.inset-0.z-\\[200\\]');
@@ -317,6 +328,51 @@ await suite('Sample data, 繁體中文', { locale: 'zh-TW' }, async (page, step)
     await expectVisible(page.getByText('心臟支架使用說明書 v2.1'));
     await page.keyboard.press('Escape');
   });
+  await step('a client page lists its rate card', async () => {
+    await page.goto(BASE + '#/clients');
+    await page.getByText('藍海翻譯社').first().click();
+    const card = page.getByTestId('client-rates');
+    await expectVisible(card);
+    await expectVisible(card.getByText('校對 · EN → ZH-TW'));
+    await expectVisible(card.getByText(/最低/));
+  });
+  await step('a new job takes the rate for its service', async () => {
+    await page.getByRole('button', { name: '新增案件' }).first().click();
+    await page.getByRole('button', { name: '詳細編輯' }).click();
+    await page.locator('#job-client').selectOption({ label: '藍海翻譯社' });
+    await page.locator('#job-src').selectOption('en');
+    await page.locator('#job-tgt').selectOption('zh-TW');
+    await page.locator('#job-service').selectOption('proofreading');
+    await expectValue(page.locator('#job-rate'), '0.4', 'proofreading rate');
+    await expectValue(page.locator('#job-min'), '500', 'minimum fee');
+    await expectVisible(page.getByTestId('rate-source').getByText(/校對/));
+    await page.locator('#job-service').selectOption('mtpe');
+    await expectValue(page.locator('#job-rate'), '0.6', 'MTPE rate');
+    await expectValue(page.locator('#job-min'), '', 'minimum fee after switching to MTPE');
+  });
+  await step('a rate typed by hand stays when the service changes', async () => {
+    await page.locator('#job-rate').fill('0.7');
+    await page.locator('#job-service').selectOption('translation');
+    // wait for the translation rate's button, so the click cannot land on the MTPE one still on screen
+    const useCard = page.getByRole('button', { name: /套用客戶費率 NT\$1\.1\b/ });
+    await expectVisible(useCard);
+    await expectValue(page.locator('#job-rate'), '0.7', 'typed rate after changing service');
+    await useCard.click();
+    await expectValue(page.locator('#job-rate'), '1.1', 'rate after applying the client rate');
+  });
+  await step('rates can be added in the client form', async () => {
+    await page.keyboard.press('Escape');
+    await page.locator('#job-rate').waitFor({ state: 'detached', timeout: 5000 });
+    await page.getByRole('button', { name: '編輯' }).first().click();
+    const rows = page.getByTestId('rate-row');
+    await expectVisible(rows);
+    const before = await rows.count();
+    await page.getByRole('button', { name: '再加一筆費率' }).click();
+    await expectVisible(rows.nth(before));
+    await rows.last().getByLabel('單價').fill('0.3');
+    await page.getByRole('button', { name: '儲存', exact: true }).click();
+    await expectVisible(page.getByTestId('client-rates').locator('li').nth(before));
+  });
 });
 
 await suite('Theme differs from the system', { locale: 'zh-TW', colorScheme: 'dark' }, async (page, step) => {
@@ -387,6 +443,17 @@ await suite('Phone', { locale: 'zh-TW', viewport: { width: 390, height: 844 }, i
       if (over > 1) throw new Error(`page is ${over}px wider than the screen`);
     });
   }
+  await step('the client form with a rate card fits the screen', async () => {
+    await page.keyboard.press('Escape');
+    await page.evaluate(() => (location.hash = '/clients'));
+    await page.waitForTimeout(500);
+    await page.getByText('藍海翻譯社').first().click();
+    await page.getByRole('button', { name: '編輯' }).first().click();
+    await expectVisible(page.getByTestId('rate-row'));
+    const over = await page.evaluate(() => Math.max(...[...document.querySelectorAll('[data-testid=rate-row]')].map((r) => r.getBoundingClientRect().right)) - document.documentElement.clientWidth);
+    if (over > 1) throw new Error(`rate row is ${over}px wider than the screen`);
+    await page.keyboard.press('Escape');
+  });
   await step('a project page fits the screen', async () => {
     await page.evaluate(() => (location.hash = '/projects'));
     await page.waitForTimeout(500);

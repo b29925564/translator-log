@@ -2,6 +2,7 @@ import { newClient, newJob, saveClient, withStatus } from '../db/repo';
 import { domainLabel, serviceLabel } from '../domain/constants';
 import { fxRate, jobGross, suggestDeductions } from '../domain/money';
 import type { QuickParse } from '../domain/quickadd';
+import { clientPrice } from '../domain/rates';
 import type { Client, Job, Settings } from '../domain/types';
 import { getLang } from '../i18n';
 import { clientHabits } from './common';
@@ -16,19 +17,25 @@ export const jobFromParse = (p: QuickParse, ctx: { clients: Client[]; jobs: Job[
     client = created;
   }
   const habits = clientHabits(client?.id, ctx.jobs);
-  const unit = p.unit ?? client?.defaultUnit ?? habits?.unit ?? 'word';
-  const currency = p.currency ?? client?.currency ?? settings.baseCurrency;
-  let rate = p.rate ?? (unit === 'flat' ? p.flatFee : undefined) ?? client?.defaultRate ?? habits?.rate ?? 0;
-  if (unit === 'flat' && p.flatFee != null) rate = p.flatFee;
   const service = p.service ?? habits?.service ?? 'translation';
+  const sourceLang = p.sourceLang ?? habits?.sourceLang ?? settings.defaultSourceLang;
+  const targetLang = p.targetLang ?? habits?.targetLang ?? settings.defaultTargetLang;
+  // the client's rate for this service and pair; a unit typed in the message must match it
+  const price = clientPrice(client, { service, sourceLang, targetLang, unit: p.unit, strictUnit: p.unit != null });
+  const unit = p.unit ?? price?.unit ?? client?.defaultUnit ?? habits?.unit ?? 'word';
+  const currency = p.currency ?? client?.currency ?? settings.baseCurrency;
+  let rate = p.rate ?? (unit === 'flat' ? p.flatFee : undefined) ?? price?.rate ?? habits?.rate ?? 0;
+  if (unit === 'flat' && p.flatFee != null) rate = p.flatFee;
+  const minimumFee = p.rate == null && p.flatFee == null ? price?.minimumFee : undefined;
   const domain = p.domain ?? habits?.domain;
   const lang = getLang();
   let job = newJob({
     title: p.title || [domain ? domainLabel(domain, lang) : '', serviceLabel(service, lang)].filter(Boolean).join(' '),
     clientId: client?.id,
     service,
-    sourceLang: p.sourceLang ?? habits?.sourceLang ?? settings.defaultSourceLang,
-    targetLang: p.targetLang ?? habits?.targetLang ?? settings.defaultTargetLang,
+    sourceLang,
+    targetLang,
+    minimumFee,
     domain,
     unit,
     quantity: unit === 'flat' ? 1 : p.quantity ?? 0,

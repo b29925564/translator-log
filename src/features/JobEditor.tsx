@@ -5,6 +5,7 @@ import { createProject, deleteJob, newProject, restoreJob, saveJob, withStatus }
 import { weightedWords } from '../domain/cat';
 import { CAT_TOOLS, DEFAULT_CAT_GRID, SERVICES, STATUSES, UNITS } from '../domain/constants';
 import { fxRate, jobGross, jobGrossBase, jobNet, suggestDeductions } from '../domain/money';
+import { clientPrice, matchClientRate, rateLabel } from '../domain/rates';
 import type { Job, JobStatus, Unit } from '../domain/types';
 import { getLang, tx } from '../i18n';
 import { money, num, rate as fmtRateStr, unitPer } from '../ui/format';
@@ -43,6 +44,8 @@ export function JobEditor() {
   const [d, setD] = useState<Job | null>(null);
   const [overrideOn, setOverrideOn] = useState(false);
   const [catOn, setCatOn] = useState(false);
+  // the price last filled in from the client, so edits to service or languages can update it until the user types their own
+  const autoPrice = useRef<{ rate: number; unit: Unit; minimumFee?: number } | null>(null);
   /** Name for a project created from this form; undefined when not creating one. */
   const [newProjectName, setNewProjectName] = useState<string | undefined>();
 
@@ -50,9 +53,12 @@ export function JobEditor() {
   defaults.current = { settings, today };
   useEffect(() => {
     const { settings, today } = defaults.current;
+    autoPrice.current = null;
     setNewProjectName(undefined);
     if (jobEditor.open && jobEditor.job) {
       setD({ ...jobEditor.job });
+      // a new job arrives pre-priced (quick add, a project); let service or language changes re-price it
+      if (jobEditor.isNew && jobEditor.job.rate) autoPrice.current = { rate: jobEditor.job.rate, unit: jobEditor.job.unit, minimumFee: jobEditor.job.minimumFee };
       setOverrideOn(jobEditor.job.amountOverride != null);
       setCatOn(!!jobEditor.job.cat);
     } else if (jobEditor.open) {
@@ -79,7 +85,7 @@ export function JobEditor() {
       setOverrideOn(false);
       setCatOn(false);
     } else setD(null);
-  }, [jobEditor.open, jobEditor.job]);
+  }, [jobEditor.open, jobEditor.job, jobEditor.isNew]);
 
   const set = (patch: Partial<Job>) => setD((x) => (x ? { ...x, ...patch } : x));
   const client = d?.clientId ? clientMap.get(d.clientId) : undefined;
@@ -93,6 +99,23 @@ export function JobEditor() {
   const suggested = isNew && d.clientId ? projects.filter((pj) => !pj.archived && pj.kind === 'ongoing' && pj.clientId === d.clientId).slice(0, 3) : [];
   const base = settings.baseCurrency;
 
+  /** Price fields for `next` from its client's rate card, or {} when the user has set their own rate. */
+  const reprice = (next: Job, force = false): Partial<Job> => {
+    const a = autoPrice.current;
+    const untouched = !d.rate || (a != null && a.rate === d.rate && a.unit === d.unit);
+    if (!force && !untouched) return {};
+    const c = next.clientId ? clientMap.get(next.clientId) : undefined;
+    const p = clientPrice(c, { service: next.service, sourceLang: next.sourceLang, targetLang: next.targetLang, unit: next.unit });
+    if (!p) return {};
+    const unit = p.unit ?? next.unit;
+    // keep a minimum fee the user typed; replace one that came from the previous rate
+    const minimumFee = p.minimumFee ?? (a && d.minimumFee === a.minimumFee ? undefined : d.minimumFee);
+    autoPrice.current = { rate: p.rate, unit, minimumFee: p.minimumFee };
+    return { rate: p.rate, unit, minimumFee, ...(unit !== next.unit && unit === 'flat' ? { quantity: 1 } : {}) };
+  };
+
+  const setPriced = (patch: Partial<Job>) => set({ ...patch, ...reprice({ ...d, ...patch }) });
+
   const applyClient = (id?: string) => {
     const c = id ? clientMap.get(id) : undefined;
     const patch: Partial<Job> = { clientId: id };
@@ -100,16 +123,19 @@ export function JobEditor() {
       const h = clientHabits(c.id, jobs);
       patch.currency = c.currency;
       patch.fxToBase = fxRate(c.currency, base, settings.fx.rates);
-      if (c.defaultUnit) patch.unit = c.defaultUnit;
-      else if (h?.unit) patch.unit = h.unit;
-      if (c.defaultRate) patch.rate = c.defaultRate;
-      else if (h?.rate) patch.rate = h.rate;
       if (h) {
         patch.sourceLang = h.sourceLang;
         patch.targetLang = h.targetLang;
         patch.domain = d.domain ?? h.domain;
         patch.catTool = d.catTool ?? h.catTool;
         patch.service = h.service ?? d.service;
+      }
+      const priced = reprice({ ...d, ...patch }, true);
+      if (priced.rate) Object.assign(patch, priced);
+      else {
+        if (h?.unit) patch.unit = h.unit;
+        if (h?.rate) patch.rate = h.rate;
+        autoPrice.current = patch.rate ? { rate: patch.rate, unit: patch.unit ?? d.unit } : null;
       }
       patch.confidential = c.kind === 'agency';
       if (c.catGrid && d.cat) patch.cat = { ...d.cat, grid: c.catGrid };
@@ -156,6 +182,8 @@ export function JobEditor() {
   const catCounts = d.cat?.counts ?? { noMatch: d.quantity || 0 };
   const catGrid = d.cat?.grid ?? client?.catGrid ?? DEFAULT_CAT_GRID;
   const perWord = d.unit === 'word' || d.unit === 'char';
+  const cardRate = matchClientRate(client, { service: d.service, sourceLang: d.sourceLang, targetLang: d.targetLang, unit: d.unit });
+  const cardApplied = cardRate && cardRate.rate === d.rate && cardRate.unit === d.unit;
   const en = getLang() === 'en';
 
   return (
@@ -238,7 +266,7 @@ export function JobEditor() {
               </div>
             )}
             <Field label={tx('服務類型', 'Service')} htmlFor="job-service">
-              <Select id="job-service" value={d.service} onChange={(e) => set({ service: e.target.value as Job['service'] })}>
+              <Select id="job-service" value={d.service} onChange={(e) => setPriced({ service: e.target.value as Job['service'] })}>
                 {SERVICES.map((s) => (
                   <option key={s.id} value={s.id}>
                     {en ? s.en : s.zh}
@@ -249,11 +277,11 @@ export function JobEditor() {
             <Field label={tx('語言組合', 'Language pair')} className="sm:col-span-2">
               <div className="flex items-center gap-2">
                 <div className="min-w-0 flex-1">
-                  <LangSelect id="job-src" value={d.sourceLang} onChange={(v) => set({ sourceLang: v })} />
+                  <LangSelect id="job-src" value={d.sourceLang} onChange={(v) => setPriced({ sourceLang: v })} />
                 </div>
-                <Button iconOnly variant="ghost" icon={<ArrowLeftRight size={16} />} aria-label={tx('對調', 'Swap')} onClick={() => set({ sourceLang: d.targetLang, targetLang: d.sourceLang })} />
+                <Button iconOnly variant="ghost" icon={<ArrowLeftRight size={16} />} aria-label={tx('對調', 'Swap')} onClick={() => setPriced({ sourceLang: d.targetLang, targetLang: d.sourceLang })} />
                 <div className="min-w-0 flex-1">
-                  <LangSelect id="job-tgt" value={d.targetLang} onChange={(v) => set({ targetLang: v })} />
+                  <LangSelect id="job-tgt" value={d.targetLang} onChange={(v) => setPriced({ targetLang: v })} />
                 </div>
               </div>
             </Field>
@@ -305,7 +333,31 @@ export function JobEditor() {
                 <NumberInput id="job-words" value={d.words} onChange={(v) => set({ words: v })} placeholder="0" />
               </Field>
             )}
-            <Field label={d.unit === 'flat' ? tx('案費', 'Fee') : tx(`單價（每${unitPer(d.unit)}）`, `Rate (per ${unitPer(d.unit)})`)} htmlFor="job-rate">
+            <Field
+              label={d.unit === 'flat' ? tx('案費', 'Fee') : tx(`單價（每${unitPer(d.unit)}）`, `Rate (per ${unitPer(d.unit)})`)}
+              htmlFor="job-rate"
+              hint={
+                cardRate && cardApplied ? (
+                  <span data-testid="rate-source">
+                    {tx('客戶費率：', 'Client rate: ')}
+                    {rateLabel(cardRate, getLang())}
+                    {cardRate.note ? ` · ${cardRate.note}` : ''}
+                  </span>
+                ) : cardRate ? (
+                  <button
+                    type="button"
+                    className="text-accent underline-offset-2 hover:underline"
+                    onClick={() => {
+                      autoPrice.current = null;
+                      set({ ...reprice({ ...d, rate: 0 }, true) });
+                    }}
+                  >
+                    {tx(`套用客戶費率 ${fmtRateStr(cardRate.rate, d.currency)}`, `Use client rate ${fmtRateStr(cardRate.rate, d.currency)}`)}
+                    {cardRate.unit !== 'flat' ? `/${unitPer(cardRate.unit)}` : ''}
+                  </button>
+                ) : undefined
+              }
+            >
               <div className="flex gap-2">
                 <NumberInput id="job-rate" value={d.rate || undefined} onChange={(v) => set({ rate: v ?? 0 })} placeholder="0" className="min-w-0" />
                 <CurrencySelect

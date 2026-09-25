@@ -144,6 +144,19 @@ export interface Project extends SyncMeta {
   archived?: boolean;
 }
 
+/** One line of a client's rate card, e.g. proofreading EN→ZH-TW at 0.04 per word. */
+export interface ClientRate {
+  id: string;
+  service: ServiceType;
+  /** Left empty, the rate applies to any source (or target) language. */
+  sourceLang?: string;
+  targetLang?: string;
+  unit: Unit;
+  rate: number;
+  minimumFee?: number;
+  note?: string;
+}
+
 export interface Client extends SyncMeta {
   name: string;
   kind: ClientKind;
@@ -154,6 +167,8 @@ export interface Client extends SyncMeta {
   currency: string;
   defaultRate?: number;
   defaultUnit?: Unit;
+  /** Rates by service and language pair; the default rate covers anything not listed. */
+  rates?: ClientRate[];
   paymentTermsDays?: number;
   withholds?: boolean;
   contactName?: string;
