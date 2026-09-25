@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useData } from '../db/data';
 import { saveInvoice, uid, updateSettings } from '../db/repo';
 import { addDays } from '../domain/dates';
@@ -26,15 +26,18 @@ export function InvoiceBuilder({ open, onClose, presetClient }: { open: boolean;
     [clients, jobs],
   );
 
+  const eligibleRef = useRef(eligibleClients);
+  eligibleRef.current = eligibleClients;
   useEffect(() => {
     if (!open) return;
-    const cid = presetClient ?? eligibleClients[0]?.id ?? '';
+    const cid = presetClient ?? eligibleRef.current[0]?.id ?? '';
     setClientId(cid);
     setIssue(today);
     const seq = settings.invoiceSeq;
     setNumber(`${settings.invoicePrefix}-${today.slice(0, 7).replace('-', '')}-${String(seq).padStart(3, '0')}`);
     setNotes('');
-  }, [open, presetClient, eligibleClients, today, settings.invoiceSeq, settings.invoicePrefix]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, presetClient]);
 
   const client = clientMap.get(clientId);
   const candidates = useMemo(
@@ -45,11 +48,17 @@ export function InvoiceBuilder({ open, onClose, presetClient }: { open: boolean;
     [jobs, clientId],
   );
 
+  // reset the selection only when the client changes, not on every data refresh
+  const candidatesRef = useRef(candidates);
+  candidatesRef.current = candidates;
   useEffect(() => {
-    setPicked(new Set(candidates.filter((j) => j.currency === (client?.currency ?? j.currency)).map((j) => j.id)));
-    setDue(addDays(today, client?.paymentTermsDays ?? 30));
-    setLang(client?.country && client.country !== 'TW' ? 'en' : 'zh');
-  }, [candidates, client, today]);
+    if (!open) return;
+    const c = clientMap.get(clientId);
+    setPicked(new Set(candidatesRef.current.filter((j) => j.currency === (c?.currency ?? j.currency)).map((j) => j.id)));
+    setDue(addDays(today, c?.paymentTermsDays ?? 30));
+    setLang(c?.country && c.country !== 'TW' ? 'en' : 'zh');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientId, open]);
 
   const currency = client?.currency ?? settings.baseCurrency;
   const chosen = candidates.filter((j) => picked.has(j.id));

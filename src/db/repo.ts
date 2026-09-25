@@ -279,7 +279,7 @@ export const loadDemo = async () => {
   await applyRecords({ jobs: demo.jobs, clients: demo.clients, sessions: demo.sessions, invoices: demo.invoices });
   const current = await readSettings();
   if (!current.profile.name) await updateSettings({ profile: { ...current.profile, ...DEMO_PROFILE } });
-  await updateSettings({ goals: { yearIncome: 2_800_000, yearWords: 1_200_000 }, onboarded: true });
+  await updateSettings({ goals: { yearIncome: 2_000_000, yearWords: 900_000 }, onboarded: true });
   changed();
 };
 

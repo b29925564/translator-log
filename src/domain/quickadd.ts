@@ -61,8 +61,8 @@ const ZH_LANG: [string, string][] = [
 const ZH_LANG_ALT = ZH_LANG.map(([k]) => k).join('|');
 
 const DOMAIN_KEYWORDS: [string, RegExp][] = [
+  ['medical', /(醫療|醫學|醫材|醫院|醫師|病歷|病人|病患|手術|支架|心臟|血糖|輸液|診斷|medical|medic|IFU|device|healthcare|surgical|patient)/i],
   ['pharma', /(製藥|藥品|藥廠|臨床試驗|臨床|生技|pharma|clinical|biotech|protocol|ICF)/i],
-  ['medical', /(醫療|醫學|醫材|醫療器材|病歷|醫院|medical|medic|IFU|device|healthcare)/i],
   ['patent', /(專利|patent)/i],
   ['legal', /(法律|法務|合約|契約|判決|訴訟|legal|contract|agreement|NDA|court)/i],
   ['finance', /(財經|金融|財報|年報|投資|銀行|保險|finance|financial|annual report|banking|insurance|ESG)/i],
@@ -438,7 +438,7 @@ export const parseQuickAdd = (input: string, ctx: QuickContext): QuickParse => {
     .trim();
   let title = leftover;
   if (!out.clientId) {
-    const cm = /([\p{L}\p{N}&.\-]+(?:公司|翻譯社|出版社|出版|集團|工作室|事務所|語言|翻譯)|[A-Z][\w&.-]*(?:\s+[A-Z][\w&.-]*)*\s+(?:Inc\.?|Ltd\.?|LLC|Corp\.?|Co\.|GmbH|Localization|Translations?|Language Services|Studios?|Games|Publishing|Media))/u.exec(title);
+    const cm = /([\p{L}\p{N}&.\-]+(?:公司|翻譯社|出版社|出版|集團|工作室|事務所|語言|翻譯|翻訳|株式会社|有限公司)|[A-Z][\w&.-]*(?:\s+[A-Z][\w&.-]*)*\s+(?:Inc\.?|Ltd\.?|LLC|Corp\.?|Co\.|GmbH|Localization|Translations?|Language Services|Studios?|Games|Publishing|Media))/u.exec(title);
     if (cm) {
       out.newClientName = cm[1].trim();
       const i = input.indexOf(out.newClientName);
@@ -446,7 +446,7 @@ export const parseQuickAdd = (input: string, ctx: QuickContext): QuickParse => {
       title = (title.slice(0, cm.index) + title.slice(cm.index + cm[0].length)).trim();
     }
   }
-  title = title.replace(/^(的|案子?|幫|for)\s*/i, '').replace(/\s*(的|案)$/, '').trim();
+  title = title.replace(/^(的|幫|for)\s+/i, '').replace(/\s+的$/, '').trim();
   out.title = title;
   tokens.sort((a, b) => a.start - b.start);
   return out;

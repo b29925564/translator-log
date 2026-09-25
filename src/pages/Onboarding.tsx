@@ -43,7 +43,7 @@ export function Onboarding() {
 
   return (
     <div key={lang} className="min-h-dvh px-4 py-8 sm:px-8 lg:py-14">
-      <div className="mx-auto grid max-w-[1100px] items-start gap-10 lg:grid-cols-[1.15fr_1fr]">
+      <div className="mx-auto grid max-w-[1100px] items-start gap-x-10 gap-y-8 lg:grid-cols-[1.15fr_1fr]">
         <div className="page-enter">
           <div className="flex items-center gap-3">
             <LogoMark size={52} />
@@ -56,8 +56,10 @@ export function Onboarding() {
           <p className="mt-4 max-w-[52ch] text-[16px] leading-relaxed text-ink-2">
             {tx('給自由譯者的工作紀錄本：從接案、交稿、請款到入帳，順手留下的每一筆，都在替你寫履歷。', 'A work log built for freelance translators. From inquiry to invoice to payment, every entry quietly writes your résumé.')}
           </p>
+        </div>
 
-          <div className="relative mt-8 hidden h-[150px] sm:block" aria-hidden>
+        <div className="page-enter order-2 lg:order-none lg:col-start-1 lg:row-start-2">
+          <div className="relative hidden h-[150px] sm:block" aria-hidden>
             <div className="absolute left-0 top-2">
               <RoundStamp top="EN → ZH-TW" center={tx('入境', 'ENTRY')} bottom="2021 · FREELANCE" color="var(--series-1)" rotate={-10} size={128} />
             </div>
@@ -82,7 +84,7 @@ export function Onboarding() {
           </ul>
         </div>
 
-        <section className="card page-enter p-6 sm:p-7 lg:sticky lg:top-10" style={{ boxShadow: 'var(--shadow)' }}>
+        <section className="card page-enter order-1 p-6 sm:p-7 lg:sticky lg:top-10 lg:order-none lg:col-start-2 lg:row-span-2 lg:row-start-1" style={{ boxShadow: 'var(--shadow)' }}>
           <h2 className="text-[18px] font-semibold text-ink">{tx('開始之前', 'Before we start')}</h2>
           <p className="mt-1 text-[13.5px] text-muted">{tx('三個小設定，之後都能在「設定」修改。', 'Three quick choices. You can change them later in Settings.')}</p>
           <div className="mt-5 flex flex-col gap-4">

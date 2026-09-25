@@ -92,6 +92,13 @@ describe('parseQuickAdd', () => {
     expect(r.newClientName).toBe('Acme Games');
   });
 
+  it('keeps words that end in 案 intact', () => {
+    const r = parseQuickAdd('森田翻訳 手遊活動文案 日翻中 8000字 7円/字 下週三', ctx);
+    expect(r.title).toBe('手遊活動文案');
+    expect(r.newClientName).toBe('森田翻訳');
+    expect(r.currency).toBe('JPY');
+  });
+
   it('picks the nearest year for month/day dates', () => {
     expect(parseQuickAdd('test 1/10', ctx).dueAt).toBe('2027-01-10');
     expect(parseQuickAdd('test 8/1', ctx).dueAt).toBe('2026-08-01');

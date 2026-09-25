@@ -1,5 +1,5 @@
 import { ArrowLeftRight, Calculator, Trash2 } from 'lucide-react';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useData } from '../db/data';
 import { deleteJob, restoreJob, saveJob, withStatus } from '../db/repo';
 import { weightedWords } from '../domain/cat';
@@ -42,7 +42,10 @@ export function JobEditor() {
   const [overrideOn, setOverrideOn] = useState(false);
   const [catOn, setCatOn] = useState(false);
 
+  const defaults = useRef({ settings, today });
+  defaults.current = { settings, today };
   useEffect(() => {
+    const { settings, today } = defaults.current;
     if (jobEditor.open && jobEditor.job) {
       setD({ ...jobEditor.job });
       setOverrideOn(jobEditor.job.amountOverride != null);
@@ -71,7 +74,7 @@ export function JobEditor() {
       setOverrideOn(false);
       setCatOn(false);
     } else setD(null);
-  }, [jobEditor.open, jobEditor.job, settings.baseCurrency, settings.defaultSourceLang, settings.defaultTargetLang, today]);
+  }, [jobEditor.open, jobEditor.job]);
 
   const set = (patch: Partial<Job>) => setD((x) => (x ? { ...x, ...patch } : x));
   const client = d?.clientId ? clientMap.get(d.clientId) : undefined;

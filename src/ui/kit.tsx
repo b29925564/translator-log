@@ -314,13 +314,16 @@ export function Sheet({
 }) {
   useLockScroll(open);
   const ref = useRef<HTMLDivElement>(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   const tid = useId();
+  // focus once per opening; callers often pass a fresh onClose on every render
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopPropagation();
-        onClose();
+        closeRef.current();
       }
     };
     window.addEventListener('keydown', onKey);
@@ -332,7 +335,7 @@ export function Sheet({
       window.removeEventListener('keydown', onKey);
       clearTimeout(t);
     };
-  }, [open, onClose]);
+  }, [open]);
   if (!open) return null;
   const w = { sm: 'sm:max-w-[440px]', md: 'sm:max-w-[600px]', lg: 'sm:max-w-[780px]', xl: 'sm:max-w-[1000px]' }[size];
   return createPortal(
