@@ -12,7 +12,6 @@ import { aiAvailable, saveAIKey, testAIKey, useAI } from '../ai/claude';
 import { num } from '../ui/format';
 import { Button, cx, Field, Input, Kbd, NumberInput, PageHeader, Segmented, Select, Textarea } from '../ui/kit';
 import { useUI } from '../ui/store';
-import { CsvImport } from '../features/CsvImport';
 import { CurrencySelect, LangSelect } from '../features/common';
 import { downloadFile } from '../features/download';
 import { fetchRates } from '../features/fx';
@@ -59,7 +58,6 @@ function LazyNumber({ value, onSave, ...rest }: { value: number | undefined; onS
 export function SettingsPage({ section }: { section?: string }) {
   const { settings, jobs, clientMap, today } = useData();
   const { toast, ask, navigate } = useUI();
-  const [csvOpen, setCsvOpen] = useState(false);
   const [demo, setDemo] = useState(false);
   const [fxBusy, setFxBusy] = useState(false);
   const [aiKey, setAiKey] = useState('');
@@ -116,7 +114,7 @@ export function SettingsPage({ section }: { section?: string }) {
 
   const exportJSON = async () => {
     const b = await exportBackup();
-    await downloadFile(`wordtrail-backup-${today}.json`, JSON.stringify(b), 'application/json');
+    await downloadFile(`witimemo-backup-${today}.json`, JSON.stringify(b), 'application/json');
   };
 
   const importJSON = async (f: File) => {
@@ -140,7 +138,7 @@ export function SettingsPage({ section }: { section?: string }) {
       } else await importBackup(data, 'merge');
       toast(tx(`已匯入 ${data.data.jobs.length} 個案件`, `Imported ${data.data.jobs.length} jobs`));
     } catch {
-      toast(tx('這不是譯跡的備份檔', 'That is not a Wordtrail backup file'));
+      toast(tx('這不是記譯的備份檔', 'That is not a Witimemo backup file'));
     }
   };
 
@@ -148,7 +146,7 @@ export function SettingsPage({ section }: { section?: string }) {
     const active = jobs.filter((j) => (j.status === 'active' || j.status === 'quote') && j.dueAt);
     if (!active.length) return toast(tx('目前沒有有截止日的案件', 'No upcoming deadlines'));
     void downloadFile(
-      `wordtrail-deadlines-${today}.ics`,
+      `witimemo-deadlines-${today}.ics`,
       buildICS(active.map((j) => ({ uid: j.id, title: tx(`交稿：${j.title}`, `Due: ${j.title}`), when: j.dueAt!, description: j.clientId ? clientMap.get(j.clientId)?.name : undefined }))),
       'text/calendar',
     );
@@ -278,8 +276,8 @@ export function SettingsPage({ section }: { section?: string }) {
               {tx('從備份還原', 'Restore a backup')}
             </Button>
             <input ref={fileRef} type="file" accept=".json,application/json" className="hidden" onChange={(e) => e.target.files?.[0] && void importJSON(e.target.files[0])} />
-            <Button icon={<FileSpreadsheet size={15} />} onClick={() => setCsvOpen(true)}>
-              {tx('從 Excel／CSV 匯入', 'Import from Excel / CSV')}
+            <Button icon={<FileSpreadsheet size={15} />} onClick={() => useUI.getState().openReportImport()}>
+              {tx('匯入報表或試算表', 'Import a report or spreadsheet')}
             </Button>
             <Button icon={<CalendarPlus size={15} />} onClick={exportICS}>
               {tx('截止日匯出到行事曆', 'Export deadlines to calendar')}
@@ -415,12 +413,12 @@ export function SettingsPage({ section }: { section?: string }) {
           )}
         </Card>
 
-        <Card id="install" title={tx('安裝到手機與電腦', 'Install on phone and computer')} desc={tx('譯跡是可安裝的網頁 App：離線也能用，桌面與主畫面都有圖示。', 'Wordtrail is an installable web app: it works offline and gets its own icon.')}>
+        <Card id="install" title={tx('安裝到手機與電腦', 'Install on phone and computer')} desc={tx('記譯是可安裝的網頁 App：離線也能用，桌面與主畫面都有圖示。', 'Witimemo is an installable web app: it works offline and gets its own icon.')}>
           {install.installed ? (
             <p className="text-[14px] text-good">{tx('已安裝為 App ✓', 'Installed as an app ✓')}</p>
           ) : install.prompt ? (
             <Button variant="primary" icon={<Smartphone size={16} />} onClick={() => void install.prompt!.prompt()}>
-              {tx('安裝譯跡', 'Install Wordtrail')}
+              {tx('安裝記譯', 'Install Witimemo')}
             </Button>
           ) : null}
           <ul className="mt-3 grid gap-3 text-[13.5px] leading-relaxed text-ink-2 sm:grid-cols-3">
@@ -442,9 +440,12 @@ export function SettingsPage({ section }: { section?: string }) {
           </ul>
         </Card>
 
-        <Card id="about" title={tx('關於譯跡', 'About Wordtrail')}>
+        <Card id="about" title={tx('關於記譯', 'About Witimemo')}>
           <div className="grid gap-4 text-[13.5px] leading-relaxed text-ink-2 sm:grid-cols-2">
             <div>
+              <p className="mb-2 font-medium text-ink">
+                記譯 Witimemo <span className="font-normal text-muted">· Works in Translation &amp; Interpretation</span>
+              </p>
               <p>{tx('為自由譯者設計的工作紀錄 App。所有資料預設只存在你的裝置；開啟同步後以端對端加密存在你自己的 GitHub。沒有追蹤、沒有廣告、沒有伺服器。', 'A work log designed for freelance translators. Data lives on your device by default; with sync it is end-to-end encrypted in your own GitHub account. No tracking, no ads, no servers.')}</p>
               <p className="mt-2 font-mono text-[12px] text-muted">v{__APP_VERSION__}</p>
             </div>
@@ -469,7 +470,6 @@ export function SettingsPage({ section }: { section?: string }) {
           </div>
         </Card>
       </div>
-      <CsvImport open={csvOpen} onClose={() => setCsvOpen(false)} />
     </div>
   );
 }

@@ -8,7 +8,7 @@ import { setLang, tx } from '../i18n';
 import { Button, Field, Input, Segmented } from '../ui/kit';
 import { useUI } from '../ui/store';
 import { CurrencySelect } from '../features/common';
-import { BRAND_GOLD, WGlyph } from '../app/Logo';
+import { BRAND_GOLD, BRAND_NAME, BRAND_TAGLINE, BRAND_ZH, BrandName, WGlyph } from '../app/Logo';
 import { SunburstRays } from '../app/Stamps';
 
 export function Onboarding() {
@@ -55,13 +55,16 @@ export function Onboarding() {
         <div className="relative flex items-center gap-3">
           <WGlyph size={34} color={BRAND_GOLD} />
           <span className="leading-none">
-            <span className="font-wide block text-[13px] tracking-[0.26em]">Wordtrail</span>
-            <span className="mt-1 block text-[10.5px] tracking-[0.42em] text-muted">譯跡</span>
+            <BrandName gold={BRAND_GOLD} className="font-wide block text-[12.5px] tracking-[0.26em]" />
+            <span className="mt-1 block text-[10.5px] tracking-[0.42em] text-muted">
+              {BRAND_ZH}
+              <span className="ml-2 hidden tracking-[0.08em] sm:inline">· {BRAND_TAGLINE}</span>
+            </span>
           </span>
         </div>
         <div className="relative mt-16 max-w-[560px] lg:mt-24">
           <div className="font-wide text-[11px] tracking-[0.3em]" style={{ color: BRAND_GOLD }}>
-            {tx('給自由譯者的工作紀錄', 'A work log for freelance translators')}
+            {tx('給筆譯與口譯者的工作紀錄', 'A work log for translators & interpreters')}
           </div>
           <h1 className="font-display mt-5 text-[46px] leading-[1.02] sm:text-[64px] lg:text-[76px]">{tx('每一個字，都算數。', 'Every word counts.')}</h1>
           <p className="mt-6 max-w-[46ch] text-[16px] leading-relaxed text-ink-2">
@@ -127,7 +130,7 @@ export function Onboarding() {
                   navigate('/settings/sync');
                 }}
               >
-                {tx('我已經在其他裝置使用 Wordtrail', 'I already use Wordtrail on another device')}
+                {tx(`我已經在其他裝置使用${BRAND_ZH}`, `I already use ${BRAND_NAME} on another device`)}
               </button>
             )}
           </div>

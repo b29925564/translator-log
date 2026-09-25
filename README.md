@@ -1,4 +1,6 @@
-# 譯跡 Wordtrail
+# 記譯 Witimemo
+
+*Works in Translation & Interpretation* — 筆譯與口譯的工作紀錄（memo）。唸作「witty memo」。
 
 **每一個字，都算數。**
 
@@ -53,7 +55,7 @@
 
 - **一句話新增案件**：輸入「藍海翻譯社 醫療器材說明書 英翻中 12,500字 每字1.2 10/20交」，客戶、語言組合、字數、單價、截止日、領域會即時標色並自動填好。支援中英文寫法：`EN>ZH-TW`、`3.2k words`、`@ $0.08/word`、`8 cents/word`、`1.2萬字`、`0.6元/字`、`下週三`、`明天下午3點`、`月底`、`due fri`……完全在本機解析，不需要網路。
 - **用說的也可以**：在一句話新增按麥克風，直接說出案件內容（中文或英文），解析方式完全相同。
-- **從其他 App 分享進來**：在 Android 上安裝後，在 Gmail 或任何 App 選取客戶來信 →「分享」→ 譯跡，信件內容會直接帶進一句話新增。
+- **從其他 App 分享進來**：在 Android 上安裝後，在 Gmail 或任何 App 選取客戶來信 →「分享」→ 記譯，信件內容會直接帶進一句話新增。
 - **記得你的習慣**：選了客戶，就自動帶入這位客戶常用的語言組合、領域、單位、費率與 CAT 工具。
 - **接案當下就知道值不值得**：輸入時同步顯示「費率落點」（這個價格高於你過去多少比例的同類案件），以及「排程檢查」（依你的實測速度與手上工作量，最快哪天能交、趕不趕得上）。
 - **CAT 分析報告加權**：直接貼上 Trados／memoQ／Phrase 的分析表，自動讀出 101%、重複、100%、95–99%…各區間字數，套用客戶專屬的折扣表計價。
@@ -68,6 +70,7 @@
 - **應收帳款與帳齡分析**：未到期、逾期 1–30／31–60／60 天以上，一眼看出該催哪一筆。
 - **請款單**：勾選已交稿的案件，一鍵產生中文或英文請款單，可列印或存成 PDF。
 - **台灣扣繳自動試算**：單次給付超過 2 萬元扣繳 10%、達 2 萬元代扣 2.11% 二代健保補充保費，自動算出實收金額（門檻與費率可調）。
+- **匯入客戶報表**：翻譯社的對帳單、PO 清單、平台匯出檔、匯款通知，直接丟進來（拖到畫面任何地方、在手機上「分享」給記譯、拍照或貼上截圖）。每一列會先對應到你既有的案件——依請款單號、PO 號碼、金額與日期、案件名稱——付款明細一鍵把對應的案件與請款單標記已收款，案件清單則補齊缺的 PO、字數、截止日，其餘新增為案件。套用前每一列都可以改對應或略過。
 - **報稅助手**：依收款年度整理 9B 稿費、9A 執行業務等類別，扣繳稅額、補充保費、稿費 18 萬免稅額與 30% 必要費用估算；按給付單位列出明細，方便和扣繳憑單對帳；提醒未經扣繳（例如國外客戶）需要自行申報的收入。
 
 ### 看懂自己：數字會說話
@@ -112,15 +115,21 @@
    - **Android**：用 Chrome 開啟 → 選單 → 安裝應用程式
    - **Mac／Windows**：Chrome 或 Edge 網址列右側的「安裝」圖示
 
-### 從舊的 Excel 紀錄搬家
+### 從舊的 Excel 紀錄搬家，或匯入客戶給的報表
 
-把試算表存成 CSV，在「設定 → 備份與匯入 → 從 Excel／CSV 匯入」上傳。欄位（日期、客戶、案件名稱、語言組合、字數、單價、金額、幣別、狀態、收款日、領域、備註……）會依中英文欄名自動對應，也可以手動調整；支援民國年、Excel 日期序號、`英翻中`／`EN>ZH` 等寫法。
+在「收款」或「案件」頁按「匯入」（或把檔案拖進視窗）。支援的格式：
+
+| 在裝置上讀取（不需要網路） | 由 Claude 讀取（需要 AI 金鑰） |
+| --- | --- |
+| Excel `.xlsx`、CSV／TSV、OpenDocument `.ods`、Word `.docx` 內的表格、網頁 `.html`（很多平台的「.xls」其實是網頁表格）、從試算表複製貼上的儲存格 | PDF、照片（含 iPhone HEIC）、截圖、付款通知信的文字 |
+
+舊版二進位 `.xls` 請先另存為 `.xlsx` 或 CSV。欄位（日期、客戶、案件名稱、語言組合、字數、單價、金額、幣別、狀態、收款日、領域、備註……）會依中英文欄名自動對應，也可以手動調整；支援民國年、Excel 日期序號、`英翻中`／`EN>ZH` 等寫法。
 
 ---
 
 ## 手機與電腦同步
 
-譯跡預設把資料存在瀏覽器本機（IndexedDB），不需要帳號、不經過任何伺服器。想讓手機與電腦共用資料時：
+記譯預設把資料存在瀏覽器本機（IndexedDB），不需要帳號、不經過任何伺服器。想讓手機與電腦共用資料時：
 
 1. 在「設定 → 同步」點「開啟 GitHub 建立權杖」，只勾選 **gist** 權限（到期日可選 No expiration）。
 2. 貼上權杖，設定一組**同步密語**，按「開啟同步」。
@@ -141,6 +150,7 @@
 在「設定 → AI 助理」加入你自己的 Claude API 金鑰後：
 
 - 在「一句話新增案件」貼上整封客戶來信或 PO，按「用 AI 讀整封信件」自動擷取客戶、語言、字數、費率、截止日等欄位。
+- 匯入 PDF、照片或截圖形式的報表：Claude 逐列讀出案件名稱、單號、日期、字數、單價與金額，略過小計與合計，再交給同一套對應與確認流程。
 - 在履歷產生器請 Claude 把紀錄潤飾成自然的履歷段落（只根據真實紀錄，不誇大、不捏造）。
 
 金鑰只存在該裝置，不會同步也不會匯出；費用由你的 Anthropic 帳戶直接計費。不設定金鑰時，所有功能照常使用本機解析。
@@ -165,7 +175,7 @@
 
 ## 上架 App Store 與 Google Play
 
-譯跡是可安裝的 PWA，已具備上架所需的 manifest（圖示、可遮罩圖示、截圖、捷徑、分享目標）。最省事的方式是 [PWABuilder](https://www.pwabuilder.com)：輸入部署後的網址，即可產生 Google Play（Trusted Web Activity）與 App Store（iOS 包裝）的專案，再用你的開發者帳號上架。詳細步驟與注意事項見 [docs/app-stores.md](docs/app-stores.md)。
+記譯是可安裝的 PWA，已具備上架所需的 manifest（圖示、可遮罩圖示、截圖、捷徑、分享目標）。最省事的方式是 [PWABuilder](https://www.pwabuilder.com)：輸入部署後的網址，即可產生 Google Play（Trusted Web Activity）與 App Store（iOS 包裝）的專案，再用你的開發者帳號上架。詳細步驟與注意事項見 [docs/app-stores.md](docs/app-stores.md)。
 
 ## 開發
 
@@ -192,12 +202,12 @@ npm run build:demo   # 單一 HTML 檔的示範版 → dist-demo/
 
 ```
 src/
-  domain/    純函式：型別、一句話解析、字數統計、CAT 加權、統計引擎、稅務、履歷、合併、CSV、行事曆、示範資料
+  domain/    純函式：型別、一句話解析、字數統計、CAT 加權、統計引擎、稅務、履歷、合併、CSV／XLSX／ODS／DOCX 讀取、報表對應、行事曆、示範資料
   db/        Dexie 資料庫、資料存取、React 資料 context
   sync/      加密、Gist 用戶端、同步引擎與設定畫面
   ai/        Claude 功能
   charts/    SVG 圖表（職涯天際線、柱狀、橫條、折線、熱力圖、負荷圖）
-  features/  一句話新增、案件／客戶編輯器、請款單、CSV 匯入等
+  features/  一句話新增、案件／客戶編輯器、請款單、報表匯入等
   pages/     各頁面
   ui/        設計元件、格式化、全域狀態
 tests/       Vitest
@@ -207,4 +217,4 @@ tests/       Vitest
 
 ## English summary
 
-Wordtrail is a local-first, installable web app for freelance translators. It opens on a pair of Art Deco elevator doors and a Career Skyline, where every month you've worked is a lit tower. A daily plan tells you how many words each job needs today to land its deadline, and a full-screen Focus mode runs the timer with a Deco clock. Big engagements become projects split into parts (trailer, cutscenes, dialogue, UI; episodes; chapters), with a schedule chart, per-part pricing and progress, a query log for questions to the client, reference links and one invoice for delivered parts. Log a job in one sentence, typed or spoken, or share a client email into the app ("Lumina app strings EN>ZH-TW 3.2k words @ $0.09/word due Fri"), track time, CAT-weighted pricing, multi-currency income and receivables, generate invoices, see where your money comes from, check whether a new offer is a good rate and whether it fits your schedule, build a bilingual CV section from your real record, export a bilingual portfolio website, and share a Spotify-Wrapped-style year in review. Data stays on your device; optional sync is end-to-end encrypted into a private Gist on your own GitHub account. The whole interface is available in English and Traditional Chinese (switch any time from the sidebar, the More menu or Settings; the first visit follows your browser language), and résumés and invoices can be produced in either language independently of the interface.
+Witimemo (記譯; Works in Translation & Interpretation, said “witty memo”) is a local-first, installable web app for freelance translators and interpreters. It opens on a pair of Art Deco elevator doors and a Career Skyline, where every month you've worked is a lit tower. A daily plan tells you how many words each job needs today to land its deadline, and a full-screen Focus mode runs the timer with a Deco clock. Big engagements become projects split into parts (trailer, cutscenes, dialogue, UI; episodes; chapters), with a schedule chart, per-part pricing and progress, a query log for questions to the client, reference links and one invoice for delivered parts. Log a job in one sentence, typed or spoken, or share a client email into the app ("Lumina app strings EN>ZH-TW 3.2k words @ $0.09/word due Fri"), track time, CAT-weighted pricing, multi-currency income and receivables, generate invoices, import the statements and PO lists agencies send (Excel, CSV, ODS, Word and HTML tables read on the device; PDFs, photos and screenshots read by Claude with your own key) and have each line matched to your jobs so a remittance marks them paid, see where your money comes from, check whether a new offer is a good rate and whether it fits your schedule, build a bilingual CV section from your real record, export a bilingual portfolio website, and share a Spotify-Wrapped-style year in review. Data stays on your device; optional sync is end-to-end encrypted into a private Gist on your own GitHub account. The whole interface is available in English and Traditional Chinese (switch any time from the sidebar, the More menu or Settings; the first visit follows your browser language), and résumés and invoices can be produced in either language independently of the interface.

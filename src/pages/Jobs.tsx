@@ -1,4 +1,4 @@
-import { Download, LayoutList, Plus, Search, SquareKanban } from 'lucide-react';
+import { Download, FileUp, LayoutList, Plus, Search, SquareKanban } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useData } from '../db/data';
 import { setJobStatus } from '../db/repo';
@@ -119,7 +119,7 @@ export function Jobs() {
         j.notes,
       ]),
     ];
-    void downloadFile(`wordtrail-jobs-${today}.csv`, toCSV(rows), 'text/csv');
+    void downloadFile(`witimemo-jobs-${today}.csv`, toCSV(rows), 'text/csv');
   };
 
   const chips: { v: StatusFilter; label: string }[] = [
@@ -147,6 +147,9 @@ export function Jobs() {
                 { value: 'board', label: <span className="inline-flex items-center gap-1.5"><SquareKanban size={14} />{tx('看板', 'Board')}</span> },
               ]}
             />
+            <Button size="sm" variant="ghost" icon={<FileUp size={15} />} onClick={() => useUI.getState().openReportImport()}>
+              {tx('匯入', 'Import')}
+            </Button>
             <Button size="sm" variant="ghost" icon={<Download size={15} />} onClick={exportCSV}>
               CSV
             </Button>

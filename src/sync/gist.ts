@@ -1,7 +1,8 @@
 // Minimal GitHub Gist client. The gist only ever holds an encrypted blob.
 
+// the file name finds the sync gist on every device; it predates the rename and must not change
 export const GIST_FILE = 'wordtrail.json';
-export const GIST_DESCRIPTION = 'Wordtrail sync (end-to-end encrypted)';
+export const GIST_DESCRIPTION = 'Witimemo sync (end-to-end encrypted)';
 
 const API = 'https://api.github.com';
 

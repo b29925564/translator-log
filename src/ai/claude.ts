@@ -6,7 +6,8 @@ import { create } from 'zustand';
 import { delLocal, getLocal, setLocal } from '../db/db';
 import { BUILTIN_DOMAINS, LANGUAGES } from '../domain/constants';
 import type { QuickParse } from '../domain/quickadd';
-import type { Client, Settings, Unit } from '../domain/types';
+import type { ParsedReport } from '../domain/reportImport';
+import type { Client, JobStatus, Settings, Unit } from '../domain/types';
 import { tx } from '../i18n';
 
 export const AI_MODEL = 'claude-opus-5';
@@ -53,7 +54,7 @@ const describeError = async (e: unknown): Promise<AIError> => {
 };
 
 /** One request with server-side refusal fallback; returns the text of the answer. */
-const ask = async (params: { system: string; user: string; effort: 'low' | 'medium' | 'high'; schema?: Record<string, unknown> }): Promise<string> => {
+const ask = async (params: { system: string; user: string | Anthropic.Beta.BetaContentBlockParam[]; effort: 'low' | 'medium' | 'high'; schema?: Record<string, unknown> }): Promise<string> => {
   const client = await getClient();
   try {
     const res = await client.beta.messages.create({
@@ -150,6 +151,84 @@ export const aiParseJob = async (text: string, ctx: { clients: Client[]; today: 
     poNumber: j.poNumber ?? undefined,
     catTool: j.catTool ?? undefined,
     tokens: [],
+  };
+};
+
+// ---------- reports (PDF, photo, screenshot, pasted text) ----------
+
+const REPORT_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['kind', 'client', 'currency', 'paidAt', 'rows'],
+  properties: {
+    kind: { type: 'string', enum: ['jobs', 'payments'], description: 'payments = remittance advice, payout or payment statement; jobs = a list of orders, POs or work done' },
+    client: nullable('string', { description: 'The company that issued the report (who pays the translator)' }),
+    currency: nullable('string', { description: 'ISO 4217 code used for the whole report' }),
+    paidAt: nullable('string', { description: 'YYYY-MM-DD payment date printed once for the whole statement' }),
+    rows: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['title', 'client', 'ref', 'date', 'dueAt', 'paidAt', 'sourceLang', 'targetLang', 'quantity', 'unit', 'rate', 'amount', 'currency', 'status', 'notes'],
+        properties: {
+          title: nullable('string', { description: 'Job or project name exactly as printed' }),
+          client: nullable('string', { description: 'Only when rows name different end clients or companies' }),
+          ref: nullable('string', { description: 'PO, job, order or invoice number' }),
+          date: nullable('string', { description: 'YYYY-MM-DD delivery or work date' }),
+          dueAt: nullable('string', { description: 'YYYY-MM-DD' }),
+          paidAt: nullable('string', { description: 'YYYY-MM-DD' }),
+          sourceLang: nullable('string', { enum: [...LANGUAGES.map((l) => l.code), null] }),
+          targetLang: nullable('string', { enum: [...LANGUAGES.map((l) => l.code), null] }),
+          quantity: nullable('number', { description: 'Billable words, characters, hours, minutes or pages' }),
+          unit: nullable('string', { enum: ['word', 'char', 'hour', 'minute', 'page', 'flat', null] }),
+          rate: nullable('number'),
+          amount: nullable('number', { description: 'Line total before tax, as printed' }),
+          currency: nullable('string'),
+          status: nullable('string', { enum: ['quote', 'active', 'delivered', 'invoiced', 'paid', 'cancelled', null] }),
+          notes: nullable('string'),
+        },
+      },
+    },
+  },
+};
+
+type Nullable<T> = { [K in keyof T]: T[K] | null };
+type AIReport = Nullable<Omit<ParsedReport, 'rows' | 'kind'>> & { kind: ParsedReport['kind']; rows: Nullable<ParsedReport['rows'][number]>[] };
+
+export type ReportSource = { type: 'image'; mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif'; data: string } | { type: 'pdf'; data: string } | { type: 'text'; text: string };
+
+const dropNulls = <T extends object>(o: T) => Object.fromEntries(Object.entries(o).filter(([, v]) => v != null && v !== '')) as { [K in keyof T]?: Exclude<T[K], null> };
+
+/** Reads a statement, PO list or payout report from a PDF, an image or plain text. */
+export const aiReadReport = async (src: ReportSource, ctx: { clients: Client[]; today: string; settings: Settings }): Promise<ParsedReport> => {
+  const system = [
+    'You read reports that translation agencies and clients send to a freelance translator: purchase-order lists, monthly job statements, vendor-portal exports, remittance advice and payment statements. They may be PDFs, scans, phone photos or screenshots, in any language.',
+    'Return one row per job or line item. Skip subtotal, tax, total and balance lines. Copy titles and reference numbers exactly as printed. Amounts are numbers without currency symbols or thousands separators.',
+    `Today is ${ctx.today}. Write dates as YYYY-MM-DD; Taiwanese ROC years (e.g. 113/05/20) add 1911. The translator's default target language is ${ctx.settings.defaultTargetLang}.`,
+    'Use "word" for per-word pricing, "char" for per-character pricing (typical for Chinese, Japanese or Korean source), "flat" for fixed fees. Leave any field null when the report does not show it; never guess.',
+    ctx.clients.length ? `Known clients (reuse the exact spelling when one matches): ${ctx.clients.slice(0, 80).map((c) => c.name).join('; ')}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+  const instruction = 'Extract every line item from this report.';
+  const content: Anthropic.Beta.BetaContentBlockParam[] =
+    src.type === 'image'
+      ? [{ type: 'image', source: { type: 'base64', media_type: src.mediaType, data: src.data } }, { type: 'text', text: instruction }]
+      : src.type === 'pdf'
+        ? [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: src.data } }, { type: 'text', text: instruction }]
+        : [{ type: 'text', text: `${instruction}\n\n<report>\n${src.text.slice(0, 120_000)}\n</report>` }];
+  const raw = await ask({ system, user: content, effort: 'medium', schema: REPORT_SCHEMA });
+  const r = JSON.parse(raw) as AIReport;
+  return {
+    kind: r.kind,
+    client: r.client ?? undefined,
+    currency: r.currency?.toUpperCase() ?? undefined,
+    paidAt: r.paidAt ?? undefined,
+    rows: r.rows.map((x) => {
+      const row = dropNulls(x);
+      return { ...row, currency: row.currency?.toUpperCase(), unit: row.unit as Unit | undefined, status: row.status as JobStatus | undefined };
+    }),
   };
 };
 

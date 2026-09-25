@@ -5,6 +5,7 @@
 // screenshot in e2e-output/.
 
 import { chromium } from 'playwright';
+import { strToU8, zipSync } from 'fflate';
 import fs from 'node:fs';
 
 const BASE = process.env.URL || 'http://localhost:5173/';
@@ -44,6 +45,22 @@ async function suite(name, opts, fn) {
   });
   await ctx.close();
 }
+
+/** A minimal .xlsx with inline strings, as vendor portals export. */
+const xlsxOf = (rows) => {
+  const cell = (v, r, c) => {
+    const ref = String.fromCharCode(65 + c) + (r + 1);
+    return typeof v === 'number' ? `<c r="${ref}"><v>${v}</v></c>` : `<c r="${ref}" t="inlineStr"><is><t>${v.replace(/&/g, '&amp;')}</t></is></c>`;
+  };
+  const sheet = rows.map((row, r) => `<row r="${r + 1}">${row.map((v, c) => cell(v, r, c)).join('')}</row>`).join('');
+  return Buffer.from(
+    zipSync({
+      'xl/workbook.xml': strToU8('<workbook><sheets><sheet name="Remittance" sheetId="1" r:id="rId1"/></sheets></workbook>'),
+      'xl/_rels/workbook.xml.rels': strToU8('<Relationships><Relationship Id="rId1" Type="ws" Target="worksheets/sheet1.xml"/></Relationships>'),
+      'xl/worksheets/sheet1.xml': strToU8(`<worksheet><sheetData>${sheet}</sheetData></worksheet>`),
+    }),
+  );
+};
 
 const expectVisible = async (locator, timeout = 5000) => locator.first().waitFor({ state: 'visible', timeout });
 const skipOverture = async (page) => {
@@ -161,6 +178,55 @@ await suite('New user, English', { locale: 'en-US' }, async (page, step) => {
     await page.getByLabel('回覆', { exact: true }).fill('Yes, keep them.');
     await page.getByRole('button', { name: '儲存', exact: true }).click();
     await expectVisible(page.getByText('0 個待回覆'));
+  });
+  await step('an Excel remittance marks the matching part paid and adds the rest', async () => {
+    await page.evaluate(() => (location.hash = '/money'));
+    await page.getByRole('button', { name: '匯入報表' }).click();
+    await page.getByLabel('選擇報表檔案').setInputFiles({
+      name: 'harbor-remittance.xlsx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      buffer: xlsxOf([['Harbor & Quill — Remittance advice'], ['Payment date: 2026-09-20'], [], ['Project', 'Amount'], ['Starfall 預告片字幕', 300], ['Onboarding emails', 250], ['Total', 550]]),
+    });
+    await expectVisible(page.getByText('本機讀取'));
+    await expectVisible(page.getByText('2 列 · 對應到 1 筆既有案件'));
+    const dialog = page.getByRole('dialog');
+    await expectVisible(dialog.locator('li').filter({ hasText: 'Starfall 預告片字幕' }).getByText('「Starfall｜預告片字幕」'));
+    await page.getByLabel('「Onboarding emails」的處理方式').selectOption('new');
+    await expectVisible(page.getByText('1 筆標記已收款 · 1 筆新增'));
+    await page.getByRole('button', { name: '套用', exact: true }).click();
+    await expectVisible(page.getByText(/匯入完成：1 筆標記已收款、新增 1 筆/));
+    await page.evaluate(() => (location.hash = '/jobs'));
+    await expectVisible(page.getByText('Onboarding emails'));
+  });
+  await step('a CSV dropped anywhere opens the import; a PDF asks for an AI key', async () => {
+    await page.evaluate(() => {
+      const dt = new DataTransfer();
+      dt.items.add(new File(['Job,Words,Rate,Due date\nGlossary cleanup,1200,0.1,2099-02-01\n'], 'po-list.csv', { type: 'text/csv' }));
+      document.body.dispatchEvent(new DragEvent('dragenter', { dataTransfer: dt, bubbles: true }));
+      document.body.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true }));
+    });
+    await expectVisible(page.getByText('po-list.csv'));
+    await expectVisible(page.getByLabel('「Glossary cleanup」的處理方式'));
+    await page.getByRole('button', { name: '換一個檔案' }).first().click();
+    // a drop on the sheet's own drop zone must not leave the window overlay behind
+    await page.evaluate(() => {
+      const dt = new DataTransfer();
+      dt.items.add(new File(['Job,Words,Rate\nStyle guide,800,0.1\n'], 'style.csv', { type: 'text/csv' }));
+      const zone = document.querySelector('[role=dialog] .border-dashed');
+      document.body.dispatchEvent(new DragEvent('dragenter', { dataTransfer: dt, bubbles: true }));
+      zone.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true }));
+    });
+    await expectVisible(page.getByText('style.csv'));
+    await page.keyboard.press('Escape');
+    // any later re-render (navigation, saved data) used to reveal the stale overlay
+    await page.evaluate(() => (location.hash = '/jobs'));
+    await page.waitForTimeout(300);
+    if (await page.getByText('放開以匯入報表').count()) throw new Error('drop overlay stuck after closing the import');
+    await page.evaluate(() => (location.hash = '/money'));
+    await page.getByRole('button', { name: '匯入報表' }).click();
+    await page.getByLabel('選擇報表檔案').setInputFiles({ name: 'statement.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n%%EOF') });
+    await expectVisible(page.getByText(/PDF、照片和截圖要由 Claude 讀取/));
+    await page.keyboard.press('Escape');
   });
   await step('text shared into the app opens Quick Add', async () => {
     await page.goto(BASE + '?text=' + encodeURIComponent('Pixelforge patch notes 2000 words $0.1/word'));

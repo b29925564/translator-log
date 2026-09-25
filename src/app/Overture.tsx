@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { tx } from '../i18n';
 import { reducedMotion } from '../ui/motion';
 import { useUI } from '../ui/store';
-import { BRAND_GOLD, BRAND_INK, W_LINES } from './Logo';
+import { BRAND_GOLD, BRAND_INK, BRAND_ZH, BrandName, W_LINES } from './Logo';
 
 const KEY = 'wt-overture';
 
@@ -92,7 +92,7 @@ export function Overture({ ready }: { ready: boolean }) {
           style={{ background: `linear-gradient(180deg, transparent, ${BRAND_GOLD} 30%, ${BRAND_GOLD} 70%, transparent)`, animation: 'seamIn 1.4s ease .5s both' }}
         />
       )}
-      <span className="sr-only">{tx('譯跡 Wordtrail 載入中', 'Wordtrail is opening')}</span>
+      <span className="sr-only">{tx('記譯 Witimemo 載入中', 'Witimemo is opening')}</span>
     </div>
   );
 }
@@ -136,11 +136,11 @@ function DoorArt() {
               ))}
             </g>
           </svg>
-          <div className="font-wide mt-7 text-[17px] text-[#f2f2ef]" style={{ animation: 'trackIn 1.1s cubic-bezier(.2,.8,.2,1) .55s both' }}>
-            Wordtrail
+          <div className="font-wide mt-7 text-[16px] text-[#f2f2ef]" style={{ animation: 'trackIn 1.1s cubic-bezier(.2,.8,.2,1) .55s both' }}>
+            <BrandName gold={BRAND_GOLD} />
           </div>
           <div className="mt-2 text-[12px] tracking-[0.6em] text-[#8a8a90]" style={{ animation: 'fadeIn .8s ease .85s both' }}>
-            譯跡
+            {BRAND_ZH}
           </div>
           <div className="mt-6 h-[5px] w-[180px] border-y" style={{ borderColor: BRAND_GOLD, borderTopWidth: 2, animation: 'ruleIn .9s cubic-bezier(.2,.8,.2,1) .7s both' }} />
         </div>

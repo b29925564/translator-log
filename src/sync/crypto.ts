@@ -4,6 +4,7 @@
 export const KDF_ITERATIONS = 600_000;
 
 export interface Envelope {
+  /** Format marker from before the rename; kept so older files still open. */
   app: 'wordtrail';
   v: 1;
   kdf: { name: 'PBKDF2'; hash: 'SHA-256'; iter: number; salt: string };

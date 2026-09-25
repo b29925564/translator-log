@@ -4,10 +4,16 @@
 import type { Lang } from './domain/types';
 
 let current: Lang = 'zh-TW';
+let applied: Lang | undefined;
 
 export const setLang = (l: Lang) => {
   current = l;
-  if (typeof document !== 'undefined') document.documentElement.lang = l === 'en' ? 'en' : 'zh-Hant-TW';
+  if (typeof document === 'undefined' || applied === l) return;
+  applied = l;
+  document.documentElement.lang = l === 'en' ? 'en' : 'zh-Hant-TW';
+  document.title = l === 'en' ? 'Witimemo' : '記譯 Witimemo';
+  // iOS reads this when the app is added to the home screen
+  document.querySelector('meta[name="apple-mobile-web-app-title"]')?.setAttribute('content', l === 'en' ? 'Witimemo' : '記譯');
 };
 
 export const getLang = (): Lang => current;

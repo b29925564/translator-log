@@ -2,12 +2,16 @@ import { useId } from 'react';
 import { cx } from '../ui/kit';
 
 // The mark: a W drawn in three parallel lines, cut flat at the cap height —
-// Art Deco inline lettering that doubles as speed lines, the “trail”.
+// Art Deco inline lettering that doubles as speed lines.
 export const W_LINES = [
   '8.2,2.17 19.54,33.59 32,5.8 44.46,33.59 55.8,2.17',
   '3.12,4 19,48 32,19 45,48 60.88,4',
   '-1.96,5.83 18.46,62.41 32,32.2 45.54,62.41 65.96,5.83',
 ];
+
+export const BRAND_NAME = 'Witimemo';
+export const BRAND_ZH = '記譯';
+export const BRAND_TAGLINE = 'Works in Translation & Interpretation';
 
 export const BRAND_INK = '#0b0b0c';
 export const BRAND_GOLD = '#d4b36c';
@@ -43,13 +47,25 @@ export function LogoMark({ size = 32, className }: { size?: number; className?: 
   );
 }
 
+/** WITI in gold, MEMO in the text colour: the acronym (Works in Translation & Interpretation) shows in the lettering. */
+export function BrandName({ gold = 'var(--gold)', className }: { gold?: string; className?: string }) {
+  return (
+    <span className={className}>
+      <span className="sr-only">{BRAND_NAME}</span>
+      <span aria-hidden>
+        <span style={{ color: gold }}>WITI</span>MEMO
+      </span>
+    </span>
+  );
+}
+
 export function Wordmark({ className, compact }: { className?: string; compact?: boolean }) {
   return (
     <span className={cx('inline-flex items-center gap-3', className)}>
       <LogoMark size={compact ? 28 : 32} />
       <span className="leading-none">
-        <span className="font-wide block text-[13.5px] tracking-[0.22em] text-ink">Wordtrail</span>
-        <span className="mt-1 block text-[10.5px] font-medium tracking-[0.42em] text-muted">譯跡</span>
+        <BrandName className="font-wide block text-[12.5px] tracking-[0.22em] text-ink" />
+        <span className="mt-1 block text-[10.5px] font-medium tracking-[0.42em] text-muted">{BRAND_ZH}</span>
       </span>
     </span>
   );

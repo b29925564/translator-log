@@ -1,9 +1,9 @@
 {
-  "name": "wordtrail",
+  "name": "witimemo",
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "譯跡 Wordtrail — 自由譯者的案件紀錄、收款、履歷與年度回顧 App",
+  "description": "記譯 Witimemo — 自由譯者的案件紀錄、收款、履歷與年度回顧 App",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

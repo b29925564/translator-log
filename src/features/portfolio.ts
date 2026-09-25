@@ -197,7 +197,7 @@ footer small{font-size:12px;color:#76767c}
   ${zh.projects.length ? `<section><h2>${both('代表案例', 'Selected projects')}</h2><div lang="zh-Hant">${projects(zh)}</div><div lang="en">${projects(en)}</div></section>` : ''}
   ${zh.clients.length ? `<section><h2>${both('合作客戶', 'Clients')}</h2><p class="clients" lang="zh-Hant">${esc(zh.clients.slice(0, 16).join('、'))}</p><p class="clients" lang="en">${esc(en.clients.slice(0, 16).join(' · '))}</p></section>` : ''}
 </main>
-<footer><div class="in"><div><div class="rule"></div><div class="contact">${contact.join('') || both('（在 Wordtrail 設定中加入聯絡方式）', '(Add contact details in Wordtrail settings)')}</div></div><small>© ${year} ${nameEn} · ${both('以譯跡 Wordtrail 製作', 'Made with Wordtrail')}</small></div></footer>
+<footer><div class="in"><div><div class="rule"></div><div class="contact">${contact.join('') || both('（在記譯設定中加入聯絡方式）', '(Add contact details in Witimemo settings)')}</div></div><small>© ${year} ${nameEn} · ${both('以記譯 Witimemo 製作', 'Made with Witimemo')}</small></div></footer>
 <script>
 (function(){var h=document.documentElement;function set(l){h.setAttribute('data-lang',l);h.lang=l==='zh'?'zh-Hant':'en';document.querySelectorAll('.lang button').forEach(function(b){b.setAttribute('aria-pressed',String(b.getAttribute('data-set')===l))});}
 document.querySelectorAll('.lang button').forEach(function(b){b.addEventListener('click',function(){set(b.getAttribute('data-set'))})});})();
