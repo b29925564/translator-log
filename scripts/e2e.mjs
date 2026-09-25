@@ -303,6 +303,8 @@ await suite('Theme differs from the system', { locale: 'zh-TW', colorScheme: 'da
     await expectVisible(page.getByText('職涯天際線').first(), 10000);
     await page.evaluate(() => (location.hash = '/settings'));
     await page.getByRole('tab', { name: '淺色', exact: true }).click();
+    // the choice is saved before it applies, so wait for it rather than a fixed pause
+    await page.waitForFunction(() => document.documentElement.getAttribute('data-theme') === 'light', null, { timeout: 5000 });
     await page.evaluate(() => (location.hash = '/'));
     await page.waitForTimeout(400);
     const p = await paint();
@@ -320,6 +322,8 @@ await suite('Theme differs from the system', { locale: 'zh-TW', colorScheme: 'da
     await skipOverture(page);
     await page.evaluate(() => (location.hash = '/settings'));
     await page.getByRole('tab', { name: '深色', exact: true }).click();
+    // the choice is saved before it applies, so wait for it rather than a fixed pause
+    await page.waitForFunction(() => document.documentElement.getAttribute('data-theme') === 'dark', null, { timeout: 5000 });
     await page.evaluate(() => (location.hash = '/'));
     await page.waitForTimeout(400);
     const p = await paint();
