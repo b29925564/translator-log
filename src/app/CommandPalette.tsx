@@ -1,4 +1,4 @@
-import { Building2, CornerDownLeft, Crosshair, FileText, FolderKanban, Plus, Search } from 'lucide-react';
+import { Building2, CornerDownLeft, Crosshair, FileText, FileUp, FolderKanban, Plus, Search } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useData } from '../db/data';
@@ -47,6 +47,7 @@ export function CommandPalette() {
       { id: 'a-new', group: tx('動作', 'Actions'), label: tx('新增案件', 'New job'), sub: q.trim() ? tx(`用「${q.trim()}」建立`, `Create from “${q.trim()}”`) : undefined, icon: <Plus size={16} />, run: () => { close(); openQuickAdd(q.trim()); } },
       { id: 'a-client', group: tx('動作', 'Actions'), label: tx('新增客戶', 'New client'), icon: <Building2 size={16} />, run: () => { close(); openClientEditor(undefined, true); } },
       { id: 'a-project', group: tx('動作', 'Actions'), label: tx('新增專案', 'New project'), sub: tx('大案子拆成部分管理', 'Split a big job into parts'), icon: <FolderKanban size={16} />, run: () => { close(); openProjectEditor(); } },
+      { id: 'a-import', group: tx('動作', 'Actions'), label: tx('匯入報表', 'Import a report'), sub: tx('Excel、PDF、照片、截圖', 'Excel, PDF, photos, screenshots'), icon: <FileUp size={16} />, run: () => { close(); useUI.getState().openReportImport(); } },
       ...(urgent
         ? [{ id: 'a-focus', group: tx('動作', 'Actions'), label: tx('開始專注', 'Start a focus session'), sub: urgent.title, icon: <Crosshair size={16} />, run: () => { close(); navigate('/focus/' + urgent.id); } }]
         : []),

@@ -77,9 +77,11 @@ export type ImportField =
   | 'service'
   | 'catTool'
   | 'notes'
+  | 'ref'
   | 'ignore';
 
 const HEADER_HINTS: [ImportField, RegExp][] = [
+  ['ref', /(PO\b|P\.O\.|訂單|工單|單號|編號|發票號碼|請款單號|invoice\s*(no|number|#)|job\s*(no|id|number|#)|order\s*(no|id|number|#)|reference|ref\b)/i],
   ['paidAt', /(收款日|入帳日|付款日|paid\s*(date|on)?|payment\s*date)/i],
   ['deliveredAt', /(交稿日|交件日|完成日|delivered|delivery\s*date|completed)/i],
   ['dueAt', /(截止|期限|deadline|due)/i],

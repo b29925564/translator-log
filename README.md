@@ -68,6 +68,7 @@
 - **應收帳款與帳齡分析**：未到期、逾期 1–30／31–60／60 天以上，一眼看出該催哪一筆。
 - **請款單**：勾選已交稿的案件，一鍵產生中文或英文請款單，可列印或存成 PDF。
 - **台灣扣繳自動試算**：單次給付超過 2 萬元扣繳 10%、達 2 萬元代扣 2.11% 二代健保補充保費，自動算出實收金額（門檻與費率可調）。
+- **匯入客戶報表**：翻譯社的對帳單、PO 清單、平台匯出檔、匯款通知，直接丟進來（拖到畫面任何地方、在手機上「分享」給譯跡、拍照或貼上截圖）。每一列會先對應到你既有的案件——依請款單號、PO 號碼、金額與日期、案件名稱——付款明細一鍵把對應的案件與請款單標記已收款，案件清單則補齊缺的 PO、字數、截止日，其餘新增為案件。套用前每一列都可以改對應或略過。
 - **報稅助手**：依收款年度整理 9B 稿費、9A 執行業務等類別，扣繳稅額、補充保費、稿費 18 萬免稅額與 30% 必要費用估算；按給付單位列出明細，方便和扣繳憑單對帳；提醒未經扣繳（例如國外客戶）需要自行申報的收入。
 
 ### 看懂自己：數字會說話
@@ -112,9 +113,15 @@
    - **Android**：用 Chrome 開啟 → 選單 → 安裝應用程式
    - **Mac／Windows**：Chrome 或 Edge 網址列右側的「安裝」圖示
 
-### 從舊的 Excel 紀錄搬家
+### 從舊的 Excel 紀錄搬家，或匯入客戶給的報表
 
-把試算表存成 CSV，在「設定 → 備份與匯入 → 從 Excel／CSV 匯入」上傳。欄位（日期、客戶、案件名稱、語言組合、字數、單價、金額、幣別、狀態、收款日、領域、備註……）會依中英文欄名自動對應，也可以手動調整；支援民國年、Excel 日期序號、`英翻中`／`EN>ZH` 等寫法。
+在「收款」或「案件」頁按「匯入」（或把檔案拖進視窗）。支援的格式：
+
+| 在裝置上讀取（不需要網路） | 由 Claude 讀取（需要 AI 金鑰） |
+| --- | --- |
+| Excel `.xlsx`、CSV／TSV、OpenDocument `.ods`、Word `.docx` 內的表格、網頁 `.html`（很多平台的「.xls」其實是網頁表格）、從試算表複製貼上的儲存格 | PDF、照片（含 iPhone HEIC）、截圖、付款通知信的文字 |
+
+舊版二進位 `.xls` 請先另存為 `.xlsx` 或 CSV。欄位（日期、客戶、案件名稱、語言組合、字數、單價、金額、幣別、狀態、收款日、領域、備註……）會依中英文欄名自動對應，也可以手動調整；支援民國年、Excel 日期序號、`英翻中`／`EN>ZH` 等寫法。
 
 ---
 
@@ -141,6 +148,7 @@
 在「設定 → AI 助理」加入你自己的 Claude API 金鑰後：
 
 - 在「一句話新增案件」貼上整封客戶來信或 PO，按「用 AI 讀整封信件」自動擷取客戶、語言、字數、費率、截止日等欄位。
+- 匯入 PDF、照片或截圖形式的報表：Claude 逐列讀出案件名稱、單號、日期、字數、單價與金額，略過小計與合計，再交給同一套對應與確認流程。
 - 在履歷產生器請 Claude 把紀錄潤飾成自然的履歷段落（只根據真實紀錄，不誇大、不捏造）。
 
 金鑰只存在該裝置，不會同步也不會匯出；費用由你的 Anthropic 帳戶直接計費。不設定金鑰時，所有功能照常使用本機解析。
@@ -192,12 +200,12 @@ npm run build:demo   # 單一 HTML 檔的示範版 → dist-demo/
 
 ```
 src/
-  domain/    純函式：型別、一句話解析、字數統計、CAT 加權、統計引擎、稅務、履歷、合併、CSV、行事曆、示範資料
+  domain/    純函式：型別、一句話解析、字數統計、CAT 加權、統計引擎、稅務、履歷、合併、CSV／XLSX／ODS／DOCX 讀取、報表對應、行事曆、示範資料
   db/        Dexie 資料庫、資料存取、React 資料 context
   sync/      加密、Gist 用戶端、同步引擎與設定畫面
   ai/        Claude 功能
   charts/    SVG 圖表（職涯天際線、柱狀、橫條、折線、熱力圖、負荷圖）
-  features/  一句話新增、案件／客戶編輯器、請款單、CSV 匯入等
+  features/  一句話新增、案件／客戶編輯器、請款單、報表匯入等
   pages/     各頁面
   ui/        設計元件、格式化、全域狀態
 tests/       Vitest
@@ -207,4 +215,4 @@ tests/       Vitest
 
 ## English summary
 
-Wordtrail is a local-first, installable web app for freelance translators. It opens on a pair of Art Deco elevator doors and a Career Skyline, where every month you've worked is a lit tower. A daily plan tells you how many words each job needs today to land its deadline, and a full-screen Focus mode runs the timer with a Deco clock. Big engagements become projects split into parts (trailer, cutscenes, dialogue, UI; episodes; chapters), with a schedule chart, per-part pricing and progress, a query log for questions to the client, reference links and one invoice for delivered parts. Log a job in one sentence, typed or spoken, or share a client email into the app ("Lumina app strings EN>ZH-TW 3.2k words @ $0.09/word due Fri"), track time, CAT-weighted pricing, multi-currency income and receivables, generate invoices, see where your money comes from, check whether a new offer is a good rate and whether it fits your schedule, build a bilingual CV section from your real record, export a bilingual portfolio website, and share a Spotify-Wrapped-style year in review. Data stays on your device; optional sync is end-to-end encrypted into a private Gist on your own GitHub account. The whole interface is available in English and Traditional Chinese (switch any time from the sidebar, the More menu or Settings; the first visit follows your browser language), and résumés and invoices can be produced in either language independently of the interface.
+Wordtrail is a local-first, installable web app for freelance translators. It opens on a pair of Art Deco elevator doors and a Career Skyline, where every month you've worked is a lit tower. A daily plan tells you how many words each job needs today to land its deadline, and a full-screen Focus mode runs the timer with a Deco clock. Big engagements become projects split into parts (trailer, cutscenes, dialogue, UI; episodes; chapters), with a schedule chart, per-part pricing and progress, a query log for questions to the client, reference links and one invoice for delivered parts. Log a job in one sentence, typed or spoken, or share a client email into the app ("Lumina app strings EN>ZH-TW 3.2k words @ $0.09/word due Fri"), track time, CAT-weighted pricing, multi-currency income and receivables, generate invoices, import the statements and PO lists agencies send (Excel, CSV, ODS, Word and HTML tables read on the device; PDFs, photos and screenshots read by Claude with your own key) and have each line matched to your jobs so a remittance marks them paid, see where your money comes from, check whether a new offer is a good rate and whether it fits your schedule, build a bilingual CV section from your real record, export a bilingual portfolio website, and share a Spotify-Wrapped-style year in review. Data stays on your device; optional sync is end-to-end encrypted into a private Gist on your own GitHub account. The whole interface is available in English and Traditional Chinese (switch any time from the sidebar, the More menu or Settings; the first visit follows your browser language), and résumés and invoices can be produced in either language independently of the interface.

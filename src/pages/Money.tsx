@@ -1,4 +1,4 @@
-import { Check, FileText, Plus, Receipt } from 'lucide-react';
+import { Check, FileText, FileUp, Plus, Receipt } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { ChartCard, ColumnChart, monthLabel, SegmentBar } from '../charts/charts';
 import { useData } from '../db/data';
@@ -16,7 +16,7 @@ type Tab = 'due' | 'invoices' | 'received';
 
 export function Money() {
   const { jobs, clients, invoices, clientMap, jobMap, settings, today } = useData();
-  const { navigate, fireStamp } = useUI();
+  const { navigate, fireStamp, openReportImport } = useUI();
   const [tab, setTab] = useState<Tab>('due');
   const [builder, setBuilder] = useState<{ open: boolean; client?: string }>({ open: false });
   const base = settings.baseCurrency;
@@ -55,9 +55,14 @@ export function Money() {
         eyebrow={tx('應收與入帳', 'Receivables & cash')}
         title={tx('收款', 'Payments')}
         actions={
-          <Button variant="primary" size="sm" icon={<Plus size={15} />} onClick={() => setBuilder({ open: true })}>
-            {tx('建立請款單', 'New invoice')}
-          </Button>
+          <>
+            <Button size="sm" icon={<FileUp size={15} />} onClick={() => openReportImport()}>
+              {tx('匯入報表', 'Import report')}
+            </Button>
+            <Button variant="primary" size="sm" icon={<Plus size={15} />} onClick={() => setBuilder({ open: true })}>
+              {tx('建立請款單', 'New invoice')}
+            </Button>
+          </>
         }
       />
 

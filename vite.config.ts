@@ -51,11 +51,36 @@ export default defineConfig(({ mode }) => {
                 { name: '案件列表 Jobs', short_name: '案件', url: './#/jobs', icons: [{ src: 'icon-192.png', sizes: '192x192' }] },
                 { name: '年度回顧 Year in review', short_name: '回顧', url: './#/wrapped', icons: [{ src: 'icon-192.png', sizes: '192x192' }] },
               ],
-              // share an email or PO from any app straight into Quick Add
+              // share an email into Quick Add, or a statement file into report import (public/share-target.js)
               share_target: {
-                action: './',
-                method: 'GET',
-                params: { title: 'title', text: 'text', url: 'url' },
+                action: './share-target',
+                method: 'POST',
+                enctype: 'multipart/form-data',
+                params: {
+                  title: 'title',
+                  text: 'text',
+                  url: 'url',
+                  files: [
+                    {
+                      name: 'files',
+                      accept: [
+                        'application/pdf',
+                        'image/*',
+                        'text/csv',
+                        'text/plain',
+                        'text/html',
+                        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                        'application/vnd.oasis.opendocument.spreadsheet',
+                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                        '.csv',
+                        '.xlsx',
+                        '.ods',
+                        '.docx',
+                        '.pdf',
+                      ],
+                    },
+                  ],
+                },
               },
               screenshots: [
                 { src: 'screenshots/wide.png', sizes: '1440x900', type: 'image/png', form_factor: 'wide', label: 'Wordtrail overview' },
@@ -65,6 +90,7 @@ export default defineConfig(({ mode }) => {
             workbox: {
               globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
               globIgnores: ['screenshots/**'],
+              importScripts: ['share-target.js'],
               navigateFallback: 'index.html',
               runtimeCaching: [
                 {

@@ -36,6 +36,10 @@ interface UIState {
   openProjectEditor: (project?: Project) => void;
   closeProjectEditor: () => void;
 
+  reportImport: { open: boolean; file?: File };
+  openReportImport: (file?: File) => void;
+  closeReportImport: () => void;
+
   palette: boolean;
   setPalette: (open: boolean) => void;
 
@@ -102,6 +106,10 @@ export const useUI = create<UIState>((set, get) => ({
   projectEditor: { open: false, isNew: false },
   openProjectEditor: (project) => set({ projectEditor: { open: true, project, isNew: !project }, palette: false, more: false }),
   closeProjectEditor: () => set({ projectEditor: { open: false, isNew: false } }),
+
+  reportImport: { open: false },
+  openReportImport: (file) => set({ reportImport: { open: true, file }, palette: false, more: false }),
+  closeReportImport: () => set({ reportImport: { open: false } }),
 
   palette: false,
   setPalette: (palette) => set({ palette }),

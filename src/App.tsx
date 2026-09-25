@@ -8,6 +8,7 @@ import { QuickAdd } from './features/QuickAdd';
 import { JobEditor } from './features/JobEditor';
 import { ClientEditor } from './features/ClientEditor';
 import { ProjectEditor } from './features/ProjectEditor';
+import { DropImport } from './features/DropImport';
 import { matchRoute, useUI } from './ui/store';
 import { startAutoSync } from './sync/engine';
 import { loadAIKey } from './ai/claude';
@@ -32,6 +33,7 @@ const SettingsPage = lazy(() => import('./pages/Settings').then((m) => ({ defaul
 const Focus = lazy(() => import('./pages/Focus').then((m) => ({ default: m.Focus })));
 const Projects = lazy(() => import('./pages/Projects').then((m) => ({ default: m.Projects })));
 const ProjectDetail = lazy(() => import('./pages/ProjectDetail').then((m) => ({ default: m.ProjectDetail })));
+const ReportImport = lazy(() => import('./features/ReportImport').then((m) => ({ default: m.ReportImport })));
 const Pair = lazy(() => import('./pages/Pair').then((m) => ({ default: m.Pair })));
 
 function Route() {
@@ -54,6 +56,16 @@ function Route() {
   if (matchRoute(route, '/settings')) return <SettingsPage />;
   if ((p = matchRoute(route, '/settings/:section'))) return <SettingsPage section={p.section} />;
   return <Dashboard />;
+}
+
+function ReportImportMount() {
+  const open = useUI((s) => s.reportImport.open);
+  if (!open) return null;
+  return (
+    <Suspense fallback={null}>
+      <ReportImport />
+    </Suspense>
+  );
 }
 
 function Splash() {
@@ -115,6 +127,7 @@ function AppBody() {
   const route = useUI((s) => s.route);
   const navigate = useUI((s) => s.navigate);
   const openQuickAdd = useUI((s) => s.openQuickAdd);
+  const openReportImport = useUI((s) => s.openReportImport);
   setLang(settings.lang);
   useGlobalShortcuts();
 
@@ -151,6 +164,23 @@ function AppBody() {
     } catch {
       return;
     }
+    if (params.get('shared-file')) {
+      try {
+        history.replaceState(null, '', window.location.pathname + window.location.hash);
+      } catch {
+        /* ignore */
+      }
+      void (async () => {
+        const cache = await caches.open('wordtrail-share');
+        const res = await cache.match('shared-file');
+        if (!res) return;
+        await cache.delete('shared-file');
+        const blob = await res.blob();
+        const name = decodeURIComponent(res.headers.get('x-file-name') ?? 'report');
+        openReportImport(new File([blob], name, { type: blob.type }));
+      })().catch(() => undefined);
+      return;
+    }
     const shared = ['title', 'text', 'url']
       .map((k) => params.get(k)?.trim())
       .filter((v, i, a): v is string => !!v && a.indexOf(v) === i)
@@ -162,7 +192,7 @@ function AppBody() {
       /* ignore */
     }
     openQuickAdd(shared);
-  }, [shareReady, openQuickAdd]);
+  }, [shareReady, openQuickAdd, openReportImport]);
 
   useEffect(() => {
     if (route === '/new') {
@@ -219,6 +249,8 @@ function AppBody() {
       <JobEditor />
       <ClientEditor />
       <ProjectEditor />
+      <ReportImportMount />
+      <DropImport />
       <CommandPalette />
       <ConfirmDialog />
       <Toasts />

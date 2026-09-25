@@ -12,7 +12,6 @@ import { aiAvailable, saveAIKey, testAIKey, useAI } from '../ai/claude';
 import { num } from '../ui/format';
 import { Button, cx, Field, Input, Kbd, NumberInput, PageHeader, Segmented, Select, Textarea } from '../ui/kit';
 import { useUI } from '../ui/store';
-import { CsvImport } from '../features/CsvImport';
 import { CurrencySelect, LangSelect } from '../features/common';
 import { downloadFile } from '../features/download';
 import { fetchRates } from '../features/fx';
@@ -59,7 +58,6 @@ function LazyNumber({ value, onSave, ...rest }: { value: number | undefined; onS
 export function SettingsPage({ section }: { section?: string }) {
   const { settings, jobs, clientMap, today } = useData();
   const { toast, ask, navigate } = useUI();
-  const [csvOpen, setCsvOpen] = useState(false);
   const [demo, setDemo] = useState(false);
   const [fxBusy, setFxBusy] = useState(false);
   const [aiKey, setAiKey] = useState('');
@@ -278,8 +276,8 @@ export function SettingsPage({ section }: { section?: string }) {
               {tx('從備份還原', 'Restore a backup')}
             </Button>
             <input ref={fileRef} type="file" accept=".json,application/json" className="hidden" onChange={(e) => e.target.files?.[0] && void importJSON(e.target.files[0])} />
-            <Button icon={<FileSpreadsheet size={15} />} onClick={() => setCsvOpen(true)}>
-              {tx('從 Excel／CSV 匯入', 'Import from Excel / CSV')}
+            <Button icon={<FileSpreadsheet size={15} />} onClick={() => useUI.getState().openReportImport()}>
+              {tx('匯入報表或試算表', 'Import a report or spreadsheet')}
             </Button>
             <Button icon={<CalendarPlus size={15} />} onClick={exportICS}>
               {tx('截止日匯出到行事曆', 'Export deadlines to calendar')}
@@ -469,7 +467,6 @@ export function SettingsPage({ section }: { section?: string }) {
           </div>
         </Card>
       </div>
-      <CsvImport open={csvOpen} onClose={() => setCsvOpen(false)} />
     </div>
   );
 }
