@@ -132,6 +132,8 @@ function AppBody() {
   useGlobalShortcuts();
 
   useEffect(() => {
+    // wait for saved settings, or the default "system" would undo the theme applied before paint
+    if (!ready) return;
     // only undo a theme we set ourselves, so a host page's own data-theme survives
     const root = document.documentElement;
     if (settings.theme === 'system') {
@@ -143,7 +145,19 @@ function AppBody() {
       root.setAttribute('data-theme', settings.theme);
       root.dataset.wtTheme = '1';
     }
-  }, [settings.theme]);
+    try {
+      if (settings.theme === 'system') localStorage.removeItem('wt-theme');
+      else localStorage.setItem('wt-theme', settings.theme);
+    } catch {
+      /* storage may be unavailable; the theme still applies once the app loads */
+    }
+    // browser and status-bar colour: each tag keeps its own scheme under "system", both follow a forced theme
+    for (const m of document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')) {
+      const own = m.media.includes('dark') ? 'dark' : 'light';
+      const scheme = settings.theme === 'system' ? own : settings.theme;
+      m.content = scheme === 'dark' ? '#09090a' : '#f4f4f2';
+    }
+  }, [ready, settings.theme]);
 
   useEffect(() => {
     if (__DEMO_BUILD__ && ready && !settings.onboarded && jobs.length === 0) void loadDemo();

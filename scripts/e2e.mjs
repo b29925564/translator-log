@@ -283,6 +283,56 @@ await suite('Sample data, 繁體中文', { locale: 'zh-TW' }, async (page, step)
   });
 });
 
+await suite('Theme differs from the system', { locale: 'zh-TW', colorScheme: 'dark' }, async (page, step) => {
+  const paint = () =>
+    page.evaluate(() => {
+      const h = document.querySelector('main h1');
+      return {
+        html: getComputedStyle(document.documentElement).backgroundColor,
+        body: getComputedStyle(document.body).backgroundColor,
+        heading: h ? getComputedStyle(h).color : null,
+        meta: [...document.querySelectorAll('meta[name="theme-color"]')].map((m) => m.content),
+      };
+    });
+  const LIGHT_BG = 'rgb(244, 244, 242)';
+  const DARK_BG = 'rgb(9, 9, 10)';
+  await step('light theme on a dark system paints a light page', async () => {
+    await page.goto(BASE);
+    await skipOverture(page);
+    await page.getByRole('button', { name: /先用示範資料逛逛/ }).click();
+    await expectVisible(page.getByText('職涯天際線').first(), 10000);
+    await page.evaluate(() => (location.hash = '/settings'));
+    await page.getByRole('tab', { name: '淺色', exact: true }).click();
+    // the choice is saved before it applies, so wait for it rather than a fixed pause
+    await page.waitForFunction(() => document.documentElement.getAttribute('data-theme') === 'light', null, { timeout: 5000 });
+    await page.evaluate(() => (location.hash = '/'));
+    await page.waitForTimeout(400);
+    const p = await paint();
+    if (p.html !== LIGHT_BG || p.body !== LIGHT_BG) throw new Error(`page background ${p.html} / ${p.body}`);
+    if (p.heading !== 'rgb(11, 11, 12)') throw new Error('greeting colour ' + p.heading);
+    if (p.meta.some((c) => c !== '#f4f4f2')) throw new Error('status bar colour ' + p.meta.join(','));
+  });
+  await step('the chosen theme applies before the app loads', async () => {
+    await page.reload();
+    const early = await page.evaluate(() => ({ theme: document.documentElement.getAttribute('data-theme'), bg: getComputedStyle(document.documentElement).backgroundColor }));
+    if (early.theme !== 'light' || early.bg !== LIGHT_BG) throw new Error(JSON.stringify(early));
+  });
+  await step('dark theme on a light system paints a dark page', async () => {
+    await page.emulateMedia({ colorScheme: 'light' });
+    await skipOverture(page);
+    await page.evaluate(() => (location.hash = '/settings'));
+    await page.getByRole('tab', { name: '深色', exact: true }).click();
+    // the choice is saved before it applies, so wait for it rather than a fixed pause
+    await page.waitForFunction(() => document.documentElement.getAttribute('data-theme') === 'dark', null, { timeout: 5000 });
+    await page.evaluate(() => (location.hash = '/'));
+    await page.waitForTimeout(400);
+    const p = await paint();
+    if (p.html !== DARK_BG || p.body !== DARK_BG) throw new Error(`page background ${p.html} / ${p.body}`);
+    if (p.heading !== 'rgb(242, 242, 239)') throw new Error('greeting colour ' + p.heading);
+    if (p.meta.some((c) => c !== '#09090a')) throw new Error('status bar colour ' + p.meta.join(','));
+  });
+});
+
 await suite('Phone', { locale: 'zh-TW', viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 }, async (page, step) => {
   await step('tab bar and More sheet', async () => {
     await page.goto(BASE);

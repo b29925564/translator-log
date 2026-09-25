@@ -4,6 +4,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { addDays, parseISO } from '../domain/dates';
+import { pickAxisLabels } from './axis';
 import { getLang, tx } from '../i18n';
 import { cx } from '../ui/kit';
 
@@ -337,7 +338,10 @@ export function LineChart({ points, height = 180, format, color = 'var(--series-
     started = true;
   });
   const lastIdx = points.map((p) => p.value != null).lastIndexOf(true);
-  const labelEvery = points.length > 8 && plotW / points.length < 40 ? Math.ceil(points.length / 6) : 1;
+  const shownLabels = pickAxisLabels(
+    points.map((p) => p.label),
+    points.map((_, i) => x(i)),
+  );
   return (
     <div
       ref={ref}
@@ -376,7 +380,7 @@ export function LineChart({ points, height = 180, format, color = 'var(--series-
             p.value != null && (i === lastIdx || i === hover) ? <circle key={i} cx={x(i)} cy={y(p.value)} r={4.5} fill={color} stroke="var(--surface)" strokeWidth={2} /> : null,
           )}
           {points.map((p, i) =>
-            (i % labelEvery === 0 && points.length - 1 - i >= Math.ceil(labelEvery / 2)) || i === points.length - 1 ? (
+            shownLabels.has(i) ? (
               <text key={p.key} x={x(i)} y={height - 6} textAnchor={i === 0 ? 'start' : i === points.length - 1 ? 'end' : 'middle'} fontSize={11} fill="var(--muted)">
                 {p.label}
               </text>
