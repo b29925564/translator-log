@@ -365,9 +365,10 @@ await suite('Sample data, 繁體中文', { locale: 'zh-TW' }, async (page, step)
     await page.locator('#job-rate').waitFor({ state: 'detached', timeout: 5000 });
     await page.getByRole('button', { name: '編輯' }).first().click();
     const rows = page.getByTestId('rate-row');
+    await expectVisible(rows);
     const before = await rows.count();
     await page.getByRole('button', { name: '再加一筆費率' }).click();
-    if ((await rows.count()) !== before + 1) throw new Error('row not added');
+    await expectVisible(rows.nth(before));
     await rows.last().getByLabel('單價').fill('0.3');
     await page.getByRole('button', { name: '儲存', exact: true }).click();
     await expectVisible(page.getByTestId('client-rates').locator('li').nth(before));
