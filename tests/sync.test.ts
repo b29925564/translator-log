@@ -75,5 +75,15 @@ describe('encrypted gist sync', () => {
     const snap = await decryptJSON<{ jobs: { id: string; title: string }[] }>(env, key);
     expect(snap.jobs.map((j) => j.title).sort()).toEqual(['Device B job', 'Edited on B']);
     expect(engine.useSync.getState().status).toBe('idle');
+
+    // replacing everything from a backup sticks: the next sync does not bring the old jobs back
+    const backup = await repo.exportBackup();
+    const kept = backup.data.jobs.find((j) => j.id === b.id)!;
+    await repo.saveJob(repo.newJob({ title: 'Made after the backup' }));
+    await engine.syncNow();
+    await repo.importBackup({ ...backup, data: { ...backup.data, jobs: [kept] } }, 'replace');
+    await engine.syncNow();
+    const live = (await db.jobs.toArray()).filter((j) => !j.deletedAt).map((j) => j.title);
+    expect(live).toEqual(['Device B job']);
   }, 60_000);
 });

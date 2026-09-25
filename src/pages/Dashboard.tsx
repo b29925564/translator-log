@@ -18,7 +18,7 @@ import {
 } from '../domain/stats';
 import { getLang, tx } from '../i18n';
 import { compact, greeting, money, num, pct } from '../ui/format';
-import { cx, Kbd, Meter, SectionTitle } from '../ui/kit';
+import { cx, fitText, Kbd, Meter, SectionTitle } from '../ui/kit';
 import { useUI } from '../ui/store';
 import { useSpeed } from '../features/common';
 import { insightView } from '../features/insightText';
@@ -31,9 +31,15 @@ import { Odometer } from '../ui/motion';
 function Tile({ label, value, sub, children, onClick, className }: { label: string; value: React.ReactNode; sub?: React.ReactNode; children?: React.ReactNode; onClick?: () => void; className?: string }) {
   const Comp = onClick ? 'button' : 'div';
   return (
-    <Comp type={onClick ? 'button' : undefined} onClick={onClick} className={cx('flex min-w-0 flex-col p-5 text-left', onClick && 'transition-colors hover:bg-surface-2', className)}>
+    <Comp
+      type={onClick ? 'button' : undefined}
+      onClick={onClick}
+      className={cx('flex min-w-0 flex-col p-4 text-left [container-type:inline-size] sm:p-5', onClick && 'transition-colors hover:bg-surface-2', className)}
+    >
       <div className="eyebrow">{label}</div>
-      <div className="mt-3 truncate text-[28px] font-medium leading-none tracking-[-0.03em] text-ink">{value}</div>
+      <div className="mt-3 truncate font-medium leading-none tracking-[-0.03em] text-ink" style={typeof value === 'string' ? fitText(value, 28) : { fontSize: 28 }}>
+        {value}
+      </div>
       {sub && <div className="mt-2 text-[12.5px] text-muted">{sub}</div>}
       {children}
     </Comp>

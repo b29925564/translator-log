@@ -17,6 +17,16 @@ import { tx } from '../i18n';
 
 export const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');
 
+/**
+ * Shrinks a big figure so it fits its tile instead of being cut off with “…”
+ * on a phone. Needs a `[container-type:inline-size]` ancestor; `maxPx` is the
+ * size used whenever there is room.
+ */
+export const fitText = (text: string, maxPx: number) => {
+  const em = [...text].reduce((s, c) => s + (/[\u3000-\u9fff\uff00-\uffef]/.test(c) ? 1 : 0.62), 0);
+  return { fontSize: `min(${maxPx}px, calc(100cqi / ${Math.max(em, 1).toFixed(2)}))` };
+};
+
 // ---------- buttons ----------
 
 type BtnProps = ButtonHTMLAttributes<HTMLButtonElement> & {

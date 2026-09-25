@@ -308,8 +308,8 @@ export const parseQuickAdd = (input: string, ctx: QuickContext): QuickParse => {
   }
   if (time && !date) date = ctx.today;
   if (date) out.dueAt = time ? `${date}T${time}` : date;
-  // swallow “交 / 截止 / due / deadline” next to a date
-  m = find(/(前交|交稿|交件|截止|到期|deadline|due\s*(?:by|on)?|交|前)/i);
+  // swallow “交 / 截稿 / 截止 / due / deadline” next to a date
+  m = find(/(前交|前截稿|交稿|交件|截稿|截止|到期|deadline|due\s*(?:by|on)?|交|前)/i);
   if (m && out.dueAt) take('due', m.index, m.index + m[0].length);
 
   // 5. rate: “每字0.9元”, “0.9元/字”, “$0.08/word”, “@0.08”, “單價 0.9”, “8 cents/word”

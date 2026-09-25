@@ -124,7 +124,16 @@ export function InvoiceBuilder({ open, onClose, presetClient, onlyJobs }: { open
               <Input id="inv-no" value={number} onChange={(e) => setNumber(e.target.value)} className="font-mono" />
             </Field>
             <Field label={tx('開立日期', 'Issue date')} htmlFor="inv-issue">
-              <Input id="inv-issue" type="date" value={issue} onChange={(e) => setIssue(e.target.value)} />
+              <Input
+                id="inv-issue"
+                type="date"
+                value={issue}
+                onChange={(e) => {
+                  setIssue(e.target.value);
+                  // the payment terms run from the issue date
+                  if (e.target.value) setDue(addDays(e.target.value, client?.paymentTermsDays ?? 30));
+                }}
+              />
             </Field>
             <Field label={tx('付款期限', 'Due date')} htmlFor="inv-due">
               <Input id="inv-due" type="date" value={due} onChange={(e) => setDue(e.target.value)} />
