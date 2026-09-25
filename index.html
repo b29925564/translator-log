@@ -24,9 +24,24 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=Geist+Mono:wght@400;500&family=Noto+Sans+TC:wght@400;500;700&display=swap"
     />
+    <script>
+      // apply a chosen light/dark theme before first paint (App keeps this in sync)
+      try {
+        var t = localStorage.getItem('wt-theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+          document.documentElement.setAttribute('data-wt-theme', '1');
+        }
+      } catch (e) {}
+    </script>
     <style>
-      html, body { background: #f4f4f2; }
-      @media (prefers-color-scheme: dark) { html, body { background: #09090a; } }
+      /* paints before the stylesheet arrives; the lowest layer, so the app's theme tokens always win */
+      @layer boot, theme, base, components, utilities;
+      @layer boot {
+        html { background: #f4f4f2; }
+        @media (prefers-color-scheme: dark) { html:not([data-theme="light"]) { background: #09090a; } }
+        html[data-theme="dark"] { background: #09090a; }
+      }
     </style>
   </head>
   <body>
