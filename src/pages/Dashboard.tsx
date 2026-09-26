@@ -20,7 +20,7 @@ import { getLang, tx } from '../i18n';
 import { compact, greeting, money, num, pct } from '../ui/format';
 import { cx, fitText, Kbd, Meter, SectionTitle } from '../ui/kit';
 import { useUI } from '../ui/store';
-import { useSpeed } from '../features/common';
+import { TrailNote, trailLabel, useSpeed } from '../features/common';
 import { insightView } from '../features/insightText';
 import { SkylineHero } from '../features/SkylineHero';
 import { TodayPlan } from '../features/TodayPlan';
@@ -74,12 +74,13 @@ export function Dashboard() {
       .filter((j) => j.status === 'active')
       .sort((a, b) => (a.dueAt ?? '9999').localeCompare(b.dueAt ?? '9999'));
     const load = workload(jobs, settings.work, today, 14, speed.wph);
-    const daily = dailyWords(jobs, sessions, today, settings.work.workDays);
+    const guessed = new Map<string, number>();
+    const daily = dailyWords(jobs, sessions, today, settings.work.workDays, guessed);
     const st = streaks(daily, today, settings.work.workDays);
     const ins = insights({ jobs, clients, sessions, today, work: settings.work, yearGoal: settings.goals.yearIncome });
     const dueThisWeek = active.filter((j) => j.dueAt && diffDays(today, dateOnly(j.dueAt)) <= 7).length;
     const wordsMonth = earnedNow.words + active.reduce((s, j) => s + jobWords(j) * ((j.progress || 0) / 100), 0);
-    return { earnedNow, earnedPrev, pipeline, series, ytd, ytdWithBooked, outstanding, overdue, hourly, active, load, daily, st, ins, dueThisWeek, wordsMonth };
+    return { earnedNow, earnedPrev, pipeline, series, ytd, ytdWithBooked, outstanding, overdue, hourly, active, load, daily, guessed, st, ins, dueThisWeek, wordsMonth };
   }, [jobs, clients, sessions, settings, today, hours, speed.wph, year]);
 
   const delta = m.earnedPrev.income > 0 ? (m.earnedNow.income - m.earnedPrev.income) / m.earnedPrev.income : undefined;
@@ -304,7 +305,8 @@ export function Dashboard() {
             </div>
           </div>
         </div>
-        <Heatmap daily={m.daily} from={heatFrom} to={today} format={(v) => (v ? tx(`${num(Math.round(v))} 字`, `${num(Math.round(v))} words`) : tx('沒有紀錄', 'No work logged'))} />
+        <Heatmap daily={m.daily} from={heatFrom} to={today} format={(v, d) => trailLabel(v, m.guessed.get(d) ?? 0)} />
+        {[...m.guessed.entries()].some(([d, v]) => d >= heatFrom && v > 0.5) && <TrailNote />}
         <div className="mt-3 flex items-center justify-between text-[12.5px] text-muted">
           <span>{tx(`今年累計 ${compact(m.ytd.words)} 字`, `${compact(m.ytd.words)} words so far this year`)}</span>
           <button type="button" className="inline-flex items-center gap-1.5 font-medium text-ink underline decoration-gold decoration-1 underline-offset-4" onClick={() => navigate('/wrapped')}>

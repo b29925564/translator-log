@@ -1,3 +1,4 @@
+import { TrailNote, trailLabel } from '../features/common';
 import { useMemo, useState } from 'react';
 import { BarList, ChartCard, ColumnChart, Heatmap, LineChart, monthLabel } from '../charts/charts';
 import { useData } from '../db/data';
@@ -90,7 +91,8 @@ export function Insights() {
       })
       .filter((x) => x.hours >= 2)
       .sort((a, b) => b.wph - a.wph);
-    const daily = dailyWords(jobs, sessions, today, settings.work.workDays);
+    const guessed = new Map<string, number>();
+    const daily = dailyWords(jobs, sessions, today, settings.work.workDays, guessed);
     const byWeekday = [1, 2, 3, 4, 5, 6, 0].map((wd) => ({
       wd,
       words: [...daily.entries()].filter(([dd]) => dd >= range.from && dd <= range.to && weekday(dd) === wd).reduce((s, [, v]) => s + v, 0),
@@ -116,6 +118,7 @@ export function Insights() {
       hourly,
       speed,
       daily,
+      guessed,
       byWeekday,
       rate: wordRate(cur),
       prevRate: wordRate(prev),
@@ -303,7 +306,8 @@ export function Insights() {
               <div className="text-[12.5px] text-muted">{tx('每天的產出字數', 'Words produced each day')}</div>
             </div>
           </div>
-          <Heatmap daily={d.daily} from={period === 'all' ? addDays(today, -364) : range.from} to={range.to} format={(v) => (v ? tx(`${num(Math.round(v))} 字`, `${num(Math.round(v))} words`) : tx('沒有紀錄', 'No work logged'))} />
+          <Heatmap daily={d.daily} from={period === 'all' ? addDays(today, -364) : range.from} to={range.to} format={(v, dd) => trailLabel(v, d.guessed.get(dd) ?? 0)} />
+          {[...d.guessed.entries()].some(([dd, v]) => dd >= (period === 'all' ? addDays(today, -364) : range.from) && dd <= range.to && v > 0.5) && <TrailNote />}
         </section>
         <ChartCard title={tx('一週節奏', 'Your week')} subtitle={tx('各星期的產出字數', 'Words by day of the week')} table={{ head: [tx('星期', 'Day'), tx('字數', 'Words')], rows: d.byWeekday.map((w) => [new Intl.DateTimeFormat(en ? 'en-US' : 'zh-TW', { weekday: 'long' }).format(new Date(2026, 0, 4 + w.wd)), num(Math.round(w.words))]) }}>
           <ColumnChart

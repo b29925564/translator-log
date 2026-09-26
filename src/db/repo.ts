@@ -2,6 +2,7 @@
 
 import { DEFAULT_SETTINGS } from '../domain/constants';
 import { todayISO } from '../domain/dates';
+import { nextDayLog, type LogOpts } from '../domain/progress';
 import { generateDemo, DEMO_PROFILE } from '../domain/demo';
 import { mergeSnapshots, TABLES, type Snapshot } from '../domain/merge';
 import type { Client, Invoice, Job, JobStatus, Pref, Project, Session, Settings, SyncMeta, TableName } from '../domain/types';
@@ -79,13 +80,22 @@ const clean = <T extends object>(o: T): T => {
   return out as T;
 };
 
-export const saveJob = async (job: Job) => {
-  // remember where the day started so the Today plan can show words done today
+/** Saves a job. `log` says when a progress change was done, for 翻譯足跡 (today by default). */
+export const saveJob = async (job: Job, log: LogOpts = {}) => {
   const prev = await db.jobs.get(job.id);
   const today = todayISO();
-  if (prev && (prev.progress ?? 0) !== (job.progress ?? 0) && prev.dayStart?.date !== today && job.dayStart?.date !== today) {
-    job = { ...job, dayStart: { date: today, progress: prev.progress ?? 0 } };
+  const before = prev?.progress ?? 0;
+  const after = job.progress ?? 0;
+  const backdated = (!!log.date && log.date !== today) || !!log.since;
+  if (!prev) job = { ...job, dayStart: undefined };
+  // remember where the day started so the Today plan can show words done today
+  else if (before !== after) {
+    const start = prev.dayStart?.date === today ? prev.dayStart.progress : job.dayStart?.date === today ? job.dayStart.progress : undefined;
+    // progress done on other days moves today's starting point with it
+    if (backdated) job = { ...job, dayStart: { date: today, progress: Math.min(after, (start ?? before) + (after - before)) } };
+    else if (start == null) job = { ...job, dayStart: { date: today, progress: before } };
   }
+  job = { ...job, dayLog: nextDayLog(prev, job, today, log) };
   const rec = clean({ ...job, updatedAt: now() });
   await db.jobs.put(rec);
   changed();

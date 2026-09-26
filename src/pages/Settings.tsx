@@ -10,7 +10,7 @@ import type { Settings } from '../domain/types';
 import { getLang, tx } from '../i18n';
 import { aiAvailable, saveAIKey, testAIKey, useAI } from '../ai/claude';
 import { num } from '../ui/format';
-import { Button, cx, Field, Input, Kbd, NumberInput, PageHeader, Segmented, Select, Textarea } from '../ui/kit';
+import { Button, cx, Field, Input, Kbd, NumberInput, PageHeader, Segmented, Select, Textarea, Toggle } from '../ui/kit';
 import { useUI } from '../ui/store';
 import { CurrencySelect, LangSelect } from '../features/common';
 import { downloadFile } from '../features/download';
@@ -245,6 +245,14 @@ export function SettingsPage({ section }: { section?: string }) {
             <Field label={tx('預設翻譯速度', 'Default speed')} hint={tx('有計時資料後會改用你的實測速度', 'Replaced by your measured speed once you use the timer')} htmlFor="g-wph">
               <LazyNumber id="g-wph" value={s.work.wordsPerHour} onSave={(v) => set({ work: { ...s.work, wordsPerHour: v ?? 450 } })} suffix={tx('字/時', 'w/h')} />
             </Field>
+            <div className="sm:col-span-2">
+              <Toggle
+                checked={s.work.lateLog === 'spread'}
+                onChange={(v) => set({ work: { ...s.work, lateLog: v ? 'spread' : 'today' } })}
+                label={tx('隔幾天才記的進度，自動平均分到那幾天', 'Spread progress logged after a gap over those days')}
+                description={tx('關閉時，進度記在你記錄的那天，要補記前幾天再自己點選。開啟後，隔了幾個工作日才記（又沒用計時器）的進度，會預設平均分到上次記錄之後的每一天，在翻譯足跡標成推估。', 'Off: progress counts on the day you log it, and you pick another day when catching up. On: progress logged after a few working days without the timer is spread over the days since your last log by default, marked as an estimate in Your trail.')}
+              />
+            </div>
             <Field label={tx('工作日', 'Working days')} className="sm:col-span-2">
               <div className="flex flex-wrap gap-1.5">
                 {workdayNames.map(({ d, label }) => (
