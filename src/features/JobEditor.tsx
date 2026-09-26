@@ -427,7 +427,7 @@ export function JobEditor() {
           </div>
           {d.status === 'active' && (
             <Field label={tx(`完成度 ${d.progress ?? 0}%`, `Progress ${d.progress ?? 0}%`)} className="mt-3" htmlFor="job-progress">
-              <input id="job-progress" type="range" min={0} max={100} step={5} value={d.progress ?? 0} onChange={(e) => set({ progress: Number(e.target.value) })} className="w-full accent-[var(--accent)]" />
+              <input id="job-progress" type="range" min={0} max={100} step={1} value={d.progress ?? 0} onChange={(e) => set({ progress: Number(e.target.value) })} className="w-full accent-[var(--accent)]" />
             </Field>
           )}
           <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">

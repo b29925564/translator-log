@@ -202,6 +202,12 @@ export interface Session extends SyncMeta {
   start: number;
   end?: number;
   note?: string;
+  /** Times are a guess: hours backfilled over a range of days. */
+  approx?: boolean;
+  /** Progress logged with this entry, in percent of the job. */
+  donePct?: number;
+  /** Words logged with this entry, when entered as a word count. */
+  doneWords?: number;
 }
 
 export interface Invoice extends SyncMeta {

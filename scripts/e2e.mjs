@@ -139,6 +139,15 @@ await suite('New user, English', { locale: 'en-US' }, async (page, step) => {
     await page.getByRole('button', { name: 'Delete', exact: true }).first().click();
     await expectVisible(page.getByText('Entry deleted'));
     await page.getByRole('button', { name: 'Undo' }).click();
+  });
+  await step('hours over a few days can be backfilled with the work done', async () => {
+    await page.getByRole('button', { name: 'Add time' }).click();
+    await page.getByRole('tab', { name: 'Hours over days' }).click();
+    await page.getByLabel('Total hours').fill('3');
+    await page.getByLabel('Done in this time').fill('10');
+    await page.getByTestId('add-time').getByRole('button', { name: 'Add', exact: true }).click();
+    await expectVisible(page.getByText(/Added; progress is now \d+%/));
+    await expectVisible(page.getByText('backfilled').first());
     await page.evaluate(() => (location.hash = '/'));
   });
   await step('delivering the job from its page', async () => {
