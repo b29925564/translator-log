@@ -148,6 +148,11 @@ await suite('New user, English', { locale: 'en-US' }, async (page, step) => {
     await page.getByTestId('add-time').getByRole('button', { name: 'Add', exact: true }).click();
     await expectVisible(page.getByText(/Added; progress is now \d+%/));
     await expectVisible(page.getByText('backfilled').first());
+    // the amount done on an entry can be changed afterwards
+    await page.getByLabel('Edit entry').first().click();
+    await page.getByLabel('Done in this time').fill('15');
+    await page.getByRole('button', { name: 'Save', exact: true }).first().click();
+    await expectVisible(page.getByText('+15%').first());
     await page.evaluate(() => (location.hash = '/'));
   });
   await step('delivering the job from its page', async () => {

@@ -2,6 +2,7 @@ import { ArrowLeft, CalendarPlus, Check, Copy, Crosshair, MoreHorizontal, Pencil
 import { useMemo, useState } from 'react';
 import { useData } from '../db/data';
 import { deleteJob, deleteSession, newJob, restoreJob, restoreSession, saveJob, saveSession, setJobStatus, uid } from '../db/repo';
+import { db } from '../db/db';
 import { weightedWords } from '../domain/cat';
 import { PIPELINE } from '../domain/constants';
 import { backfillSessions, donePercent } from '../domain/backfill';
@@ -9,7 +10,7 @@ import { fmtDuration, toISODate } from '../domain/dates';
 import { buildICS } from '../domain/ics';
 import { jobGross, jobGrossBase, jobNet, jobWords } from '../domain/money';
 import { paymentDue, rateBenchmark, sessionMs } from '../domain/stats';
-import type { JobStatus, Session } from '../domain/types';
+import type { Job, JobStatus, Session } from '../domain/types';
 import { tx } from '../i18n';
 import { date, dateLong, domain as domainName, dueInfo, money, num, qty, rate as fmtRateStr, service as serviceName, unitPer } from '../ui/format';
 import { Button, cx, Empty, Input, Menu, Pair, Segmented, STATUS_COLOR, StatusPill, statusLabel } from '../ui/kit';
@@ -350,7 +351,7 @@ export function JobDetail({ id }: { id: string }) {
             {js.length > 0 && (
               <ul className="mt-3 divide-y divide-line">
                 {js.slice(0, 30).map((s) => (
-                  <SessionRow key={s.id} s={s} running={!s.end && running?.id === s.id} />
+                  <SessionRow key={s.id} s={s} job={job} words={words} running={!s.end && running?.id === s.id} />
                 ))}
               </ul>
             )}
@@ -391,27 +392,52 @@ export function JobDetail({ id }: { id: string }) {
 const hhmm = (t: number) => new Date(t).toTimeString().slice(0, 5);
 
 /** One time-log entry; tap it to change its times or delete it. */
-function SessionRow({ s, running }: { s: Session; running: boolean }) {
+function SessionRow({ s, job, words, running }: { s: Session; job: Job; words: number; running: boolean }) {
   const { toast } = useUI();
   const [open, setOpen] = useState(false);
-  const [d, setD] = useState({ date: toISODate(new Date(s.start)), start: hhmm(s.start), end: s.end ? hhmm(s.end) : hhmm(Date.now()) });
+  const canLog = job.status === 'active';
+  const init = () => ({
+    date: toISODate(new Date(s.start)),
+    start: hhmm(s.start),
+    end: s.end ? hhmm(s.end) : hhmm(Date.now()),
+    done: s.doneWords ? String(s.doneWords) : s.donePct ? String(s.donePct) : '',
+    doneKind: (s.doneWords && words > 0 ? 'words' : 'pct') as 'pct' | 'words',
+  });
+  const [d, setD] = useState(init);
   const edit = () => {
-    setD({ date: toISODate(new Date(s.start)), start: hhmm(s.start), end: s.end ? hhmm(s.end) : hhmm(Date.now()) });
+    setD(init());
     setOpen((o) => !o);
+  };
+  // moves the job's progress by the change in what this entry says was done
+  const shiftProgress = async (delta: number, day: string) => {
+    if (!canLog || Math.abs(delta) < 0.05) return;
+    const cur = (await db.jobs.get(job.id)) ?? job;
+    const progress = Math.max(0, Math.min(100, Math.round((cur.progress ?? 0) + delta)));
+    await saveJob({ ...cur, progress }, { date: day });
   };
   const save = async () => {
     const start = new Date(`${d.date}T${d.start}:00`).getTime();
     let end = new Date(`${d.date}T${d.end}:00`).getTime();
     if (end <= start) end += 86_400_000;
     if (Number.isNaN(start) || Number.isNaN(end)) return;
+    const amount = Number(d.done) || 0;
+    const pct = canLog ? Math.round(donePercent(amount, d.doneKind, words) * 10) / 10 : s.donePct ?? 0;
+    const doneFields = canLog ? { donePct: pct || undefined, doneWords: pct && d.doneKind === 'words' ? amount : undefined } : {};
     // a running timer stops at the new end time
-    await saveSession({ ...s, start, end: Math.min(end, Date.now()) });
+    await saveSession({ ...s, start, end: Math.min(end, Date.now()), ...doneFields });
+    await shiftProgress(pct - (s.donePct ?? 0), d.date);
     setOpen(false);
     toast(tx('已更新時段', 'Entry updated'));
   };
   const remove = async () => {
     await deleteSession(s.id);
-    toast(tx('已刪除時段', 'Entry deleted'), { action: { label: tx('復原', 'Undo'), run: () => void restoreSession(s.id) } });
+    await shiftProgress(-(s.donePct ?? 0), toISODate(new Date(s.start)));
+    toast(tx('已刪除時段', 'Entry deleted'), {
+      action: {
+        label: tx('復原', 'Undo'),
+        run: () => void restoreSession(s.id).then(() => shiftProgress(s.donePct ?? 0, toISODate(new Date(s.start)))),
+      },
+    });
   };
   return (
     <li className="py-2 text-[13.5px]">
@@ -442,6 +468,27 @@ function SessionRow({ s, running }: { s: Session; running: boolean }) {
             {running ? tx('結束（會停止計時）', 'End (stops the timer)') : tx('結束', 'End')}
             <Input type="time" className="input-sm mt-1 w-[110px]" value={d.end} onChange={(e) => setD({ ...d, end: e.target.value })} />
           </label>
+          {canLog && (
+            <div className="flex w-full flex-wrap items-end gap-2">
+              <label className="text-[12px] text-muted">
+                {tx('這段做了多少', 'Done in this time')}
+                <Input type="number" inputMode="numeric" min={0} className="input-sm mt-1 w-[120px]" value={d.done} onChange={(e) => setD({ ...d, done: e.target.value })} aria-label={tx('這段做了多少', 'Done in this time')} />
+              </label>
+              {words > 0 ? (
+                <Segmented
+                  size="sm"
+                  value={d.doneKind}
+                  onChange={(v) => setD({ ...d, doneKind: v as 'pct' | 'words' })}
+                  options={[
+                    { value: 'pct', label: '%' },
+                    { value: 'words', label: job.unit === 'char' ? tx('字', 'chars') : tx('字數', 'words') },
+                  ]}
+                />
+              ) : (
+                <span className="pb-2 text-[13px] text-muted">%</span>
+              )}
+            </div>
+          )}
           <div className="flex w-full gap-2">
             <Button size="sm" variant="primary" onClick={() => void save()}>
               {tx('儲存', 'Save')}
