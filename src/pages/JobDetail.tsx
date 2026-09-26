@@ -4,6 +4,7 @@ import { useData } from '../db/data';
 import { deleteJob, deleteSession, newJob, restoreJob, restoreSession, saveJob, saveSession, setJobStatus, uid } from '../db/repo';
 import { weightedWords } from '../domain/cat';
 import { PIPELINE } from '../domain/constants';
+import { backfillSessions, donePercent } from '../domain/backfill';
 import { fmtDuration, toISODate } from '../domain/dates';
 import { buildICS } from '../domain/ics';
 import { jobGross, jobGrossBase, jobNet, jobWords } from '../domain/money';
@@ -11,7 +12,7 @@ import { paymentDue, rateBenchmark, sessionMs } from '../domain/stats';
 import type { JobStatus, Session } from '../domain/types';
 import { tx } from '../i18n';
 import { date, dateLong, domain as domainName, dueInfo, money, num, qty, rate as fmtRateStr, service as serviceName, unitPer } from '../ui/format';
-import { Button, cx, Empty, Input, Menu, Pair, STATUS_COLOR, StatusPill, statusLabel } from '../ui/kit';
+import { Button, cx, Empty, Input, Menu, Pair, Segmented, STATUS_COLOR, StatusPill, statusLabel } from '../ui/kit';
 import { useUI } from '../ui/store';
 import { TimerButton } from '../features/common';
 import { RateScale } from '../features/QuickAdd';
@@ -32,7 +33,7 @@ export function JobDetail({ id }: { id: string }) {
   const { navigate, openJobEditor, ask, toast, fireStamp } = useUI();
   const job = jobMap.get(id);
   const [adding, setAdding] = useState(false);
-  const [manual, setManual] = useState({ date: today, start: '09:00', end: '11:00' });
+  const [manual, setManual] = useState({ kind: 'times' as 'times' | 'range', date: today, start: '09:00', end: '11:00', from: today, to: today, hours: '', done: '', doneKind: 'pct' as 'pct' | 'words' });
 
   const js = useMemo(() => sessions.filter((s) => s.jobId === id).sort((a, b) => b.start - a.start), [sessions, id]);
 
@@ -85,11 +86,26 @@ export function JobDetail({ id }: { id: string }) {
   };
 
   const addManual = async () => {
-    const s = new Date(`${manual.date}T${manual.start}:00`).getTime();
-    let e = new Date(`${manual.date}T${manual.end}:00`).getTime();
-    if (e <= s) e += 86_400_000;
-    await saveSession({ id: uid(), jobId: job.id, start: s, end: e, createdAt: Date.now(), updatedAt: Date.now() });
+    const amount = Number(manual.done) || 0;
+    const pct = job.status === 'active' ? donePercent(amount, manual.doneKind, words) : 0;
+    const t = Date.now();
+    const made = backfillSessions(
+      manual.kind === 'times' ? { kind: 'times', date: manual.date, start: manual.start, end: manual.end } : { kind: 'range', from: manual.from, to: manual.to, hours: Number(manual.hours) || 0 },
+      { jobId: job.id, createdAt: t, updatedAt: t },
+      uid,
+    );
+    if (!made.length) return toast(tx('請填寫時數', 'Enter the hours'));
+    // the amount done goes on the last entry, so it shows once
+    if (pct > 0) made[made.length - 1] = { ...made[made.length - 1], donePct: Math.round(pct * 10) / 10, ...(manual.doneKind === 'words' ? { doneWords: amount } : {}) };
+    for (const x of made) await saveSession(x);
+    if (pct > 0) {
+      const progress = Math.min(100, Math.round((job.progress ?? 0) + pct));
+      const [from, to] = manual.kind === 'range' ? [manual.from <= manual.to ? manual.from : manual.to, manual.from <= manual.to ? manual.to : manual.from] : [manual.date, manual.date];
+      await saveJob({ ...job, progress }, { date: to, ...(from < to ? { since: from } : {}) });
+    }
     setAdding(false);
+    setManual((m) => ({ ...m, hours: '', done: '' }));
+    toast(pct > 0 ? tx(`已補登，完成度更新為 ${Math.min(100, Math.round((job.progress ?? 0) + pct))}%`, `Added; progress is now ${Math.min(100, Math.round((job.progress ?? 0) + pct))}%`) : tx('已補登', 'Time added'));
   };
   const project = job.projectId ? projectMap.get(job.projectId) : undefined;
 
@@ -190,7 +206,7 @@ export function JobDetail({ id }: { id: string }) {
                 type="range"
                 min={0}
                 max={100}
-                step={5}
+                step={1}
                 value={job.progress}
                 onChange={(e) => void saveJob({ ...job, progress: Number(e.target.value) })}
                 className="flex-1 accent-[var(--accent)]"
@@ -262,22 +278,73 @@ export function JobDetail({ id }: { id: string }) {
               </div>
             </div>
             {adding && (
-              <div className="mt-3 flex flex-wrap items-end gap-2 rounded-xl border border-line p-3">
-                <label className="text-[12px] text-muted">
-                  {tx('日期', 'Date')}
-                  <Input type="date" className="input-sm mt-1 w-[150px]" value={manual.date} onChange={(e) => setManual({ ...manual, date: e.target.value })} />
-                </label>
-                <label className="text-[12px] text-muted">
-                  {tx('開始', 'Start')}
-                  <Input type="time" className="input-sm mt-1 w-[110px]" value={manual.start} onChange={(e) => setManual({ ...manual, start: e.target.value })} />
-                </label>
-                <label className="text-[12px] text-muted">
-                  {tx('結束', 'End')}
-                  <Input type="time" className="input-sm mt-1 w-[110px]" value={manual.end} onChange={(e) => setManual({ ...manual, end: e.target.value })} />
-                </label>
-                <Button size="sm" variant="primary" onClick={() => void addManual()}>
-                  {tx('加入', 'Add')}
-                </Button>
+              <div className="mt-3 flex flex-col gap-3 rounded-xl border border-line p-3" data-testid="add-time">
+                <Segmented
+                  size="sm"
+                  value={manual.kind}
+                  onChange={(v) => setManual({ ...manual, kind: v as 'times' | 'range' })}
+                  options={[
+                    { value: 'times', label: tx('記得時間', 'Exact times') },
+                    { value: 'range', label: tx('一段日子共幾小時', 'Hours over days') },
+                  ]}
+                />
+                {manual.kind === 'times' ? (
+                  <div className="flex flex-wrap items-end gap-2">
+                    <label className="text-[12px] text-muted">
+                      {tx('日期', 'Date')}
+                      <Input type="date" max={today} className="input-sm mt-1 w-[150px]" value={manual.date} onChange={(e) => setManual({ ...manual, date: e.target.value })} />
+                    </label>
+                    <label className="text-[12px] text-muted">
+                      {tx('開始', 'Start')}
+                      <Input type="time" className="input-sm mt-1 w-[110px]" value={manual.start} onChange={(e) => setManual({ ...manual, start: e.target.value })} />
+                    </label>
+                    <label className="text-[12px] text-muted">
+                      {tx('結束', 'End')}
+                      <Input type="time" className="input-sm mt-1 w-[110px]" value={manual.end} onChange={(e) => setManual({ ...manual, end: e.target.value })} />
+                    </label>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap items-end gap-2">
+                    <label className="text-[12px] text-muted">
+                      {tx('從', 'From')}
+                      <Input type="date" max={today} className="input-sm mt-1 w-[150px]" value={manual.from} onChange={(e) => setManual({ ...manual, from: e.target.value })} />
+                    </label>
+                    <label className="text-[12px] text-muted">
+                      {tx('到', 'To')}
+                      <Input type="date" max={today} className="input-sm mt-1 w-[150px]" value={manual.to} onChange={(e) => setManual({ ...manual, to: e.target.value })} />
+                    </label>
+                    <label className="text-[12px] text-muted">
+                      {tx('共幾小時', 'Total hours')}
+                      <Input type="number" inputMode="decimal" min={0} step={0.5} className="input-sm mt-1 w-[100px]" value={manual.hours} onChange={(e) => setManual({ ...manual, hours: e.target.value })} aria-label={tx('共幾小時', 'Total hours')} />
+                    </label>
+                  </div>
+                )}
+                {job.status === 'active' && (
+                  <div className="flex flex-wrap items-end gap-2">
+                    <label className="text-[12px] text-muted">
+                      {tx('這段做了多少（選填）', 'Done in this time (optional)')}
+                      <Input type="number" inputMode="numeric" min={0} className="input-sm mt-1 w-[120px]" value={manual.done} onChange={(e) => setManual({ ...manual, done: e.target.value })} aria-label={tx('這段做了多少', 'Done in this time')} />
+                    </label>
+                    {words > 0 ? (
+                      <Segmented
+                        size="sm"
+                        value={manual.doneKind}
+                        onChange={(v) => setManual({ ...manual, doneKind: v as 'pct' | 'words' })}
+                        options={[
+                          { value: 'pct', label: '%' },
+                          { value: 'words', label: job.unit === 'char' ? tx('字', 'chars') : tx('字數', 'words') },
+                        ]}
+                      />
+                    ) : (
+                      <span className="pb-2 text-[13px] text-muted">%</span>
+                    )}
+                  </div>
+                )}
+                <div>
+                  <Button size="sm" variant="primary" onClick={() => void addManual()}>
+                    {tx('加入', 'Add')}
+                  </Button>
+                </div>
               </div>
             )}
             {js.length > 0 && (
@@ -352,8 +419,9 @@ function SessionRow({ s, running }: { s: Session; running: boolean }) {
         <span className="text-ink-2">
           {date(toISODate(new Date(s.start)), { month: 'short', day: 'numeric', weekday: 'short' })}{' '}
           <span className="text-muted tnum">
-            {hhmm(s.start)}–{s.end ? hhmm(s.end) : tx('計時中', 'running')}
+            {s.approx ? tx('補登時數', 'backfilled') : <>{hhmm(s.start)}–{s.end ? hhmm(s.end) : tx('計時中', 'running')}</>}
           </span>
+          {!!s.donePct && <span className="ml-2 text-[12px] text-muted tnum">+{s.doneWords ? `${num(s.doneWords)} ${tx('字', 'words')}` : `${s.donePct}%`}</span>}
         </span>
         <span className="flex items-center gap-2">
           <span className={cx('font-medium tnum', running ? 'text-seal' : 'text-ink')}>{fmtDuration(sessionMs(s)).replace(/:\d\d$/, '')}</span>
