@@ -87,6 +87,13 @@ export interface Job extends SyncMeta {
   progress?: number; // 0–100
   /** Progress at the start of the most recent day it changed, for “done today”. */
   dayStart?: { date: string; progress: number };
+  /**
+   * Progress by day, for 翻譯足跡: on `date` progress went from `from` to `to`
+   * percent. With `since`, the work was done over since…date and is spread
+   * there as an estimate. Progress below the first `from` was done before
+   * the job was entered.
+   */
+  dayLog?: DayMark[];
   invoiceId?: string;
 
   catTool?: string;
@@ -104,6 +111,13 @@ export interface Job extends SyncMeta {
 }
 
 /** `ongoing`: size unknown up front; jobs from the same project are added as they come in. */
+export interface DayMark {
+  date: string;
+  from: number;
+  to: number;
+  since?: string;
+}
+
 export type ProjectKind = 'ongoing' | 'game' | 'series' | 'book' | 'software' | 'custom';
 
 /** A question for the client, kept with the project until it is answered. */
@@ -244,6 +258,8 @@ export interface WorkSettings {
   hoursPerDay: number;
   workDays: number[]; // 0=Sun … 6=Sat
   wordsPerHour: number; // fallback throughput when no timer data exists
+  /** Progress logged after a gap of several days: put it on the day it is logged, or spread it over the gap. */
+  lateLog?: 'today' | 'spread';
 }
 
 export type Lang = 'zh-TW' | 'en';

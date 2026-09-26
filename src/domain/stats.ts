@@ -3,6 +3,7 @@
 
 import { addDays, dateOnly, diffDays, eachDay, monthKey, toISODate, weekday, workingDays, yearOf } from './dates';
 import { jobGross, jobGrossBase, jobNetBase, jobWords } from './money';
+import { createdDay, dayLogOf, progressPieces } from './progress';
 import type { Client, Job, Session, WorkSettings } from './types';
 
 // ---------- basics ----------
@@ -399,10 +400,13 @@ export const clientStats = (
 // ---------- daily output, streaks ----------
 
 /**
- * Words per day. Timer sessions decide where the words land when present;
- * otherwise a job's words are spread over the working days it was open.
+ * Words per day. A job's progress lands on the days it was logged; progress
+ * without a date is spread inside its own window, by timer sessions there
+ * when there are any, otherwise evenly over the working days. Jobs from
+ * before progress was logged by day keep the old whole-job spread. Pass
+ * `estimated` to also collect how much of each day is such a spread.
  */
-export const dailyWords = (jobs: Job[], sessions: Session[], today: string, workDays: number[] = [1, 2, 3, 4, 5]): Map<string, number> => {
+export const dailyWords = (jobs: Job[], sessions: Session[], today: string, workDays: number[] = [1, 2, 3, 4, 5], estimated?: Map<string, number>): Map<string, number> => {
   const byJob = new Map<string, Session[]>();
   for (const s of sessions) {
     if (s.deletedAt) continue;
@@ -411,26 +415,54 @@ export const dailyWords = (jobs: Job[], sessions: Session[], today: string, work
     byJob.set(s.jobId, arr);
   }
   const out = new Map<string, number>();
-  const add = (d: string, v: number) => out.set(d, (out.get(d) || 0) + v);
+  const add = (d: string, v: number, guess: boolean) => {
+    out.set(d, (out.get(d) || 0) + v);
+    if (guess && estimated) estimated.set(d, (estimated.get(d) || 0) + v);
+  };
+  /** Spreads `words` over from…to: by the job's sessions in that window, else evenly over working days. */
+  const spread = (words: number, from: string, to: string, ss: Session[] | undefined, guess: boolean) => {
+    if (from === to) return add(to, words, guess);
+    const inside = (ss ?? []).filter((s) => {
+      const d = toISODate(new Date(s.start));
+      return d >= from && d <= to;
+    });
+    const total = inside.reduce((a, s) => a + sessionMs(s), 0);
+    if (total > 0) {
+      for (const s of inside) add(toISODate(new Date(s.start)), (words * sessionMs(s)) / total, false);
+      return;
+    }
+    let start = from;
+    if (diffDays(start, to) > 60) start = addDays(to, -60);
+    let span = workingDays(start, to, workDays);
+    if (!span.length) span = [to];
+    for (const d of span) add(d, words / span.length, guess);
+  };
   for (const j of jobs) {
     if (!(isEarned(j) || j.status === 'active')) continue;
-    const words = jobWords(j) * (j.status === 'active' ? (j.progress || 0) / 100 : 1);
+    const full = jobWords(j);
+    const words = full * (j.status === 'active' ? (j.progress || 0) / 100 : 1);
     if (words <= 0) continue;
     const ss = byJob.get(j.id);
+    const end = j.status === 'active' ? today : incomeDate(j);
+    const log = dayLogOf(j);
+    if (log) {
+      const made = createdDay(j);
+      let start = dateOnly(j.receivedAt ?? made);
+      if (start > made) start = made;
+      const pieces = progressPieces(log, start, end, j.status === 'active' ? j.progress || 0 : 100, made);
+      for (const pc of pieces) spread((full * pc.pct) / 100, pc.from, pc.to > end ? end : pc.to, pc.estimate ? ss : undefined, pc.estimate);
+      continue;
+    }
     if (ss?.length) {
       const total = ss.reduce((a, s) => a + sessionMs(s), 0);
       if (total > 0) {
-        for (const s of ss) add(toISODate(new Date(s.start)), (words * sessionMs(s)) / total);
+        for (const s of ss) add(toISODate(new Date(s.start)), (words * sessionMs(s)) / total, false);
         continue;
       }
     }
-    const end = j.status === 'active' ? today : incomeDate(j);
-    let start = dateOnly(j.receivedAt ?? addDays(end, -Math.max(1, Math.ceil(jobWords(j) / 3000))));
+    let start = dateOnly(j.receivedAt ?? addDays(end, -Math.max(1, Math.ceil(full / 3000))));
     if (start > end) start = end;
-    if (diffDays(start, end) > 60) start = addDays(end, -60);
-    let span = workingDays(start, end, workDays);
-    if (!span.length) span = [end];
-    for (const d of span) add(d, words / span.length);
+    spread(words, start, end, undefined, false);
   }
   return out;
 };

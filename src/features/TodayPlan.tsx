@@ -6,7 +6,8 @@ import { Check, Crosshair, NotebookPen } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useData } from '../db/data';
 import { saveJob, withStatus } from '../db/repo';
-import { dateOnly, fmtDateLong, parseISO } from '../domain/dates';
+import { addDays, dateOnly, fmtDate, fmtDateLong, parseISO, toISODate, workingDays } from '../domain/dates';
+import { createdDay, lastMarkDate } from '../domain/progress';
 import { jobWords } from '../domain/money';
 import { todayPlan, type PlanItem, type PlanState } from '../domain/stats';
 import type { Job } from '../domain/types';
@@ -225,19 +226,34 @@ function PlanRow({ x, client, onLog, onOpen, onFocus }: { x: PlanItem; client?: 
 
 /** Progress logger: a slider plus quick “+words” chips, shared with Focus mode. */
 export function LogProgress({ job, onClose, onSaved, initial }: { job: Job; onClose: () => void; onSaved?: (words: number) => void; initial?: number }) {
-  const { today } = useData();
+  const { today, sessions, settings } = useData();
   const { toast, fireStamp } = useUI();
   const [p, setP] = useState(initial ?? job.progress ?? 0);
+  // when the work was done: today, yesterday, or over the days since the last log
+  const yesterday = addDays(today, -1);
+  const last = lastMarkDate(job);
+  const since = last ? addDays(last, 1) : dateOnly(job.receivedAt ?? createdDay(job));
+  const canYesterday = job.status === 'active' && createdDay(job) <= yesterday && (!last || last <= yesterday);
+  const canSpread = job.status === 'active' && since <= yesterday && since >= createdDay(job);
+  const timedToday = sessions.some((x) => x.jobId === job.id && toISODate(new Date(x.start)) === today);
+  const [when, setWhen] = useState<'today' | 'yesterday' | 'spread'>(() =>
+    settings.work.lateLog === 'spread' && canSpread && !timedToday && workingDays(since, yesterday, settings.work.workDays).length > 0 ? 'spread' : 'today',
+  );
+  const logOpts = when === 'yesterday' ? { date: yesterday } : when === 'spread' ? { since } : {};
+  const dayName = (d: string) => fmtDate(d, getLang(), { month: 'numeric', day: 'numeric', weekday: 'short' });
   const total = jobWords(job) || (job.unit === 'page' ? job.quantity * 250 : job.unit === 'minute' ? job.quantity : 0);
   const unit: PlanItem['unit'] = job.unit === 'minute' ? 'minute' : job.unit === 'char' ? 'char' : 'word';
   const delta = ((p - (job.progress ?? 0)) / 100) * total;
   const bump = (words: number) => setP((v) => Math.min(100, Math.round((v + (total ? (words / total) * 100 : 0)) * 10) / 10));
   const save = async (deliver = false) => {
     const next = { ...job, progress: Math.round(p * 10) / 10 };
-    await saveJob(deliver ? withStatus(next, 'delivered', today) : next);
+    // save the progress first so its words land on the chosen day, then deliver
+    const saved = await saveJob(next, logOpts);
+    if (deliver) await saveJob(withStatus(saved, 'delivered', today));
     haptic(deliver ? [12, 60, 18] : 10);
+    const on = when === 'yesterday' ? dayName(yesterday) : when === 'spread' ? `${dayName(since)}–${dayName(today)}` : dayName(today);
     if (deliver) fireStamp(tx('已交稿', 'DELIVERED'), today.replace(/-/g, '.'));
-    else if (delta > 0) toast(tx(`記下了 ${unitWord(unit, Math.round(delta))}`, `Logged ${unitWord(unit, Math.round(delta))}`), { tone: 'good' });
+    else if (delta > 0) toast(tx(`記下了 ${unitWord(unit, Math.round(delta))} · ${on}`, `Logged ${unitWord(unit, Math.round(delta))} · ${on}`), { tone: 'good' });
     onSaved?.(delta);
     onClose();
   };
@@ -280,6 +296,26 @@ export function LogProgress({ job, onClose, onSaved, initial }: { job: Job; onCl
           <button type="button" className="chip" onClick={() => setP(100)}>
             {tx('全部完成', 'All done')}
           </button>
+        </div>
+      )}
+      {delta > 0 && (canYesterday || canSpread) && (
+        <div className="mt-4">
+          <div className="eyebrow mb-2">{tx('記在', 'Done')}</div>
+          <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={tx('記在哪天', 'When it was done')}>
+            <button type="button" role="radio" className="chip" aria-checked={when === 'today'} aria-pressed={when === 'today'} onClick={() => setWhen('today')}>
+              {tx('今天', 'Today')}
+            </button>
+            {canYesterday && (
+              <button type="button" role="radio" className="chip" aria-checked={when === 'yesterday'} aria-pressed={when === 'yesterday'} onClick={() => setWhen('yesterday')}>
+                {tx('昨天', 'Yesterday')}
+              </button>
+            )}
+            {canSpread && (
+              <button type="button" role="radio" className="chip" aria-checked={when === 'spread'} aria-pressed={when === 'spread'} onClick={() => setWhen('spread')}>
+                {tx(`前幾天陸續（${dayName(since)}–今天）`, `Over the past days (${dayName(since)}–today)`)}
+              </button>
+            )}
+          </div>
         </div>
       )}
       <p className="mt-4 text-[12px] text-muted">{tx(`今天是 ${fmtDateLong(today, 'zh-TW')}。記錄的進度會更新今日計畫、工作負荷與天際線。`, 'Logged progress updates today’s plan, your workload and the skyline.')}</p>

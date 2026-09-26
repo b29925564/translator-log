@@ -7,7 +7,7 @@ import { jobGross, jobGrossBase, jobWords } from '../domain/money';
 import { measuredSpeed, quantile, isBooked, incomeDate } from '../domain/stats';
 import type { Client, Job } from '../domain/types';
 import { getLang, tx } from '../i18n';
-import { dueInfo, money, qty } from '../ui/format';
+import { dueInfo, money, num, qty } from '../ui/format';
 import { cx, Pair, Select, StatusPill } from '../ui/kit';
 import { useUI } from '../ui/store';
 
@@ -222,4 +222,17 @@ export function JobRow({ job, showClient = true, showTimer = false, showDue = fa
       {showTimer && job.status === 'active' ? <TimerButton job={job} /> : <ChevronRight size={16} className="hidden shrink-0 text-line-strong group-hover:text-muted sm:block" />}
     </div>
   );
+}
+
+/** Tooltip for a 翻譯足跡 day: its words, and how much of them is an estimate. */
+export const trailLabel = (v: number, guess: number) => {
+  if (!v) return tx('沒有紀錄', 'No work logged');
+  const w = num(Math.round(v));
+  if (guess < 0.5) return tx(`${w} 字`, `${w} words`);
+  if (v - guess < 0.5) return tx(`約 ${w} 字（推估）`, `About ${w} words (estimate)`);
+  return tx(`${w} 字（含推估 ${num(Math.round(guess))}）`, `${w} words (${num(Math.round(guess))} estimated)`);
+};
+
+export function TrailNote() {
+  return <p className="mt-2 text-[12px] text-muted">{tx('推估：沒有記錄日期的進度（例如加入 App 前做的），平均分在那段期間。', 'Estimate: progress without a date, such as work done before you added the job, spread over that period.')}</p>;
 }

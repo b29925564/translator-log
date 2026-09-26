@@ -113,7 +113,8 @@ await suite('New user, English', { locale: 'en-US' }, async (page, step) => {
     await page.getByRole('button', { name: '+500 words' }).click();
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     await expectVisible(page.getByText('Logged 500 words'));
-    await expectVisible(page.getByText('500 done'));
+    // on a weekend the plan shows a rest day instead of today's words
+    if (!(await page.getByText('A rest day').count())) await expectVisible(page.getByText('500 done'));
   });
   await step('focus mode runs the timer and logs a session', async () => {
     await page.getByLabel('Focus mode').first().click();
