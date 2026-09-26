@@ -4,6 +4,10 @@ import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { viteSingleFile } from 'vite-plugin-singlefile';
 
+// Identifies this build, so the app can tell whether the server has a newer one.
+const BUILD_ID = (process.env.GITHUB_SHA || '').slice(0, 7) || `local-${Date.now().toString(36)}`;
+const BUILD_TIME = new Date().toISOString();
+
 // `vite build --mode demo` produces a single self-contained HTML file
 // (no service worker) used for the interactive preview.
 export default defineConfig(({ mode }) => {
@@ -13,6 +17,8 @@ export default defineConfig(({ mode }) => {
     define: {
       __DEMO_BUILD__: JSON.stringify(demo),
       __APP_VERSION__: JSON.stringify(process.env.npm_package_version || '1.0.0'),
+      __BUILD_ID__: JSON.stringify(BUILD_ID),
+      __BUILD_TIME__: JSON.stringify(BUILD_TIME),
     },
     build: {
       outDir: demo ? 'dist-demo' : 'dist',
@@ -22,6 +28,13 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       tailwindcss(),
+      // version.json is left out of the service worker cache, so fetching it always asks the server
+      !demo && {
+        name: 'build-version',
+        generateBundle() {
+          this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ build: BUILD_ID, time: BUILD_TIME }) });
+        },
+      },
       demo
         ? viteSingleFile()
         : VitePWA({

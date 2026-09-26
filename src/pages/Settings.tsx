@@ -16,6 +16,7 @@ import { CurrencySelect, LangSelect } from '../features/common';
 import { downloadFile } from '../features/download';
 import { fetchRates } from '../features/fx';
 import { platform, useInstall } from '../features/install';
+import { AppVersion } from '../features/AppVersion';
 import { SyncSettings } from '../sync/SyncSettings';
 import { changeBus } from '../db/repo';
 
@@ -455,7 +456,7 @@ export function SettingsPage({ section }: { section?: string }) {
                 記譯 Witimemo <span className="font-normal text-muted">· Works in Translation &amp; Interpretation</span>
               </p>
               <p>{tx('為自由譯者設計的工作紀錄 App。所有資料預設只存在你的裝置；開啟同步後以端對端加密存在你自己的 GitHub。沒有追蹤、沒有廣告、沒有伺服器。', 'A work log designed for freelance translators. Data lives on your device by default; with sync it is end-to-end encrypted in your own GitHub account. No tracking, no ads, no servers.')}</p>
-              <p className="mt-2 font-mono text-[12px] text-muted">v{__APP_VERSION__}</p>
+              <AppVersion />
             </div>
             <div>
               <div className="mb-1.5 font-medium text-ink">{tx('鍵盤快捷鍵', 'Keyboard shortcuts')}</div>

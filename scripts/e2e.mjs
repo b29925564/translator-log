@@ -409,6 +409,8 @@ await suite('Theme differs from the system', { locale: 'zh-TW', colorScheme: 'da
     await page.getByRole('button', { name: /先用示範資料逛逛/ }).click();
     await expectVisible(page.getByText('職涯天際線').first(), 10000);
     await page.evaluate(() => (location.hash = '/settings'));
+    // the build on the server is the one running, so it says so
+    await expectVisible(page.getByTestId('app-version').getByText('已是最新版'), 10000);
     await page.getByRole('tab', { name: '淺色', exact: true }).click();
     // the choice is saved before it applies, so wait for it rather than a fixed pause
     await page.waitForFunction(() => document.documentElement.getAttribute('data-theme') === 'light', null, { timeout: 5000 });
