@@ -1,14 +1,14 @@
-import { ArrowLeft, CalendarPlus, Check, Copy, Crosshair, MoreHorizontal, Pencil, Plus, Star, Trash2, X } from 'lucide-react';
+import { ArrowLeft, CalendarPlus, Check, Copy, Crosshair, MoreHorizontal, Pencil, Plus, Star, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useData } from '../db/data';
-import { deleteJob, deleteSession, newJob, restoreJob, saveJob, saveSession, setJobStatus, uid } from '../db/repo';
+import { deleteJob, deleteSession, newJob, restoreJob, restoreSession, saveJob, saveSession, setJobStatus, uid } from '../db/repo';
 import { weightedWords } from '../domain/cat';
 import { PIPELINE } from '../domain/constants';
 import { fmtDuration, toISODate } from '../domain/dates';
 import { buildICS } from '../domain/ics';
 import { jobGross, jobGrossBase, jobNet, jobWords } from '../domain/money';
 import { paymentDue, rateBenchmark, sessionMs } from '../domain/stats';
-import type { JobStatus } from '../domain/types';
+import type { JobStatus, Session } from '../domain/types';
 import { tx } from '../i18n';
 import { date, dateLong, domain as domainName, dueInfo, money, num, qty, rate as fmtRateStr, service as serviceName, unitPer } from '../ui/format';
 import { Button, cx, Empty, Input, Menu, Pair, STATUS_COLOR, StatusPill, statusLabel } from '../ui/kit';
@@ -283,20 +283,7 @@ export function JobDetail({ id }: { id: string }) {
             {js.length > 0 && (
               <ul className="mt-3 divide-y divide-line">
                 {js.slice(0, 30).map((s) => (
-                  <li key={s.id} className="group flex items-center justify-between gap-3 py-2 text-[13.5px]">
-                    <span className="text-ink-2">
-                      {date(toISODate(new Date(s.start)), { month: 'short', day: 'numeric', weekday: 'short' })}{' '}
-                      <span className="text-muted tnum">
-                        {new Date(s.start).toTimeString().slice(0, 5)}–{s.end ? new Date(s.end).toTimeString().slice(0, 5) : tx('計時中', 'running')}
-                      </span>
-                    </span>
-                    <span className="flex items-center gap-2">
-                      <span className={cx('font-medium tnum', !s.end && running?.id === s.id ? 'text-seal' : 'text-ink')}>{fmtDuration(sessionMs(s)).replace(/:\d\d$/, '')}</span>
-                      <button type="button" className="rounded p-1 text-muted opacity-0 transition-opacity hover:text-bad group-hover:opacity-100 focus:opacity-100" onClick={() => void deleteSession(s.id)} aria-label={tx('刪除時段', 'Delete entry')}>
-                        <X size={14} />
-                      </button>
-                    </span>
-                  </li>
+                  <SessionRow key={s.id} s={s} running={!s.end && running?.id === s.id} />
                 ))}
               </ul>
             )}
@@ -331,5 +318,72 @@ export function JobDetail({ id }: { id: string }) {
         </aside>
       </div>
     </div>
+  );
+}
+
+const hhmm = (t: number) => new Date(t).toTimeString().slice(0, 5);
+
+/** One time-log entry; tap it to change its times or delete it. */
+function SessionRow({ s, running }: { s: Session; running: boolean }) {
+  const { toast } = useUI();
+  const [open, setOpen] = useState(false);
+  const [d, setD] = useState({ date: toISODate(new Date(s.start)), start: hhmm(s.start), end: s.end ? hhmm(s.end) : hhmm(Date.now()) });
+  const edit = () => {
+    setD({ date: toISODate(new Date(s.start)), start: hhmm(s.start), end: s.end ? hhmm(s.end) : hhmm(Date.now()) });
+    setOpen((o) => !o);
+  };
+  const save = async () => {
+    const start = new Date(`${d.date}T${d.start}:00`).getTime();
+    let end = new Date(`${d.date}T${d.end}:00`).getTime();
+    if (end <= start) end += 86_400_000;
+    if (Number.isNaN(start) || Number.isNaN(end)) return;
+    // a running timer stops at the new end time
+    await saveSession({ ...s, start, end: Math.min(end, Date.now()) });
+    setOpen(false);
+    toast(tx('已更新時段', 'Entry updated'));
+  };
+  const remove = async () => {
+    await deleteSession(s.id);
+    toast(tx('已刪除時段', 'Entry deleted'), { action: { label: tx('復原', 'Undo'), run: () => void restoreSession(s.id) } });
+  };
+  return (
+    <li className="py-2 text-[13.5px]">
+      <button type="button" onClick={edit} className="flex w-full items-center justify-between gap-3 text-left" aria-expanded={open} aria-label={tx('編輯時段', 'Edit entry')}>
+        <span className="text-ink-2">
+          {date(toISODate(new Date(s.start)), { month: 'short', day: 'numeric', weekday: 'short' })}{' '}
+          <span className="text-muted tnum">
+            {hhmm(s.start)}–{s.end ? hhmm(s.end) : tx('計時中', 'running')}
+          </span>
+        </span>
+        <span className="flex items-center gap-2">
+          <span className={cx('font-medium tnum', running ? 'text-seal' : 'text-ink')}>{fmtDuration(sessionMs(s)).replace(/:\d\d$/, '')}</span>
+          <Pencil size={13} className="text-muted" />
+        </span>
+      </button>
+      {open && (
+        <div className="mt-2 flex flex-wrap items-end gap-2 rounded-xl border border-line p-3">
+          <label className="text-[12px] text-muted">
+            {tx('日期', 'Date')}
+            <Input type="date" className="input-sm mt-1 w-[150px]" value={d.date} onChange={(e) => setD({ ...d, date: e.target.value })} />
+          </label>
+          <label className="text-[12px] text-muted">
+            {tx('開始', 'Start')}
+            <Input type="time" className="input-sm mt-1 w-[110px]" value={d.start} onChange={(e) => setD({ ...d, start: e.target.value })} />
+          </label>
+          <label className="text-[12px] text-muted">
+            {running ? tx('結束（會停止計時）', 'End (stops the timer)') : tx('結束', 'End')}
+            <Input type="time" className="input-sm mt-1 w-[110px]" value={d.end} onChange={(e) => setD({ ...d, end: e.target.value })} />
+          </label>
+          <div className="flex w-full gap-2">
+            <Button size="sm" variant="primary" onClick={() => void save()}>
+              {tx('儲存', 'Save')}
+            </Button>
+            <Button size="sm" variant="ghost" className="text-bad" icon={<Trash2 size={14} />} onClick={() => void remove()}>
+              {tx('刪除', 'Delete')}
+            </Button>
+          </div>
+        </div>
+      )}
+    </li>
   );
 }

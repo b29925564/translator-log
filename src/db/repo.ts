@@ -208,6 +208,13 @@ export const deleteSession = async (id: string) => {
   changed();
 };
 
+export const restoreSession = async (id: string) => {
+  const s = await db.sessions.get(id);
+  if (!s) return;
+  await db.sessions.put(clean({ ...s, deletedAt: undefined, updatedAt: now() }));
+  changed();
+};
+
 // ---------- projects ----------
 
 export const newProject = (over: Partial<Project> = {}): Project => {
