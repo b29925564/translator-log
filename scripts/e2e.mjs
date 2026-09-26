@@ -127,6 +127,20 @@ await suite('New user, English', { locale: 'en-US' }, async (page, step) => {
     await page.getByRole('button', { name: 'Back to overview' }).click();
     await expectVisible(page.getByText('Today’s plan'));
   });
+  await step('a time entry can be edited and deleted', async () => {
+    await page.locator('li button').filter({ hasText: 'clinical protocol' }).first().click();
+    await page.getByRole('button', { name: 'Add time' }).click();
+    await page.getByRole('button', { name: 'Add', exact: true }).click();
+    await page.getByLabel('Edit entry').first().click();
+    await page.getByLabel('End', { exact: true }).fill('23:30');
+    await page.getByRole('button', { name: 'Save', exact: true }).first().click();
+    await expectVisible(page.getByText('Entry updated'));
+    await page.getByLabel('Edit entry').first().click();
+    await page.getByRole('button', { name: 'Delete', exact: true }).first().click();
+    await expectVisible(page.getByText('Entry deleted'));
+    await page.getByRole('button', { name: 'Undo' }).click();
+    await page.evaluate(() => (location.hash = '/'));
+  });
   await step('delivering the job from its page', async () => {
     await page.locator('li button').filter({ hasText: 'clinical protocol' }).first().click();
     await page.getByRole('button', { name: /^Delivered/ }).click();
@@ -395,6 +409,8 @@ await suite('Theme differs from the system', { locale: 'zh-TW', colorScheme: 'da
     await page.getByRole('button', { name: /先用示範資料逛逛/ }).click();
     await expectVisible(page.getByText('職涯天際線').first(), 10000);
     await page.evaluate(() => (location.hash = '/settings'));
+    // the build on the server is the one running, so it says so
+    await expectVisible(page.getByTestId('app-version').getByText('已是最新版'), 10000);
     await page.getByRole('tab', { name: '淺色', exact: true }).click();
     // the choice is saved before it applies, so wait for it rather than a fixed pause
     await page.waitForFunction(() => document.documentElement.getAttribute('data-theme') === 'light', null, { timeout: 5000 });
