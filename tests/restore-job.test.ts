@@ -17,7 +17,7 @@ describe('sessionsToRestore', () => {
 });
 
 describe('restoreJob', () => {
-  it('keeps a session deleted before the job stays deleted', async () => {
+  it('leaves a session deleted before the job deleted', async () => {
     await db.jobs.put({ id: 'j1', title: 'Manual', status: 'active', updatedAt: 1 } as unknown as Job);
     await db.sessions.bulkPut([session('s1'), session('s2')]);
     vi.useFakeTimers({ toFake: ['Date'] });
