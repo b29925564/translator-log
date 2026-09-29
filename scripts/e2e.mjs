@@ -46,6 +46,15 @@ async function suite(name, opts, fn) {
   await ctx.close();
 }
 
+/** A PDF printed by the browser from HTML, so its text layer is real. */
+const pdfOf = async (page, html) => {
+  const p = await page.context().newPage();
+  await p.setContent(`<!doctype html><meta charset="utf-8"><body>${html}</body>`);
+  const buf = await p.pdf({ format: 'A4' });
+  await p.close();
+  return buf;
+};
+
 /** A minimal .xlsx with inline strings, as vendor portals export. */
 const xlsxOf = (rows) => {
   const cell = (v, r, c) => {
@@ -276,7 +285,7 @@ await suite('New user, English', { locale: 'en-US' }, async (page, step) => {
     await page.getByRole('button', { name: '儲存', exact: true }).click();
     await expectVisible(page.getByRole('button', { name: /專案 · Onboarding series/ }));
   });
-  await step('a CSV dropped anywhere opens the import; a PDF asks for an AI key', async () => {
+  await step('a CSV dropped anywhere opens the import; a PDF without a table says so', async () => {
     await page.evaluate(() => {
       const dt = new DataTransfer();
       dt.items.add(new File(['Job,Words,Rate,Due date\nGlossary cleanup,1200,0.1,2099-02-01\n'], 'po-list.csv', { type: 'text/csv' }));
@@ -302,9 +311,48 @@ await suite('New user, English', { locale: 'en-US' }, async (page, step) => {
     if (await page.getByText('放開以匯入報表').count()) throw new Error('drop overlay stuck after closing the import');
     await page.evaluate(() => (location.hash = '/money'));
     await page.getByRole('button', { name: '匯入報表' }).click();
-    await page.getByLabel('選擇報表檔案').setInputFiles({ name: 'statement.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n%%EOF') });
-    await expectVisible(page.getByText(/PDF、照片和截圖要由 Claude 讀取/));
+    // a text PDF with no table in it (a letter), so no text recognition is tried
+    const letter = await pdfOf(page, '<p>Thank you for your work this month. Payment will follow.</p>');
+    await page.getByLabel('選擇報表檔案').setInputFiles({ name: 'statement.pdf', mimeType: 'application/pdf', buffer: letter });
+    await expectVisible(page.getByText(/這份檔案裡沒有讀得出來的表格/));
     await page.keyboard.press('Escape');
+  });
+  await step('a text PDF statement is read on the device without an AI key', async () => {
+    await page.evaluate(() => (location.hash = '/money'));
+    await page.getByRole('button', { name: '匯入報表' }).click();
+    const pdf = await pdfOf(
+      page,
+      `<h3>Lumen Localization — Statement</h3><table style="border-collapse:collapse;font:14px sans-serif" cellpadding="6">
+        <tr><th align="left">Project</th><th align="left">Delivered</th><th align="right">Words</th><th align="right">Amount</th></tr>
+        <tr><td>Firmware release notes</td><td>2026-07-02</td><td align="right">1500</td><td align="right">150.00</td></tr>
+        <tr><td>Kiosk UI strings</td><td>2026-07-15</td><td align="right">900</td><td align="right">90.00</td></tr></table>`,
+    );
+    await page.getByLabel('選擇報表檔案').setInputFiles({ name: 'lumen-statement.pdf', mimeType: 'application/pdf', buffer: pdf });
+    await expectVisible(page.getByText('本機讀取'));
+    await expectVisible(page.getByText(/^2 列 · /));
+    await expectVisible(page.getByLabel('「Firmware release notes」的處理方式'));
+    await page.getByRole('button', { name: '套用', exact: true }).click();
+    await expectVisible(page.getByText(/匯入完成：新增 2 筆/));
+    // the same file again finds the jobs it made instead of adding them twice
+    await page.getByRole('button', { name: '匯入報表' }).click();
+    await page.getByLabel('選擇報表檔案').setInputFiles({ name: 'lumen-statement.pdf', mimeType: 'application/pdf', buffer: pdf });
+    await expectVisible(page.getByText('2 列 · 對應到 2 筆既有案件'));
+    await expectVisible(page.getByText(/已套用上次「lumen-statement.pdf」的欄位對應/));
+    await page.keyboard.press('Escape');
+  });
+  await step('several files at once go through the review one by one', async () => {
+    await page.getByRole('button', { name: '匯入報表' }).click();
+    await page.getByLabel('選擇報表檔案').setInputFiles([
+      { name: 'a.csv', mimeType: 'text/csv', buffer: Buffer.from('Job,Words,Rate\nBrochure A,500,0.1\nBrochure B,600,0.1\n') },
+      { name: 'b.txt', mimeType: 'text/plain', buffer: Buffer.from('2021/03/01 年報摘要 3,000字 NT$4,500\n2021/04/02 產品型錄 1,200字 NT$1,800\n') },
+    ]);
+    await expectVisible(page.getByText('檔案 1 / 2'));
+    await expectVisible(page.getByLabel('「Brochure A」的處理方式'));
+    await page.getByRole('button', { name: '略過這個檔案' }).click();
+    await expectVisible(page.getByText('檔案 2 / 2'));
+    await expectVisible(page.getByLabel('「年報摘要」的處理方式'));
+    await page.getByRole('button', { name: '套用', exact: true }).click();
+    await expectVisible(page.getByText(/匯入完成：新增 2 筆/));
   });
   await step('text shared into the app opens Quick Add', async () => {
     await page.goto(BASE + '?text=' + encodeURIComponent('Pixelforge patch notes 2000 words $0.1/word'));

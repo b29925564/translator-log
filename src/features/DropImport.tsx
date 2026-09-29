@@ -37,8 +37,8 @@ export function DropImport() {
     const drop = (e: DragEvent) => {
       if (!hasFiles(e) || skip() || e.defaultPrevented) return;
       e.preventDefault();
-      const f = e.dataTransfer?.files?.[0];
-      if (f) useUI.getState().openReportImport(f);
+      const files = [...(e.dataTransfer?.files ?? [])];
+      if (files.length) useUI.getState().openReportImport(files[0], files);
     };
     window.addEventListener('dragenter', enter);
     window.addEventListener('dragleave', leave);
@@ -63,7 +63,7 @@ export function DropImport() {
       <div className="flex flex-col items-center gap-2 rounded-[6px] bg-surface px-8 py-6 text-center" style={{ boxShadow: 'var(--shadow-lg)' }}>
         <FileUp size={28} className="text-accent" />
         <div className="text-[16px] font-semibold text-ink">{tx('放開以匯入報表', 'Drop to import the report')}</div>
-        <div className="text-[12.5px] text-muted">Excel · CSV · PDF · {tx('圖片', 'images')} · Word</div>
+        <div className="text-[12.5px] text-muted">Excel · CSV · PDF · Word · {tx('圖片', 'images')} · {tx('可一次多個檔案', 'several files at once')}</div>
       </div>
     </div>
   );

@@ -177,3 +177,87 @@ export const parsePair = (s: string | undefined, today: string, defaultTargetLan
   const r = parseQuickAdd(s, { clients: [], today, baseCurrency: 'TWD', defaultTargetLang });
   return { sourceLang: r.sourceLang, targetLang: r.targetLang };
 };
+
+// ---------- guessing columns from what they hold ----------
+
+const CURRENCY_CODES = /^(USD|EUR|TWD|NTD|JPY|CNY|RMB|GBP|HKD|KRW|SGD|AUD|CAD|CHF|MYR|THB|VND|NZD|SEK|NOK|DKK|PLN|BRL|MXN|INR)$/i;
+const LANG_CODE = '[a-z]{2,3}(?:[-_][a-z]{2,4})?';
+const PAIR_VALUE = new RegExp(`^(?:${LANG_CODE}\\s*(?:>|→|->|⇒|›|/|to)\\s*${LANG_CODE}|[英中日韓德法西義俄葡越泰印台華][文語]?\\s*(?:翻|譯|→|>|到)\\s*[英中日韓德法西義俄葡越泰印台華][文語]?)$`, 'i');
+const MONEY_MARK = /(\$|€|£|¥|￥|元|NT|US|[A-Z]{3})/;
+const NUMBERISH = /^[^\d]{0,4}-?[\d.,\s]*\d[^\d]{0,4}$/;
+
+type Shape = 'date' | 'pair' | 'currency' | 'int' | 'rate' | 'money' | 'text' | 'mixed';
+
+const shapeOf = (values: string[]): Shape => {
+  const vs = values.map((v) => v.trim()).filter(Boolean).slice(0, 40);
+  if (vs.length < 2) return 'mixed';
+  const share = (test: (v: string) => boolean) => vs.filter(test).length / vs.length;
+  if (share((v) => !/^\d+(\.\d+)?$/.test(v) && !!parseDate(v)) >= 0.7) return 'date';
+  if (share((v) => PAIR_VALUE.test(v)) >= 0.7) return 'pair';
+  if (share((v) => CURRENCY_CODES.test(v)) >= 0.7) return 'currency';
+  if (share((v) => NUMBERISH.test(v) && parseNumber(v) != null) >= 0.8) {
+    const nums = vs.map((v) => parseNumber(v)).filter((n): n is number => n != null);
+    if (share((v) => MONEY_MARK.test(v)) >= 0.5) return 'money';
+    const whole = nums.every((n) => Number.isInteger(n));
+    if (!whole && nums.every((n) => n > 0 && n < 20)) return 'rate';
+    if (whole && nums.every((n) => n >= 50 && n <= 200000)) return 'int';
+    if (share((v) => /\d,\d{3}/.test(v) || /\.\d{2}$/.test(v)) >= 0.5 || nums.some((n) => n >= 20)) return 'money';
+    return 'mixed';
+  }
+  const avg = vs.reduce((s, v) => s + v.length, 0) / vs.length;
+  if (share((v) => /\p{L}/u.test(v)) >= 0.8 && avg >= 6) return 'text';
+  return 'mixed';
+};
+
+const PAY_HEADER = /(pay|paid|付|收款|入帳|撥款|匯款)/i;
+
+/**
+ * Fills columns the header left unmapped by looking at their values: dates,
+ * language pairs, currencies, volumes, rates, amounts and a free-text title.
+ * A match made from the header is never changed.
+ */
+export const guessFromContent = (headers: string[], rows: string[][], mapping: ImportField[]): ImportField[] => {
+  const out = [...mapping];
+  const width = Math.max(headers.length, ...rows.map((r) => r.length), mapping.length);
+  while (out.length < width) out.push('ignore');
+  const taken = (f: ImportField) => out.includes(f);
+  const free = out.map((f, i) => (f === 'ignore' ? i : -1)).filter((i) => i >= 0);
+  const shapes = new Map(free.map((i) => [i, shapeOf(rows.map((r) => r[i] ?? ''))]));
+  const set = (i: number, f: ImportField) => {
+    if (!taken(f) && out[i] === 'ignore') out[i] = f;
+  };
+  const cols = (s: Shape) => free.filter((i) => shapes.get(i) === s);
+
+  // dates: a payment date by its header, then work dates left to right
+  const dates = cols('date');
+  for (const i of dates) if (PAY_HEADER.test(headers[i] ?? '')) set(i, 'paidAt');
+  const work = dates.filter((i) => out[i] === 'ignore');
+  if (work.length === 1 && !taken('date') && !taken('receivedAt') && !taken('deliveredAt')) set(work[0], 'date');
+  else {
+    // the dates still missing, in the order work happens
+    const want = (['receivedAt', 'deliveredAt'] as const).filter((f) => !taken(f) && !(f === 'receivedAt' && taken('date') && work.length < 2));
+    work.slice(0, want.length).forEach((i, k) => set(i, want[k]));
+  }
+  for (const i of cols('pair')) set(i, 'pair');
+  for (const i of cols('currency')) set(i, 'currency');
+  for (const i of cols('rate')) set(i, 'rate');
+  for (const i of cols('money')) set(i, 'amount');
+  const ints = cols('int');
+  if (ints.length >= 2 && !taken('amount') && !taken('quantity')) {
+    set(ints[0], 'quantity');
+    set(ints[ints.length - 1], 'amount');
+  } else for (const i of ints) set(i, taken('quantity') ? 'amount' : 'quantity');
+  for (const i of cols('text')) set(i, 'title');
+  return out;
+};
+
+/** Column mapping from the header row, completed from the values under it. */
+export const guessColumns = (grid: string[][], header: number): ImportField[] => {
+  const headers = grid[header] ?? [];
+  const byName = guessMapping(headers);
+  const named = byName.filter((f) => f !== 'ignore').length;
+  // no real header row: the first row is data too, and its words are not column names
+  const isData = named < 2 && headers.some((c) => /\d/.test(c) && (parseNumber(c) != null || !!parseDate(c)));
+  if (isData) return guessFromContent(headers.map(() => ''), grid.slice(header), headers.map(() => 'ignore'));
+  return guessFromContent(headers, grid.slice(header + 1), byName);
+};
