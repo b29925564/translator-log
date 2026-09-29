@@ -5,7 +5,7 @@
 import { BUILTIN_DOMAINS, SERVICES } from '../domain/constants';
 import { fxRate } from '../domain/money';
 import { fillFromRow, findClient, type ParsedReport, type ReportRow, type RowAction, type RowMatch } from '../domain/reportImport';
-import type { Client, Invoice, Job, Settings } from '../domain/types';
+import type { Client, Invoice, Job, Project, Settings } from '../domain/types';
 import { tx } from '../i18n';
 import { applyRecords, changeBus, newClient, newJob, withStatus } from './repo';
 
@@ -25,7 +25,17 @@ const serviceOf = (s: string | undefined) => {
 const domainOf = (s: string | undefined) => (s ? BUILTIN_DOMAINS.find((d) => d.zh === s || d.en.toLowerCase() === s.toLowerCase() || d.id === s)?.id ?? s : undefined);
 
 /** A new job from a report row. */
-export const jobFromRow = (r: ReportRow, ctx: { clientId?: string; currency: string; paidAt?: string; settings: Settings; today: string }): Job => {
+/**
+ * The project a row belongs to: one named in its project column (matched by
+ * name, ignoring case and spacing), else the one chosen for the whole import.
+ */
+export const projectFor = (name: string | undefined, projects: Pick<Project, 'id' | 'name'>[], fallback?: string): string | undefined => {
+  const key = (s: string) => s.toLowerCase().normalize('NFKC').replace(/\s+/g, ' ').trim();
+  const n = name ? key(name) : '';
+  return (n && projects.find((p) => key(p.name) === n)?.id) || fallback;
+};
+
+export const jobFromRow = (r: ReportRow, ctx: { clientId?: string; currency: string; paidAt?: string; settings: Settings; today: string; projectId?: string }): Job => {
   const quantity = r.quantity ?? 0;
   const amount = r.amount;
   let rate = r.rate;
@@ -45,6 +55,8 @@ export const jobFromRow = (r: ReportRow, ctx: { clientId?: string; currency: str
     unit,
     quantity: unit === 'flat' ? 1 : quantity,
     words: unit === 'flat' && quantity ? quantity : undefined,
+    rawWords: unit === 'word' ? r.rawWords : undefined,
+    projectId: ctx.projectId,
     rate: unit === 'flat' ? amount ?? rate ?? 0 : rate ?? 0,
     amountOverride: unit !== 'flat' && amount != null && r.rate == null && rate == null ? amount : undefined,
     currency: ctx.currency,
@@ -66,8 +78,9 @@ export const planImport = (
   report: ParsedReport,
   matches: RowMatch[],
   actions: RowAction[],
-  ctx: { jobs: Job[]; invoices: Invoice[]; clients: Client[]; settings: Settings; today: string },
+  ctx: { jobs: Job[]; invoices: Invoice[]; clients: Client[]; settings: Settings; today: string; projects?: Pick<Project, 'id' | 'name'>[]; projectId?: string },
 ): ImportPlan => {
+  const projectOf = (r: ReportRow) => projectFor(r.project, ctx.projects ?? [], ctx.projectId);
   const jobMap = new Map(ctx.jobs.map((j) => [j.id, j]));
   const touched = new Map<string, Job>();
   const invoices = new Map<string, Invoice>();
@@ -104,6 +117,8 @@ export const planImport = (
         const j = cur(id);
         if (!j) continue;
         let next: Job = { ...j, ...fillFromRow(j, r) };
+        const pid = projectOf(r);
+        if (pid && !j.projectId) next.projectId = pid;
         if (r.paidAt && j.status !== 'paid') next = withStatus({ ...next, paidAt: r.paidAt }, 'paid', r.paidAt);
         touched.set(id, next);
         counts.updated++;
@@ -112,7 +127,7 @@ export const planImport = (
       const knownClient = findClient(r.client ?? report.client, ctx.clients);
       const currency = (r.currency ?? report.currency ?? knownClient?.currency ?? ctx.settings.baseCurrency).toUpperCase();
       const paid = report.kind === 'payments' ? paidAt : r.paidAt;
-      newJobs.push(jobFromRow(r, { clientId: clientFor(r, currency), currency, paidAt: paid, settings: ctx.settings, today: ctx.today }));
+      newJobs.push(jobFromRow(r, { clientId: clientFor(r, currency), currency, paidAt: paid, settings: ctx.settings, today: ctx.today, projectId: projectOf(r) }));
       counts.created++;
     }
   });

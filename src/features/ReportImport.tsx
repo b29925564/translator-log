@@ -19,6 +19,7 @@ import { fileKind, readTables, type Grid } from '../domain/sheets';
 import type { PdfItem } from '../domain/pdfTable';
 import type { Job } from '../domain/types';
 import { tx } from '../i18n';
+import { CurrencySelect } from './common';
 import { Button, cx, Field, Input, NumberInput, Segmented, Select, Sheet, Textarea } from '../ui/kit';
 import { date, money, qty } from '../ui/format';
 import { useUI } from '../ui/store';
@@ -28,6 +29,7 @@ const FIELDS = (): { id: ImportField; label: string }[] => [
   { id: 'title', label: tx('案件名稱', 'Title') },
   { id: 'ref', label: tx('PO／單號', 'PO / reference') },
   { id: 'client', label: tx('客戶', 'Client') },
+  { id: 'project', label: tx('專案', 'Project') },
   { id: 'date', label: tx('日期（交稿）', 'Date (delivered)') },
   { id: 'receivedAt', label: tx('接案日', 'Received') },
   { id: 'dueAt', label: tx('截止日', 'Due') },
@@ -37,6 +39,8 @@ const FIELDS = (): { id: ImportField; label: string }[] => [
   { id: 'sourceLang', label: tx('原文語言', 'Source language') },
   { id: 'targetLang', label: tx('譯文語言', 'Target language') },
   { id: 'quantity', label: tx('字數／數量', 'Words / quantity') },
+  { id: 'weightedWords', label: tx('加權字數（計費）', 'Weighted words (billed)') },
+  { id: 'rawWords', label: tx('原始字數', 'Raw words') },
   { id: 'unit', label: tx('計價單位', 'Unit') },
   { id: 'rate', label: tx('單價', 'Rate') },
   { id: 'currency', label: tx('幣別', 'Currency') },
@@ -59,6 +63,7 @@ const WHY = (): Record<string, string> => ({
 const PATCH_LABEL = (): Record<string, string> => ({
   poNumber: tx('PO 號碼', 'PO number'),
   quantity: tx('字數', 'volume'),
+  rawWords: tx('原始字數', 'raw words'),
   rate: tx('單價', 'rate'),
   dueAt: tx('截止日', 'due date'),
   deliveredAt: tx('交稿日', 'delivery date'),
@@ -128,7 +133,7 @@ const errorText = (e: unknown) => {
 
 export function ReportImport() {
   const { reportImport, closeReportImport, navigate, toast, fireStamp } = useUI();
-  const { jobs, invoices, clients, clientMap, jobMap, settings, today } = useData();
+  const { jobs, invoices, clients, clientMap, jobMap, projects, projectMap, settings, today } = useData();
   const [stage, setStage] = useState<Stage>({ at: 'pick' });
   const [source, setSource] = useState<Source | null>(null);
   const [tableIdx, setTableIdx] = useState(0);
@@ -138,6 +143,9 @@ export function ReportImport() {
   const [kind, setKind] = useState<ReportKind | undefined>();
   const [clientId, setClientId] = useState<string | undefined>();
   const [paidAt, setPaidAt] = useState<string | undefined>();
+  // the whole import's currency: rows without their own take it
+  const [currency, setCurrency] = useState<string | undefined>();
+  const [projectId, setProjectId] = useState<string | undefined>();
   const [matchOver, setMatchOver] = useState<Record<number, string | null>>({});
   const [actionOver, setActionOver] = useState<Record<number, RowAction>>({});
   const [openRow, setOpenRow] = useState<number | null>(null);
@@ -155,6 +163,8 @@ export function ReportImport() {
     setKind(undefined);
     setClientId(undefined);
     setPaidAt(undefined);
+    setCurrency(undefined);
+    setProjectId(undefined);
     setMatchOver({});
     setActionOver({});
     setOpenRow(null);
@@ -170,6 +180,7 @@ export function ReportImport() {
     resetReview();
     const cid = saved?.template.clientId;
     if (cid && clientMap.has(cid)) setClientId(cid);
+    if (saved?.template.currency) setCurrency(saved.template.currency);
   };
 
   const resetLayout = () => {
@@ -349,10 +360,12 @@ export function ReportImport() {
       ...base,
       kind: k,
       client: reportClient?.name ?? base.client,
-      currency: base.currency ?? reportClient?.currency,
+      currency: currency ?? base.currency ?? reportClient?.currency,
       paidAt: k === 'payments' ? paidAt ?? base.paidAt ?? today : base.paidAt,
     };
-  }, [base, kind, reportClient, paidAt, today]);
+  }, [base, kind, reportClient, paidAt, today, currency]);
+  const importCurrency = report?.currency ?? settings.baseCurrency;
+  const hasCurrencyCol = source?.via === 'local' && mapping.includes('currency');
 
   const auto = useMemo(() => (report ? matchReport(report, { jobs, invoices, clients }) : []), [report, jobs, invoices, clients]);
   const matches = useMemo<(RowMatch & { manual?: boolean })[]>(
@@ -360,7 +373,10 @@ export function ReportImport() {
     [auto, matchOver],
   );
   const actions = useMemo(() => (report ? report.rows.map((_, i) => actionOver[i] ?? defaultAction(report.kind, matches[i], jobMap)) : []), [report, matches, actionOver, jobMap]);
-  const plan = useMemo(() => (report ? planImport(report, matches, actions, { jobs, invoices, clients, settings, today }) : null), [report, matches, actions, jobs, invoices, clients, settings, today]);
+  const plan = useMemo(
+    () => (report ? planImport(report, matches, actions, { jobs, invoices, clients, settings, today, projects, projectId: projectId && projectMap.has(projectId) ? projectId : undefined }) : null),
+    [report, matches, actions, jobs, invoices, clients, settings, today, projects, projectId, projectMap],
+  );
 
   const candidates = useMemo(() => {
     const live = jobs.filter((j) => !j.deletedAt && j.status !== 'cancelled');
@@ -382,6 +398,7 @@ export function ReportImport() {
           mapping,
           header,
           clientId: reportClient?.id,
+          currency: currency ?? report?.currency,
           name: reportClient?.name ?? source.name,
           lastUsed: Date.now(),
         });
@@ -625,6 +642,25 @@ export function ReportImport() {
               ))}
             </Select>
           </Field>
+          <Field
+            label={tx('幣別', 'Currency')}
+            htmlFor="ri-currency"
+            hint={hasCurrencyCol ? tx('用於幣別欄空白的列', 'For rows with a blank currency cell') : undefined}
+          >
+            <CurrencySelect id="ri-currency" value={importCurrency} onChange={setCurrency} />
+          </Field>
+          <Field label={tx('加入專案', 'Add to project')} htmlFor="ri-project">
+            <Select id="ri-project" value={projectId ?? ''} onChange={(e) => setProjectId(e.target.value || undefined)}>
+              <option value="">{mapping.includes('project') && source?.via === 'local' ? tx('（依每列的專案欄）', '(per row)') : tx('（不加入專案）', '(no project)')}</option>
+              {projects
+                .filter((p) => !p.archived || p.id === projectId)
+                .map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+            </Select>
+          </Field>
           {r.kind === 'payments' && (
             <Field label={tx('收款日', 'Paid on')} htmlFor="ri-paid">
               <Input id="ri-paid" type="date" value={r.paidAt ?? today} onChange={(e) => setPaidAt(e.target.value || undefined)} />
@@ -762,6 +798,8 @@ export function ReportImport() {
                     {row.client && <span>{row.client}</span>}
                     {row.date && <span>{date(row.date)}</span>}
                     {row.quantity != null && row.unit !== 'flat' && <span>{qty(row.quantity, row.unit ?? 'word')}</span>}
+                    {row.rawWords != null && <span>{tx(`原始 ${qty(row.rawWords, 'word')}`, `raw ${qty(row.rawWords, 'word')}`)}</span>}
+                    {row.project && <span>{row.project}</span>}
                     {row.paidAt && <span>{tx(`${date(row.paidAt)} 收款`, `paid ${date(row.paidAt)}`)}</span>}
                   </div>
                   <div className="mt-1 flex flex-wrap items-center gap-x-2 text-[12.5px]">

@@ -161,6 +161,45 @@ export const markPaid = async (ids: string[], date = todayISO()) => {
   changed();
 };
 
+// ---------- several jobs at once ----------
+
+/** Changes applied to every selected job; a field left out stays as it is, null clears it. */
+export interface BulkEdit {
+  status?: JobStatus;
+  clientId?: string | null;
+  projectId?: string | null;
+  /** New currency; the rate to base follows it. */
+  currency?: string;
+  /** Marks the jobs paid on this date. */
+  paidAt?: string;
+}
+
+export const bulkEdited = (job: Job, e: BulkEdit, ctx: { fxToBase: (currency: string) => number; today: string }): Job => {
+  let j: Job = { ...job };
+  if (e.clientId !== undefined) j.clientId = e.clientId ?? undefined;
+  if (e.projectId !== undefined) j.projectId = e.projectId ?? undefined;
+  if (e.currency && e.currency !== j.currency) j = { ...j, currency: e.currency, fxToBase: ctx.fxToBase(e.currency) };
+  if (e.status && e.status !== j.status) j = withStatus(j, e.status, ctx.today);
+  if (e.paidAt && j.status !== 'paid') j = withStatus({ ...j, paidAt: e.paidAt }, 'paid', e.paidAt);
+  else if (e.paidAt && j.status === 'paid') j.paidAt = e.paidAt;
+  return j;
+};
+
+/** Writes several jobs in one go (bulk edits and their undo). */
+export const saveJobs = async (jobs: Job[]) => {
+  const t = now();
+  await db.jobs.bulkPut(jobs.map((j) => clean({ ...j, updatedAt: t })));
+  changed();
+};
+
+export const deleteJobs = async (ids: string[]) => {
+  for (const id of ids) await deleteJob(id);
+};
+
+export const restoreJobs = async (ids: string[]) => {
+  for (const id of ids) await restoreJob(id);
+};
+
 // ---------- clients ----------
 
 export const newClient = (over: Partial<Client> = {}): Client => {

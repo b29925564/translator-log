@@ -354,6 +354,48 @@ await suite('New user, English', { locale: 'en-US' }, async (page, step) => {
     await page.getByRole('button', { name: '套用', exact: true }).click();
     await expectVisible(page.getByText(/匯入完成：新增 2 筆/));
   });
+  await step('an import takes a chosen currency and project, with weighted and raw words', async () => {
+    await page.evaluate(() => (location.hash = '/money'));
+    await page.getByRole('button', { name: '匯入報表' }).click();
+    await page.getByLabel('選擇報表檔案').setInputFiles({ name: 'kaito.csv', mimeType: 'text/csv', buffer: Buffer.from('Job,Weighted words,Raw words,Rate\nKaito manual,800,1000,10\n') });
+    await expectVisible(page.getByLabel('「Kaito manual」的處理方式'));
+    await expectVisible(page.getByText('原始 1,000 字'));
+    await page.locator('#ri-currency').selectOption('JPY');
+    await page.locator('#ri-project').selectOption({ label: 'Northwind' });
+    await page.getByRole('button', { name: '套用', exact: true }).click();
+    await expectVisible(page.getByText(/匯入完成：新增 1 筆/));
+    await page.evaluate(() => (location.hash = '/jobs'));
+    await page.getByText('Kaito manual').click();
+    await expectVisible(page.getByRole('button', { name: /專案 · Northwind/ }));
+    await expectVisible(page.getByText('1,000 / 800 (80%)'));
+    await expectVisible(page.getByText('¥8,000').first());
+  });
+  await step('several jobs can be selected, deleted and brought back', async () => {
+    await page.evaluate(() => (location.hash = '/jobs'));
+    await page.getByRole('button', { name: '選取', exact: true }).click();
+    const toolbar = page.getByRole('toolbar', { name: '選取的案件' });
+    await expectVisible(toolbar);
+    await page.getByRole('checkbox', { name: /年報摘要/ }).click();
+    await page.getByRole('checkbox', { name: /產品型錄/ }).click();
+    await expectVisible(toolbar.getByText('已選 2 件'));
+    await toolbar.getByRole('button', { name: '刪除' }).click();
+    await expectVisible(page.getByText('刪除 2 個案件？'));
+    await page.getByRole('dialog').getByRole('button', { name: '刪除', exact: true }).click();
+    await expectVisible(page.getByText('已刪除 2 個案件'));
+    if (await page.locator('main').getByText('年報摘要').count()) throw new Error('job still listed after delete');
+    await page.getByRole('button', { name: '復原' }).click();
+    await expectVisible(page.locator('main').getByText('年報摘要'));
+    await expectVisible(page.locator('main').getByText('產品型錄'));
+  });
+  await step('a delete confirm without a body has no empty body', async () => {
+    await page.locator('main').getByText('產品型錄').click();
+    await page.getByRole('button', { name: '更多動作' }).click();
+    await page.getByRole('menuitem', { name: '刪除' }).click();
+    const dialog = page.getByRole('dialog');
+    await expectVisible(dialog.getByText('刪除這個案件？'));
+    if (await dialog.locator('.overflow-y-auto').count()) throw new Error('empty body section rendered');
+    await dialog.getByRole('button', { name: '取消' }).click();
+  });
   await step('text shared into the app opens Quick Add', async () => {
     await page.goto(BASE + '?text=' + encodeURIComponent('Pixelforge patch notes 2000 words $0.1/word'));
     await expectVisible(page.getByText('一句話新增案件').first());
@@ -542,6 +584,23 @@ await suite('Phone', { locale: 'zh-TW', viewport: { width: 390, height: 844 }, i
     await page.waitForTimeout(800);
     const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     if (over > 1) throw new Error(`page is ${over}px wider than the screen`);
+  });
+  await step('select mode works on a phone: bulk edit and a toolbar that fits', async () => {
+    await page.keyboard.press('Escape');
+    await page.evaluate(() => (location.hash = '/jobs'));
+    await page.waitForTimeout(500);
+    await page.getByRole('button', { name: '選取', exact: true }).click();
+    await page.locator('[data-job-row]').first().click();
+    await page.locator('[data-job-row]').nth(1).click();
+    const toolbar = page.getByRole('toolbar', { name: '選取的案件' });
+    await expectVisible(toolbar.getByText('已選 2 件'));
+    const box = await toolbar.boundingBox();
+    if (!box || box.x < 0 || box.x + box.width > 390) throw new Error('toolbar is off screen');
+    await toolbar.getByRole('button', { name: '編輯' }).click();
+    await page.locator('#bulk-currency').selectOption('EUR');
+    await page.getByRole('button', { name: '套用', exact: true }).click();
+    await expectVisible(page.getByText('已更新 2 個案件'));
+    await page.getByRole('button', { name: '復原' }).click();
   });
   await step('focus mode fits the screen', async () => {
     await page.evaluate(() => (location.hash = '/'));

@@ -325,12 +325,17 @@ export function JobEditor() {
               </Select>
             </Field>
             {d.unit !== 'flat' ? (
-              <Field label={qtyLabel(d.unit)} htmlFor="job-qty">
+              <Field label={d.unit === 'word' && d.rawWords ? tx('加權字數（計費）', 'Weighted words (billed)') : qtyLabel(d.unit)} htmlFor="job-qty">
                 <NumberInput id="job-qty" value={d.quantity || undefined} onChange={(v) => set({ quantity: v ?? 0, ...(catOn && d.cat ? {} : {}) })} placeholder="0" disabled={catOn} />
               </Field>
             ) : (
               <Field label={tx('統計字數（選填）', 'Word count (optional)')} htmlFor="job-words">
                 <NumberInput id="job-words" value={d.words} onChange={(v) => set({ words: v })} placeholder="0" />
+              </Field>
+            )}
+            {d.unit === 'word' && !catOn && (
+              <Field label={tx('原始字數（選填）', 'Raw words (optional)')} htmlFor="job-raw" hint={tx('未加權的總字數；計價用上面的字數', 'Unweighted total; pricing uses the count beside it')}>
+                <NumberInput id="job-raw" value={d.rawWords} onChange={(v) => set({ rawWords: v })} placeholder="0" />
               </Field>
             )}
             <Field

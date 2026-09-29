@@ -249,6 +249,9 @@ export function JobDetail({ id }: { id: string }) {
               {job.unit === 'flat' && <Row label={tx('整案計價', 'Flat fee')} value={money(job.rate, job.currency)} />}
               {job.cat && <Row label={tx('CAT 加權後', 'CAT weighted')} value={`${num(weightedWords(job.cat.counts, job.cat.grid), 1)} (${Math.round((weightedWords(job.cat.counts, job.cat.grid) / Math.max(1, job.quantity)) * 100)}%)`} />}
               {job.unit === 'flat' && words > 0 && <Row label={tx('字數', 'Words')} value={num(words)} />}
+              {job.unit === 'word' && !!job.rawWords && (
+                <Row label={tx('原始／加權字數', 'Raw / weighted words')} value={`${num(job.rawWords)} / ${num(job.quantity)} (${Math.round((job.quantity / Math.max(1, job.rawWords)) * 100)}%)`} />
+              )}
               {!!job.surchargePct && <Row label={job.surchargePct > 0 ? tx('急件加價', 'Rush fee') : tx('折扣', 'Discount')} value={`${job.surchargePct > 0 ? '+' : ''}${job.surchargePct}%`} />}
               {!!job.minimumFee && <Row label={tx('最低收費', 'Minimum fee')} value={money(job.minimumFee, job.currency)} />}
               {job.amountOverride != null && <Row label={tx('手動總額', 'Manual total')} value={money(job.amountOverride, job.currency)} />}

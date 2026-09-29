@@ -457,13 +457,14 @@ export function Sheet({
   onClose: () => void;
   title?: ReactNode;
   subtitle?: ReactNode;
-  children: ReactNode;
+  children?: ReactNode;
   footer?: ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
   headerExtra?: ReactNode;
   labelledBy?: string;
 }) {
   useLockScroll(open);
+  const hasBody = children != null && children !== false && children !== '';
   const ref = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
@@ -523,9 +524,12 @@ export function Sheet({
             </div>
           </div>
         )}
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4">{children}</div>
+        {/* no empty padded body between the header and footer rules when there is nothing to say */}
+        {hasBody && (
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4">{children}</div>
+        )}
         {footer && (
-          <div className="flex items-center justify-end gap-2 border-t border-line bg-surface px-5 py-3" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
+          <div className={cx('flex items-center justify-end gap-2 bg-surface px-5 py-3', hasBody && 'border-t border-line')} style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
             {footer}
           </div>
         )}
