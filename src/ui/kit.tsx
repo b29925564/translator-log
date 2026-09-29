@@ -57,7 +57,7 @@ export function Button({ variant = 'secondary', size = 'md', icon, iconOnly, cla
 // ---------- form ----------
 
 /** Ids a Field hands to the control inside it, so the label and hint are announced with it. */
-export const FieldContext = createContext<{ id: string; labelId?: string; hintId?: string; claim: () => boolean } | null>(null);
+export const FieldContext = createContext<{ id: string; labelId?: string; hintId?: string; claim: (who: string) => boolean } | null>(null);
 
 /**
  * Reads the enclosing Field once per control. Only the first control to ask gets the ids,
@@ -65,7 +65,9 @@ export const FieldContext = createContext<{ id: string; labelId?: string; hintId
  */
 const useFieldIds = (id: string | undefined, describedBy: string | undefined) => {
   const ctx = useContext(FieldContext);
-  const [own] = useState(() => (ctx && !id ? ctx.claim() : false));
+  const who = useId();
+  // keyed by the control's own id, so StrictMode's double render and re-renders keep the claim
+  const own = !!ctx && !id && ctx.claim(who);
   if (!ctx || !own) return { id, 'aria-describedby': describedBy, labelId: undefined as string | undefined };
   return { id: ctx.id, 'aria-describedby': describedBy ?? ctx.hintId, labelId: ctx.labelId };
 };
@@ -75,13 +77,16 @@ export function Field({ label, hint, children, className, htmlFor }: { label?: R
   const id = htmlFor ?? gen;
   const labelId = `${id}-label`;
   const hintId = `${id}-hint`;
-  const claimed = useRef(false);
+  const claimed = useRef<string | null>(null);
   // when the caller names the control itself, nothing inside needs to claim the id
-  const claim = useCallback(() => {
-    if (claimed.current || htmlFor) return false;
-    claimed.current = true;
-    return true;
-  }, [htmlFor]);
+  const claim = useCallback(
+    (who: string) => {
+      if (htmlFor) return false;
+      claimed.current ??= who;
+      return claimed.current === who;
+    },
+    [htmlFor],
+  );
   const ctx = { id, labelId: label ? labelId : undefined, hintId: hint ? hintId : undefined, claim };
   return (
     <div className={cx('min-w-0', className)}>
