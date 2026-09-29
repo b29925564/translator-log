@@ -2,7 +2,7 @@ import { CheckSquare, Download, FileUp, MoreHorizontal, LayoutList, Pencil, Plus
 import { useEffect, useMemo, useState } from 'react';
 import { useData } from '../db/data';
 import { bulkEdited, deleteJobs, restoreJobs, saveJob, saveJobs, setJobStatus, type BulkEdit } from '../db/repo';
-import { CURRENCIES, domainLabel, langInfo, PIPELINE } from '../domain/constants';
+import { domainLabel, langInfo, PIPELINE } from '../domain/constants';
 import { toCSV } from '../domain/csv';
 import { fmtMonth, monthKey } from '../domain/dates';
 import { fxRate, jobGross, jobGrossBase, jobNet, jobWords } from '../domain/money';
@@ -10,9 +10,10 @@ import { incomeDate, totals } from '../domain/stats';
 import type { Job, JobStatus } from '../domain/types';
 import { getLang, tx } from '../i18n';
 import { domain as domainName, dueInfo, money, num, service as serviceName } from '../ui/format';
-import { Button, cx, Empty, Field, Input, Menu, PageHeader, Pair, Segmented, Select, Sheet, STATUS_COLOR, statusLabel } from '../ui/kit';
+import { Button, cx, Empty, Input, Menu, PageHeader, Pair, Segmented, Select, STATUS_COLOR, statusLabel } from '../ui/kit';
 import { celebrate, haptic } from '../ui/motion';
 import { useUI } from '../ui/store';
+import { BulkEditSheet } from '../features/BulkEdit';
 import { JobRow } from '../features/common';
 import { downloadFile } from '../features/download';
 
@@ -389,112 +390,6 @@ export function Jobs() {
       )}
       <BulkEditSheet open={bulkOpen} count={picked.length} jobs={picked} onClose={() => setBulkOpen(false)} onApply={(e) => void editPicked(e)} />
     </div>
-  );
-}
-
-const KEEP = '__keep';
-
-/** The fields a batch of jobs can share; each starts as “no change”. */
-function BulkEditSheet({ open, count, jobs, onClose, onApply }: { open: boolean; count: number; jobs: Job[]; onClose: () => void; onApply: (e: BulkEdit) => void }) {
-  const { clients, projects, today } = useData();
-  const [status, setStatus] = useState(KEEP);
-  const [client, setClient] = useState(KEEP);
-  const [project, setProject] = useState(KEEP);
-  const [currency, setCurrency] = useState<string | null>(null);
-  const [paid, setPaid] = useState(false);
-  const [paidAt, setPaidAt] = useState(today);
-  useEffect(() => {
-    if (!open) return;
-    setStatus(KEEP);
-    setClient(KEEP);
-    setProject(KEEP);
-    setCurrency(null);
-    setPaid(false);
-    setPaidAt(today);
-  }, [open, today]);
-  const shared = jobs.length && jobs.every((j) => j.currency === jobs[0].currency) ? jobs[0].currency : undefined;
-  const edit: BulkEdit = {
-    ...(status !== KEEP && { status: status as JobStatus }),
-    ...(client !== KEEP && { clientId: client || null }),
-    ...(project !== KEEP && { projectId: project || null }),
-    ...(currency && currency !== shared && { currency }),
-    ...(paid && { paidAt }),
-  };
-  const changes = Object.keys(edit).length;
-  return (
-    <Sheet
-      open={open}
-      onClose={onClose}
-      size="sm"
-      title={tx(`編輯 ${count} 個案件`, `Edit ${count} job${count > 1 ? 's' : ''}`)}
-      subtitle={tx('只會改動你有設定的欄位。', 'Only the fields you set are changed.')}
-      footer={
-        <>
-          <Button variant="ghost" onClick={onClose}>
-            {tx('取消', 'Cancel')}
-          </Button>
-          <Button variant="primary" disabled={!changes} onClick={() => onApply(edit)}>
-            {tx('套用', 'Apply')}
-          </Button>
-        </>
-      }
-    >
-      <div className="flex flex-col gap-3">
-        <Field label={tx('狀態', 'Status')} htmlFor="bulk-status">
-          <Select id="bulk-status" value={status} onChange={(e) => setStatus(e.target.value)} disabled={paid}>
-            <option value={KEEP}>{tx('（不變）', '(no change)')}</option>
-            {[...PIPELINE, 'cancelled' as JobStatus].map((s) => (
-              <option key={s} value={s}>
-                {statusLabel(s)}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Field label={tx('客戶', 'Client')} htmlFor="bulk-client">
-          <Select id="bulk-client" value={client} onChange={(e) => setClient(e.target.value)}>
-            <option value={KEEP}>{tx('（不變）', '(no change)')}</option>
-            <option value="">{tx('（無客戶）', '(no client)')}</option>
-            {clients.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Field label={tx('專案', 'Project')} htmlFor="bulk-project">
-          <Select id="bulk-project" value={project} onChange={(e) => setProject(e.target.value)}>
-            <option value={KEEP}>{tx('（不變）', '(no change)')}</option>
-            <option value="">{tx('（不屬於專案）', '(not in a project)')}</option>
-            {projects
-              .filter((p) => !p.archived)
-              .map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-          </Select>
-        </Field>
-        <Field label={tx('幣別', 'Currency')} htmlFor="bulk-currency" hint={shared ? undefined : tx('選取的案件幣別不同；選一個就會全部改成它', 'The selected jobs use different currencies; pick one to set them all')}>
-          <Select id="bulk-currency" value={currency ?? shared ?? ''} onChange={(e) => setCurrency(e.target.value || null)}>
-            {!shared && <option value="">{tx('（不變）', '(no change)')}</option>}
-            {CURRENCIES.map((c) => (
-              <option key={c.code} value={c.code}>
-                {c.code} · {getLang() === 'en' ? c.en : c.zh}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <label className="flex items-center gap-2 text-[14px] text-ink">
-          <input type="checkbox" className="h-4 w-4 accent-[var(--accent)]" checked={paid} onChange={(e) => setPaid(e.target.checked)} />
-          {tx('標記為已收款', 'Mark as paid')}
-        </label>
-        {paid && (
-          <Field label={tx('收款日', 'Paid on')} htmlFor="bulk-paid">
-            <Input id="bulk-paid" type="date" value={paidAt} onChange={(e) => setPaidAt(e.target.value || today)} />
-          </Field>
-        )}
-      </div>
-    </Sheet>
   );
 }
 
