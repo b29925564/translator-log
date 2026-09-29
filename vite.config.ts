@@ -102,10 +102,20 @@ export default defineConfig(({ mode }) => {
             },
             workbox: {
               globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
-              globIgnores: ['screenshots/**'],
+              // the Anthropic SDK is only loaded once someone adds a Claude key, so it is cached on first use instead
+              globIgnores: ['screenshots/**', 'assets/sdk-*.js'],
               importScripts: ['share-target.js'],
               navigateFallback: 'index.html',
               runtimeCaching: [
+                {
+                  urlPattern: ({ url, sameOrigin }) => sameOrigin && /\/assets\/sdk-[\w-]+\.js$/.test(url.pathname),
+                  handler: 'CacheFirst',
+                  options: {
+                    cacheName: 'ai-sdk',
+                    expiration: { maxEntries: 4 },
+                    cacheableResponse: { statuses: [200] },
+                  },
+                },
                 {
                   urlPattern: ({ url }) => url.origin === 'https://fonts.googleapis.com',
                   handler: 'StaleWhileRevalidate',
