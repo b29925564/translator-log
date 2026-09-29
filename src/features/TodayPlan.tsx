@@ -249,7 +249,7 @@ function PlanRow({ x, client, pace, onLog, onOpen, onFocus }: { x: PlanItem; cli
 /** Progress logger: a slider plus quick “+words” chips, shared with Focus mode. */
 export function LogProgress({ job, onClose, onSaved, initial }: { job: Job; onClose: () => void; onSaved?: (words: number) => void; initial?: number }) {
   const { today, sessions, settings } = useData();
-  const { toast, fireStamp } = useUI();
+  const { toast, fireStamp, navigate } = useUI();
   const [p, setP] = useState(initial ?? job.progress ?? 0);
   // when the work was done: today, yesterday, or over the days since the last log
   const yesterday = addDays(today, -1);
@@ -289,6 +289,16 @@ export function LogProgress({ job, onClose, onSaved, initial }: { job: Job; onCl
       size="sm"
       footer={
         <>
+          <Button
+            variant="ghost"
+            className="mr-auto"
+            onClick={() => {
+              onClose();
+              navigate('/jobs/' + job.id);
+            }}
+          >
+            {tx('查看案件', 'Open job')}
+          </Button>
           {p >= 100 && (
             <Button variant="secondary" icon={<Check size={16} />} onClick={() => void save(true)}>
               {tx('完成並交稿', 'Done & delivered')}

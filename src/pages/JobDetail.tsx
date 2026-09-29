@@ -6,7 +6,7 @@ import { db } from '../db/db';
 import { weightedWords } from '../domain/cat';
 import { PIPELINE } from '../domain/constants';
 import { backfillSessions, donePercent } from '../domain/backfill';
-import { dateOnly, fmtDuration, toISODate, workingDays } from '../domain/dates';
+import { fmtDuration, toISODate } from '../domain/dates';
 import { buildICS } from '../domain/ics';
 import { jobGross, jobGrossBase, jobNet, jobWords } from '../domain/money';
 import { paymentDue, rateBenchmark, sessionMs } from '../domain/stats';
@@ -19,17 +19,7 @@ import { TimerButton } from '../features/common';
 import { RateScale } from '../features/QuickAdd';
 import { downloadFile } from '../features/download';
 import { celebrate, haptic } from '../ui/motion';
-
-/** Words a day still needed to make the deadline, counting today if it is a working day. */
-export const jobPace = (job: Job, today: string, workdays: number[]): number | undefined => {
-  const words = jobWords(job);
-  if (job.status !== 'active' || !job.dueAt || !words) return undefined;
-  const left = words * (1 - Math.min(100, job.progress ?? 0) / 100);
-  if (left <= 0) return undefined;
-  const due = dateOnly(job.dueAt);
-  const days = due < today ? 0 : workingDays(today, due, workdays).length;
-  return Math.ceil(left / Math.max(1, days));
-};
+import { paceNeeded } from '../domain/progress';
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   if (value == null || value === '') return null;
@@ -66,7 +56,7 @@ export function JobDetail({ id }: { id: string }) {
   const due = job.status === 'active' ? dueInfo(job.dueAt, today) : undefined;
   const bench = words > 0 && (job.unit === 'word' || job.unit === 'char') ? rateBenchmark(jobs.filter((j) => j.id !== job.id), { ratePerWordBase: jobGrossBase(job) / words, sourceLang: job.sourceLang, targetLang: job.targetLang, domain: job.domain, unit: job.unit }) : undefined;
   const stepIdx = PIPELINE.indexOf(job.status);
-  const pace = jobPace(job, today, settings.work.workDays);
+  const pace = paceNeeded(job, today, { workdays: settings.work.workDays })?.perDay;
 
   const move = async (s: JobStatus) => {
     if (s === job.status) return;
