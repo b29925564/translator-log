@@ -239,7 +239,7 @@ export function JobEditor() {
                   if (pj?.clientId && !d.clientId) applyClient(pj.clientId);
                 }}
               >
-                <option value="">{tx('（不屬於專案）', '(None)')}</option>
+                <option value="">{tx('（不屬於專案）', '(No project)')}</option>
                 {projects
                   .filter((pj) => !pj.archived || pj.id === d.projectId)
                   .map((pj) => (
@@ -277,11 +277,11 @@ export function JobEditor() {
             <Field label={tx('語言組合', 'Language pair')} className="sm:col-span-2">
               <div className="flex items-center gap-2">
                 <div className="min-w-0 flex-1">
-                  <LangSelect id="job-src" value={d.sourceLang} onChange={(v) => setPriced({ sourceLang: v })} />
+                  <LangSelect id="job-src" aria-label={tx('來源語言', 'Source language')} value={d.sourceLang} onChange={(v) => setPriced({ sourceLang: v })} />
                 </div>
                 <Button iconOnly variant="ghost" icon={<ArrowLeftRight size={16} />} aria-label={tx('對調', 'Swap')} onClick={() => setPriced({ sourceLang: d.targetLang, targetLang: d.sourceLang })} />
                 <div className="min-w-0 flex-1">
-                  <LangSelect id="job-tgt" value={d.targetLang} onChange={(v) => setPriced({ targetLang: v })} />
+                  <LangSelect id="job-tgt" aria-label={tx('目標語言', 'Target language')} value={d.targetLang} onChange={(v) => setPriced({ targetLang: v })} />
                 </div>
               </div>
             </Field>
@@ -361,6 +361,7 @@ export function JobEditor() {
               <div className="flex gap-2">
                 <NumberInput id="job-rate" value={d.rate || undefined} onChange={(v) => set({ rate: v ?? 0 })} placeholder="0" className="min-w-0" />
                 <CurrencySelect
+                  aria-label={tx('幣別', 'Currency')}
                   value={d.currency}
                   onChange={(c) => set({ currency: c, fxToBase: fxRate(c, base, settings.fx.rates) })}
                   className="w-[88px] shrink-0 px-2 pr-7 text-[13px]"
@@ -456,7 +457,7 @@ export function JobEditor() {
               </Field>
             )}
             {d.status === 'paid' && (
-              <Field label={tx('收款日', 'Paid')} htmlFor="job-paid">
+              <Field label={tx('收款日', 'Paid on')} htmlFor="job-paid">
                 <Input id="job-paid" type="date" value={d.paidAt ?? ''} onChange={(e) => set({ paidAt: e.target.value || undefined })} />
               </Field>
             )}

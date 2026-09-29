@@ -8,7 +8,7 @@ import { measuredSpeed, quantile, isBooked, incomeDate } from '../domain/stats';
 import type { Client, Job } from '../domain/types';
 import { getLang, tx } from '../i18n';
 import { dueInfo, money, num, qty } from '../ui/format';
-import { cx, Pair, Select, StatusPill } from '../ui/kit';
+import { cx, Pair, Select, STATUS_COLOR, StatusPill } from '../ui/kit';
 import { useUI } from '../ui/store';
 
 // ---------- derived numbers used across pages ----------
@@ -70,10 +70,10 @@ export function LangSelect({ value, onChange, id, anyLabel, compact, 'aria-label
   );
 }
 
-export function CurrencySelect({ value, onChange, id, className }: { value: string; onChange: (v: string) => void; id?: string; className?: string }) {
+export function CurrencySelect({ value, onChange, id, className, 'aria-label': ariaLabel }: { value: string; onChange: (v: string) => void; id?: string; className?: string; 'aria-label'?: string }) {
   const en = getLang() === 'en';
   return (
-    <Select id={id} value={value} onChange={(e) => onChange(e.target.value)} className={className}>
+    <Select id={id} value={value} onChange={(e) => onChange(e.target.value)} className={className} aria-label={ariaLabel}>
       {CURRENCIES.map((c) => (
         <option key={c.code} value={c.code}>
           {c.code} · {en ? c.en : c.zh}
@@ -184,25 +184,28 @@ export function JobRow({ job, showClient = true, showTimer = false, showDue = fa
       tabIndex={0}
       onClick={() => navigate('/jobs/' + job.id)}
       onKeyDown={(e) => e.key === 'Enter' && navigate('/jobs/' + job.id)}
-      className="group flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-2 focus-visible:bg-surface-2"
+      className="group relative flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-2 focus-visible:bg-surface-2"
     >
+      {/* status is always the left bar; the pill is kept for screen readers */}
+      <span className="absolute inset-y-2 left-0 w-[3px] rounded-r-[1px]" style={{ background: STATUS_COLOR[job.status] }} aria-hidden />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className={cx('truncate text-[14.5px] font-medium', job.status === 'cancelled' ? 'text-muted line-through' : 'text-ink')}>{job.title || tx('（未命名）', '(Untitled)')}</span>
+          <StatusPill status={job.status} className="sr-only" />
         </div>
-        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-muted">
+        <div className="mt-1 flex flex-nowrap items-center gap-x-2 overflow-hidden text-[12.5px] text-muted">
           <Pair source={job.sourceLang} target={job.targetLang} />
-          {showClient && client && <span className="truncate">{client.name}</span>}
+          {showClient && client && <span className="min-w-0 truncate">{client.name}</span>}
           {project && (
             <span className="inline-flex min-w-0 items-center gap-1 truncate">
               <FolderKanban size={12} className="shrink-0" />
               <span className="truncate">{project.name}</span>
             </span>
           )}
-          {w > 0 && job.unit !== 'flat' && <span className="tnum">{qty(job.unit === 'word' || job.unit === 'char' ? w : job.quantity, job.unit)}</span>}
-          {job.unit === 'flat' && w > 0 && <span className="tnum">{qty(w, 'word')}</span>}
+          {w > 0 && job.unit !== 'flat' && <span className="shrink-0 tnum">{qty(job.unit === 'word' || job.unit === 'char' ? w : job.quantity, job.unit)}</span>}
+          {job.unit === 'flat' && w > 0 && <span className="shrink-0 tnum">{qty(w, 'word')}</span>}
           {due && (
-            <span className={cx('font-medium', due.tone === 'bad' ? 'text-bad' : due.tone === 'warn' ? 'text-warn' : 'text-ink-2')}>{due.text}</span>
+            <span className={cx('shrink-0 font-medium', due.tone === 'bad' ? 'text-bad' : due.tone === 'warn' ? 'text-warn' : 'text-ink-2')}>{due.text}</span>
           )}
         </div>
         {job.status === 'active' && job.progress != null && job.progress > 0 && (
@@ -211,13 +214,9 @@ export function JobRow({ job, showClient = true, showTimer = false, showDue = fa
           </div>
         )}
       </div>
-      <div className="flex shrink-0 flex-col items-end gap-1">
+      <div className="flex shrink-0 flex-col items-end gap-0.5">
         <span className="text-[14.5px] font-semibold text-ink tnum">{money(jobGross(job), job.currency)}</span>
-        {job.currency !== settings.baseCurrency ? (
-          <span className="text-[11.5px] text-muted tnum">≈ {money(jobGrossBase(job), settings.baseCurrency)}</span>
-        ) : (
-          <StatusPill status={job.status} />
-        )}
+        {job.currency !== settings.baseCurrency && <span className="text-[11.5px] text-muted tnum">≈ {money(jobGrossBase(job), settings.baseCurrency)}</span>}
       </div>
       {showTimer && job.status === 'active' ? <TimerButton job={job} /> : <ChevronRight size={16} className="hidden shrink-0 text-line-strong group-hover:text-muted sm:block" />}
     </div>

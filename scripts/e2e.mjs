@@ -147,7 +147,7 @@ await suite('New user, English', { locale: 'en-US' }, async (page, step) => {
     await page.getByLabel('Done in this time').fill('10');
     await page.getByTestId('add-time').getByRole('button', { name: 'Add', exact: true }).click();
     await expectVisible(page.getByText(/Added; progress is now \d+%/));
-    await expectVisible(page.getByText('backfilled').first());
+    await expectVisible(page.getByText('Added manually', { exact: true }).first());
     // the amount done on an entry can be changed afterwards
     await page.getByLabel('Edit entry').first().click();
     await page.getByLabel('Done in this time').fill('15');
