@@ -4,7 +4,7 @@ import { DEFAULT_SETTINGS } from '../domain/constants';
 import { todayISO } from '../domain/dates';
 import { nextDayLog, type LogOpts } from '../domain/progress';
 import { generateDemo, DEMO_PROFILE } from '../domain/demo';
-import { mergeSnapshots, TABLES, type Snapshot } from '../domain/merge';
+import { mergeSnapshots, newer, TABLES, type Snapshot } from '../domain/merge';
 import type { Client, Invoice, Job, JobStatus, Pref, Project, Session, Settings, SyncMeta, TableName } from '../domain/types';
 import type { Table } from 'dexie';
 import { db, delLocal, getLocal, setLocal, uid, type LocalRow } from './db';
@@ -106,17 +106,26 @@ export const deleteJob = async (id: string) => {
   const t = now();
   await db.transaction('rw', db.jobs, db.sessions, async () => {
     await db.jobs.update(id, { deletedAt: t, updatedAt: t });
-    const ss = await db.sessions.where('jobId').equals(id).toArray();
+    // sessions deleted earlier keep their own tombstone so restoring the job leaves them alone
+    const ss = (await db.sessions.where('jobId').equals(id).toArray()).filter((s) => !s.deletedAt);
     for (const s of ss) await db.sessions.update(s.id, { deletedAt: t, updatedAt: t });
   });
   changed();
 };
 
+/** Sessions deleted along with the job share its tombstone; ones deleted earlier stay deleted. */
+export const sessionsToRestore = (job: Pick<Job, 'deletedAt'>, sessions: Session[]): Session[] =>
+  job.deletedAt == null ? [] : sessions.filter((s) => s.deletedAt === job.deletedAt);
+
 export const restoreJob = async (id: string) => {
   const t = now();
-  await db.jobs.update(id, { deletedAt: undefined, updatedAt: t });
-  const ss = await db.sessions.where('jobId').equals(id).toArray();
-  for (const s of ss) await db.sessions.update(s.id, { deletedAt: undefined, updatedAt: t });
+  await db.transaction('rw', db.jobs, db.sessions, async () => {
+    const job = await db.jobs.get(id);
+    if (!job) return;
+    const ss = sessionsToRestore(job, await db.sessions.where('jobId').equals(id).toArray());
+    await db.jobs.update(id, { deletedAt: undefined, updatedAt: t });
+    for (const s of ss) await db.sessions.update(s.id, { deletedAt: undefined, updatedAt: t });
+  });
   changed();
 };
 
@@ -188,12 +197,14 @@ export const startTimer = async (jobId: string) => {
 
 export const stopTimer = async () => {
   const t = now();
-  const running = await db.sessions.filter((s) => !s.end && !s.deletedAt).toArray();
-  for (const r of running) {
-    // sessions under a minute are almost always accidental taps
-    if (t - r.start < 60_000) await db.sessions.update(r.id, { deletedAt: t, updatedAt: t });
-    else await db.sessions.update(r.id, { end: t, updatedAt: t });
-  }
+  await db.transaction('rw', db.sessions, async () => {
+    const running = await db.sessions.filter((s) => !s.end && !s.deletedAt).toArray();
+    for (const r of running) {
+      // sessions under a minute are almost always accidental taps
+      if (t - r.start < 60_000) await db.sessions.update(r.id, { deletedAt: t, updatedAt: t });
+      else await db.sessions.update(r.id, { end: t, updatedAt: t });
+    }
+  });
   changed();
 };
 
@@ -318,7 +329,15 @@ export const applyRecords = async (snap: Partial<Snapshot>) => {
   await db.transaction('rw', [db.jobs, db.clients, db.sessions, db.invoices, db.prefs, db.projects], async () => {
     for (const t of TABLES) {
       const rows = snap[t];
-      if (rows?.length) await tableOf(t).bulkPut(rows);
+      if (!rows?.length) continue;
+      // an edit made while a sync was in flight must not be overwritten by the older copy
+      const table = tableOf(t);
+      const existing = await table.bulkGet(rows.map((r) => r.id));
+      const fresh = rows.filter((r, i) => {
+        const e = existing[i];
+        return !e || newer(r, e) === r;
+      });
+      if (fresh.length) await table.bulkPut(fresh);
     }
   });
 };

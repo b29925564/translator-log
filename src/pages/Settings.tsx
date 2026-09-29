@@ -17,6 +17,7 @@ import { downloadFile } from '../features/download';
 import { fetchRates } from '../features/fx';
 import { platform, useInstall } from '../features/install';
 import { AppVersion } from '../features/AppVersion';
+import { badgeEnabled, setBadgeEnabled } from '../features/appBadge';
 import { SyncSettings } from '../sync/SyncSettings';
 import { changeBus } from '../db/repo';
 
@@ -66,6 +67,7 @@ export function SettingsPage({ section }: { section?: string }) {
   const aiState = useAI();
   const install = useInstall();
   const fileRef = useRef<HTMLInputElement>(null);
+  const [badge, setBadge] = useState(badgeEnabled);
   const s = settings;
   const p = s.profile;
   const en = getLang() === 'en';
@@ -206,11 +208,24 @@ export function SettingsPage({ section }: { section?: string }) {
         <Card id="prefs" title={tx('偏好', 'Preferences')}>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label={tx('介面語言', 'Language')}>
-              <Segmented value={s.lang} onChange={(v) => set({ lang: v })} options={[{ value: 'zh-TW', label: '繁體中文' }, { value: 'en', label: 'English' }]} />
+              <div role="group" aria-label={tx('介面語言', 'Language')}><Segmented value={s.lang} onChange={(v) => set({ lang: v })} options={[{ value: 'zh-TW', label: '繁體中文' }, { value: 'en', label: 'English' }]} /></div>
             </Field>
             <Field label={tx('外觀', 'Appearance')}>
-              <Segmented value={s.theme} onChange={(v) => set({ theme: v })} options={[{ value: 'system', label: tx('跟隨系統', 'System') }, { value: 'light', label: tx('淺色', 'Light') }, { value: 'dark', label: tx('深色', 'Dark') }]} />
+              <div role="group" aria-label={tx('外觀', 'Appearance')}><Segmented value={s.theme} onChange={(v) => set({ theme: v })} options={[{ value: 'system', label: tx('跟隨系統', 'System') }, { value: 'light', label: tx('淺色', 'Light') }, { value: 'dark', label: tx('深色', 'Dark') }]} /></div>
             </Field>
+            {'setAppBadge' in navigator && (
+              <div className="sm:col-span-2">
+                <Toggle
+                  checked={badge}
+                  onChange={(v) => {
+                    setBadge(v);
+                    setBadgeEnabled(v);
+                  }}
+                  label={tx('主畫面圖示顯示今日到期數', 'Show due-today count on the app icon')}
+                  description={tx('只算進行中、今天到期或已逾期的案件。', 'Counts active jobs due today or overdue.')}
+                />
+              </div>
+            )}
             <Field label={tx('記帳幣別', 'Home currency')} htmlFor="pref-cur">
               <CurrencySelect id="pref-cur" value={s.baseCurrency} onChange={(v) => void changeBase(v)} />
             </Field>
@@ -244,7 +259,7 @@ export function SettingsPage({ section }: { section?: string }) {
               <LazyNumber id="g-hours" value={s.work.hoursPerDay} onSave={(v) => set({ work: { ...s.work, hoursPerDay: v ?? 6 } })} suffix={tx('小時', 'h')} />
             </Field>
             <Field label={tx('預設翻譯速度', 'Default speed')} hint={tx('有計時資料後會改用你的實測速度', 'Replaced by your measured speed once you use the timer')} htmlFor="g-wph">
-              <LazyNumber id="g-wph" value={s.work.wordsPerHour} onSave={(v) => set({ work: { ...s.work, wordsPerHour: v ?? 450 } })} suffix={tx('字/時', 'w/h')} />
+              <LazyNumber id="g-wph" value={s.work.wordsPerHour} onSave={(v) => set({ work: { ...s.work, wordsPerHour: v ?? 450 } })} suffix={tx('字／小時', 'words/hr')} />
             </Field>
             <div className="sm:col-span-2">
               <Toggle
@@ -352,23 +367,23 @@ export function SettingsPage({ section }: { section?: string }) {
         {s.tax.region === 'TW' && (
           <Card id="tax" title={tx('稅務參數（台灣）', 'Tax parameters (Taiwan)')} desc={tx('預設值依現行常見規定：單次給付超過 2 萬元扣繳 10%、達 2 萬元收取 2.11% 補充保費、稿費每年 18 萬元免稅。法規變動時可自行調整。', 'Defaults follow current common rules: 10% withholding above NT$20,000 per payment, a 2.11% NHI premium from NT$20,000, and NT$180,000 of royalty income tax-free each year.')}>
             <div className="grid gap-3 sm:grid-cols-3">
-              <Field label={tx('扣繳率', 'Withholding rate')}>
-                <LazyNumber value={s.tax.withholdingRate * 100} onSave={(v) => set({ tax: { ...s.tax, withholdingRate: (v ?? 10) / 100 } })} suffix="%" />
+              <Field label={tx('扣繳率', 'Withholding rate')} htmlFor="tax-withholdingRate">
+                <LazyNumber id="tax-withholdingRate" value={s.tax.withholdingRate * 100} onSave={(v) => set({ tax: { ...s.tax, withholdingRate: (v ?? 10) / 100 } })} suffix="%" />
               </Field>
-              <Field label={tx('扣繳門檻（超過）', 'Withholding above')}>
-                <LazyNumber value={s.tax.withholdingThreshold} onSave={(v) => set({ tax: { ...s.tax, withholdingThreshold: v ?? 20000 } })} />
+              <Field label={tx('扣繳門檻（超過）', 'Withholding above')} htmlFor="tax-withholdingThreshold">
+                <LazyNumber id="tax-withholdingThreshold" value={s.tax.withholdingThreshold} onSave={(v) => set({ tax: { ...s.tax, withholdingThreshold: v ?? 20000 } })} />
               </Field>
-              <Field label={tx('補充保費率', 'NHI premium rate')}>
-                <LazyNumber value={Math.round(s.tax.nhiRate * 10000) / 100} onSave={(v) => set({ tax: { ...s.tax, nhiRate: (v ?? 2.11) / 100 } })} suffix="%" />
+              <Field label={tx('補充保費率', 'NHI premium rate')} htmlFor="tax-nhiRate">
+                <LazyNumber id="tax-nhiRate" value={Math.round(s.tax.nhiRate * 10000) / 100} onSave={(v) => set({ tax: { ...s.tax, nhiRate: (v ?? 2.11) / 100 } })} suffix="%" />
               </Field>
-              <Field label={tx('補充保費門檻（達）', 'NHI from')}>
-                <LazyNumber value={s.tax.nhiThreshold} onSave={(v) => set({ tax: { ...s.tax, nhiThreshold: v ?? 20000 } })} />
+              <Field label={tx('補充保費門檻（達）', 'NHI from')} htmlFor="tax-nhiThreshold">
+                <LazyNumber id="tax-nhiThreshold" value={s.tax.nhiThreshold} onSave={(v) => set({ tax: { ...s.tax, nhiThreshold: v ?? 20000 } })} />
               </Field>
-              <Field label={tx('稿費免稅額', '9B exemption')}>
-                <LazyNumber value={s.tax.exemption9B} onSave={(v) => set({ tax: { ...s.tax, exemption9B: v ?? 180000 } })} />
+              <Field label={tx('稿費免稅額', '9B exemption')} htmlFor="tax-exemption9B">
+                <LazyNumber id="tax-exemption9B" value={s.tax.exemption9B} onSave={(v) => set({ tax: { ...s.tax, exemption9B: v ?? 180000 } })} />
               </Field>
-              <Field label={tx('稿費必要費用率', '9B expense rate')}>
-                <LazyNumber value={s.tax.expenseRate9B * 100} onSave={(v) => set({ tax: { ...s.tax, expenseRate9B: (v ?? 30) / 100 } })} suffix="%" />
+              <Field label={tx('稿費必要費用率', '9B expense rate')} htmlFor="tax-expenseRate9B">
+                <LazyNumber id="tax-expenseRate9B" value={s.tax.expenseRate9B * 100} onSave={(v) => set({ tax: { ...s.tax, expenseRate9B: (v ?? 30) / 100 } })} suffix="%" />
               </Field>
             </div>
           </Card>
