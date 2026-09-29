@@ -46,12 +46,6 @@ const barPath = (x: number, y: number, w: number, h: number, r = 4) => {
   return `M${x},${y + h}V${y + rr}Q${x},${y} ${x + rr},${y}H${x + w - rr}Q${x + w},${y} ${x + w},${y + rr}V${y + h}Z`;
 };
 
-const hbarPath = (x: number, y: number, w: number, h: number, r = 4) => {
-  if (w <= 0) return '';
-  const rr = Math.min(r, h / 2, w);
-  return `M${x},${y}H${x + w - rr}Q${x + w},${y} ${x + w},${y + rr}V${y + h - rr}Q${x + w},${y + h} ${x + w - rr},${y + h}H${x}Z`;
-};
-
 // ---------- tooltip ----------
 
 export interface TipRow {
@@ -287,10 +281,10 @@ export function BarList({ data, onSelect, color = 'var(--series-1)' }: { data: B
               </span>
               <span className="shrink-0 font-medium text-ink tnum">{d.display}</span>
             </div>
-            <svg width="100%" height="8" className="block" preserveAspectRatio="none" viewBox="0 0 100 8" aria-hidden>
-              <rect x="0" y="0" width="100" height="8" rx="4" fill="var(--surface-3)" />
-              <path d={hbarPath(0, 0, Math.max(1.5, (d.value / max) * 100), 8, 3)} fill={d.color ?? color} />
-            </svg>
+            {/* HTML bar, not a stretched SVG: keeps the ends square at any width */}
+            <div className="h-2 overflow-hidden rounded-[1px] bg-surface-3" aria-hidden>
+              <div className="h-full" style={{ width: (d.value / max) * 100 + '%', minWidth: 2, background: d.color ?? color }} />
+            </div>
             {d.sub && <div className="mt-1 text-[11.5px] text-muted">{d.sub}</div>}
           </button>
         </li>

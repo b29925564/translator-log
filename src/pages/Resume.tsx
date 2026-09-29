@@ -98,10 +98,10 @@ export function Resume() {
         <aside className="no-print flex flex-col gap-4 lg:sticky lg:top-6 lg:self-start">
           <section className="card flex flex-col gap-4 p-4">
             <Field label={tx('履歷語言', 'Language')}>
-              <Segmented value={lang} onChange={(v) => { setLang(v); setAi({ busy: false }); }} options={[{ value: 'zh', label: '中文' }, { value: 'en', label: 'English' }]} />
+              <div role="group" aria-label={tx('履歷語言', 'Language')}><Segmented value={lang} onChange={(v) => { setLang(v); setAi({ busy: false }); }} options={[{ value: 'zh', label: '中文' }, { value: 'en', label: 'English' }]} /></div>
             </Field>
             <Field label={tx('期間', 'Period')}>
-              <Segmented size="sm" value={range} onChange={setRange} options={[{ value: 'all', label: tx('全部', 'All') }, { value: '5y', label: tx('近5年', '5 yrs') }, { value: '3y', label: tx('近3年', '3 yrs') }, { value: 'custom', label: tx('自訂', 'Custom') }]} />
+              <div role="group" aria-label={tx('期間', 'Period')}><Segmented size="sm" value={range} onChange={setRange} options={[{ value: 'all', label: tx('全部', 'All') }, { value: '5y', label: tx('近5年', '5 yrs') }, { value: '3y', label: tx('近3年', '3 yrs') }, { value: 'custom', label: tx('自訂', 'Custom') }]} /></div>
               {range === 'custom' && (
                 <div className="mt-2 flex items-center gap-2">
                   <Select className="input-sm" value={fromY} onChange={(e) => setFromY(e.target.value)} aria-label={tx('起始年', 'From')}>
@@ -121,13 +121,13 @@ export function Resume() {
               )}
             </Field>
             <Field label={tx('客戶名稱', 'Client names')} hint={clientMode === 'anonymous' ? tx('以「國際醫療器材公司」等描述取代真名；可在客戶資料設定。', 'Replaced by descriptions like “global medical-device maker”, editable per client.') : undefined}>
-              <Segmented size="sm" value={clientMode} onChange={setClientMode} options={[{ value: 'anonymous', label: tx('匿名', 'Anonymous') }, { value: 'named', label: tx('具名', 'Named') }, { value: 'hidden', label: tx('不顯示', 'Hidden') }]} />
+              <div role="group" aria-label={tx('客戶名稱', 'Client names')}><Segmented size="sm" value={clientMode} onChange={setClientMode} options={[{ value: 'anonymous', label: tx('匿名', 'Anonymous') }, { value: 'named', label: tx('具名', 'Named') }, { value: 'hidden', label: tx('不顯示', 'Hidden') }]} /></div>
             </Field>
             <Field label={tx('代表案例數', 'Selected projects')}>
-              <Segmented size="sm" value={String(count)} onChange={(v) => setCount(Number(v))} options={['3', '6', '10'].map((v) => ({ value: v, label: v }))} />
+              <div role="group" aria-label={tx('代表案例數', 'Selected projects')}><Segmented size="sm" value={String(count)} onChange={(v) => setCount(Number(v))} options={['3', '6', '10'].map((v) => ({ value: v, label: v }))} /></div>
             </Field>
             <Field label={tx('檢視', 'View')}>
-              <Segmented size="sm" value={view} onChange={setView} options={[{ value: 'card', label: tx('履歷卡', 'Profile') }, { value: 'text', label: tx('純文字', 'Text') }]} />
+              <div role="group" aria-label={tx('檢視', 'View')}><Segmented size="sm" value={view} onChange={setView} options={[{ value: 'card', label: tx('履歷卡', 'Profile') }, { value: 'text', label: tx('純文字', 'Text') }]} /></div>
             </Field>
             {aiAvailable() && (
               <Button variant="secondary" icon={<Wand2 size={15} />} onClick={() => void polish()} disabled={ai.busy}>
@@ -293,7 +293,7 @@ export function Resume() {
             <ul className="divide-y divide-line border-t border-line">
               {featuredPool.map((j) => (
                 <li key={j.id} className="flex items-center gap-3 px-4 py-2.5">
-                  <button type="button" onClick={() => void saveJob({ ...j, featured: !j.featured })} aria-pressed={!!j.featured} aria-label={tx('代表作', 'Featured')} className={cx('grid h-8 w-8 shrink-0 place-items-center rounded-full transition-colors', j.featured ? 'text-gold' : 'text-line-strong hover:text-muted')}>
+                  <button type="button" onClick={() => void saveJob({ ...j, featured: !j.featured })} aria-pressed={!!j.featured} aria-label={tx('代表作', 'Featured')} className={cx('grid h-8 w-8 shrink-0 place-items-center rounded-full transition-colors', j.featured ? 'text-gold' : 'text-muted hover:text-ink-2')}>
                     <Star size={18} fill={j.featured ? 'currentColor' : 'none'} />
                   </button>
                   <span className="min-w-0 flex-1">
