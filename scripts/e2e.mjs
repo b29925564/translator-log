@@ -129,6 +129,7 @@ await suite('New user, English', { locale: 'en-US' }, async (page, step) => {
   });
   await step('a time entry can be edited and deleted', async () => {
     await page.locator('li button').filter({ hasText: 'clinical protocol' }).first().click();
+    await page.getByRole('button', { name: 'Open job' }).click();
     await page.getByRole('button', { name: 'Add time' }).click();
     await page.getByRole('button', { name: 'Add', exact: true }).click();
     await page.getByLabel('Edit entry').first().click();
@@ -142,7 +143,7 @@ await suite('New user, English', { locale: 'en-US' }, async (page, step) => {
   });
   await step('hours over a few days can be backfilled with the work done', async () => {
     await page.getByRole('button', { name: 'Add time' }).click();
-    await page.getByRole('tab', { name: 'Hours over days' }).click();
+    await page.getByRole('radio', { name: 'Hours over days' }).click();
     await page.getByLabel('Total hours').fill('3');
     await page.getByLabel('Done in this time').fill('10');
     await page.getByTestId('add-time').getByRole('button', { name: 'Add', exact: true }).click();
@@ -157,6 +158,7 @@ await suite('New user, English', { locale: 'en-US' }, async (page, step) => {
   });
   await step('delivering the job from its page', async () => {
     await page.locator('li button').filter({ hasText: 'clinical protocol' }).first().click();
+    await page.getByRole('button', { name: 'Open job' }).click();
     await page.getByRole('button', { name: /^Delivered/ }).click();
     await expectVisible(page.locator('[aria-current="step"]').filter({ hasText: 'Delivered' }));
   });
@@ -164,8 +166,8 @@ await suite('New user, English', { locale: 'en-US' }, async (page, step) => {
     await page.evaluate(() => (location.hash = '/money'));
     await page.getByRole('button', { name: 'New invoice' }).first().click();
     await page.getByRole('button', { name: 'Create', exact: true }).click();
-    await expectVisible(page.getByRole('button', { name: 'Mark paid' }));
-    await page.getByRole('button', { name: 'Mark paid' }).click();
+    await expectVisible(page.getByRole('button', { name: 'Mark as paid' }));
+    await page.getByRole('button', { name: 'Mark as paid' }).click();
     await expectVisible(page.locator('svg[aria-label^="PAID"]'));
   });
   await step('switching to 中文 relabels the app', async () => {
@@ -349,7 +351,7 @@ await suite('Sample data, 繁體中文', { locale: 'zh-TW' }, async (page, step)
     await page.getByRole('button', { name: /請款 2 個已交稿部分/ }).click();
     await expectVisible(page.getByText('2 個項目，合計'));
     await page.getByRole('button', { name: '建立', exact: true }).click();
-    await expectVisible(page.getByRole('button', { name: '標記已付款' }));
+    await expectVisible(page.getByRole('button', { name: '標記已收款' }));
   });
   await step('command palette finds a job', async () => {
     await page.keyboard.press('Control+k');
@@ -425,7 +427,7 @@ await suite('Theme differs from the system', { locale: 'zh-TW', colorScheme: 'da
     await page.evaluate(() => (location.hash = '/settings'));
     // the build on the server is the one running, so it says so
     await expectVisible(page.getByTestId('app-version').getByText('已是最新版'), 10000);
-    await page.getByRole('tab', { name: '淺色', exact: true }).click();
+    await page.getByRole('radio', { name: '淺色', exact: true }).click();
     // the choice is saved before it applies, so wait for it rather than a fixed pause
     await page.waitForFunction(() => document.documentElement.getAttribute('data-theme') === 'light', null, { timeout: 5000 });
     await page.evaluate(() => (location.hash = '/'));
@@ -444,7 +446,7 @@ await suite('Theme differs from the system', { locale: 'zh-TW', colorScheme: 'da
     await page.emulateMedia({ colorScheme: 'light' });
     await skipOverture(page);
     await page.evaluate(() => (location.hash = '/settings'));
-    await page.getByRole('tab', { name: '深色', exact: true }).click();
+    await page.getByRole('radio', { name: '深色', exact: true }).click();
     // the choice is saved before it applies, so wait for it rather than a fixed pause
     await page.waitForFunction(() => document.documentElement.getAttribute('data-theme') === 'dark', null, { timeout: 5000 });
     await page.evaluate(() => (location.hash = '/'));

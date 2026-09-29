@@ -48,7 +48,7 @@ export function InvoiceView({ id }: { id: string }) {
                 fireStamp(tx('已收款', 'PAID'), today.replace(/-/g, '.'));
               }}
             >
-              {tx('標記已付款', 'Mark paid')}
+              {tx('標記已收款', 'Mark as paid')}
             </Button>
           )}
           <Button size="sm" variant="primary" icon={<Printer size={15} />} onClick={printPage}>

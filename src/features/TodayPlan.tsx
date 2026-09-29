@@ -2,14 +2,14 @@
 // already done, and a live countdown to the next one. Progress logged here
 // feeds the plan, the workload chart and the skyline.
 
-import { Check, Crosshair, NotebookPen } from 'lucide-react';
+import { Check, Crosshair } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useData } from '../db/data';
 import { saveJob, withStatus } from '../db/repo';
 import { addDays, dateOnly, fmtDate, fmtDateLong, parseISO, toISODate, workingDays } from '../domain/dates';
-import { createdDay, lastMarkDate } from '../domain/progress';
+import { createdDay, lastMarkDate, paceNeeded, type Pace } from '../domain/progress';
 import { jobWords } from '../domain/money';
-import { todayPlan, type PlanItem, type PlanState } from '../domain/stats';
+import { dailyWords, todayPlan, type PlanItem, type PlanState } from '../domain/stats';
 import type { Job } from '../domain/types';
 import { getLang, tx } from '../i18n';
 import { dueInfo, num } from '../ui/format';
@@ -96,10 +96,22 @@ function Ring({ value, size = 64 }: { value: number; size?: number }) {
 }
 
 export function TodayPlan() {
-  const { jobs, settings, today, clientMap } = useData();
+  const { jobs, sessions, settings, today, clientMap } = useData();
   const { navigate, openQuickAdd, fireStamp } = useUI();
   const speed = useSpeed();
   const plan = useMemo(() => todayPlan(jobs, settings.work, today, speed.wph), [jobs, settings.work, today, speed.wph]);
+  // words per day each shown job still needs, against what it got over the last 3 days
+  const paces = useMemo(() => {
+    const out = new Map<string, Pace>();
+    const days = [addDays(today, -2), addDays(today, -1), today];
+    for (const x of plan.items.slice(0, 6)) {
+      const daily = dailyWords([x.job], sessions.filter((s) => s.jobId === x.job.id), today, settings.work.workDays);
+      const recent = days.reduce((s, d) => s + (daily.get(d) || 0), 0);
+      const p = paceNeeded(x.job, today, { workdays: settings.work.workDays, recentPerDay: recent > 0 ? recent / 3 : undefined });
+      if (p) out.set(x.job.id, p);
+    }
+    return out;
+  }, [plan.items, sessions, today, settings.work.workDays]);
   const [logging, setLogging] = useState<string | null>(null);
   const wasDone = useRef(plan.progress >= 1);
   const targetWords = plan.items.filter((x) => x.unit !== 'minute').reduce((s, x) => s + x.target, 0);
@@ -162,7 +174,7 @@ export function TodayPlan() {
           </div>
           <ul className="hairline-list border-t border-line">
             {plan.items.slice(0, 6).map((x) => (
-              <PlanRow key={x.job.id} x={x} client={x.job.clientId ? clientMap.get(x.job.clientId)?.name : undefined} onLog={() => setLogging(x.job.id)} onOpen={() => navigate('/jobs/' + x.job.id)} onFocus={() => navigate('/focus/' + x.job.id)} />
+              <PlanRow key={x.job.id} x={x} client={x.job.clientId ? clientMap.get(x.job.clientId)?.name : undefined} pace={paces.get(x.job.id)} onLog={() => setLogging(x.job.id)} onOpen={() => navigate('/jobs/' + x.job.id)} onFocus={() => navigate('/focus/' + x.job.id)} />
             ))}
           </ul>
           {plan.items.length > 6 && (
@@ -177,44 +189,54 @@ export function TodayPlan() {
   );
 }
 
-function PlanRow({ x, client, onLog, onOpen, onFocus }: { x: PlanItem; client?: string; onLog: () => void; onOpen: () => void; onFocus: () => void }) {
+const PACE_TONE: Record<Pace['status'], string> = { ahead: 'text-good', 'on-track': 'text-good', behind: 'text-bad' };
+
+function PlanRow({ x, client, pace, onLog, onOpen, onFocus }: { x: PlanItem; client?: string; pace?: Pace; onLog: () => void; onOpen: () => void; onFocus: () => void }) {
   const { today } = useData();
   const due = dueInfo(x.job.dueAt, today);
   const share = x.target > 0 ? Math.min(1, x.doneToday / x.target) : x.doneToday > 0 ? 1 : 0;
+  const title = x.job.title || tx('（未命名）', '(Untitled)');
+  const loggable = x.state !== 'event';
+  // behind only matters when the deadline is close; a tight pace days away is a warning
+  const paceTone = pace ? (pace.status === 'behind' && pace.daysLeft > 2 ? 'text-warn' : PACE_TONE[pace.status]) : '';
   return (
-    <li className="flex items-center gap-3 px-5 py-3">
-      <span className="h-8 w-[3px] shrink-0" style={{ background: STATE_COLOR[x.state] }} aria-hidden />
-      <button type="button" className="min-w-0 flex-1 text-left" onClick={onOpen}>
-        <div className="truncate text-[14.5px] font-medium text-ink hover:underline">{x.job.title || tx('（未命名）', '(Untitled)')}</div>
-        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] text-muted">
+    <li className="flex items-center gap-2 pr-3 sm:pr-5">
+      {/* the whole row logs progress (or opens an event); Focus sits beside it */}
+      <button
+        type="button"
+        onClick={loggable ? onLog : onOpen}
+        aria-label={loggable ? `${tx('記錄進度', 'Log progress')}：${title}` : title}
+        className="grid min-w-0 flex-1 grid-cols-[3px_1fr_auto] items-start gap-x-3 gap-y-1.5 py-3 pl-4 text-left transition-colors hover:bg-surface-2 sm:pl-5"
+      >
+        <span className="row-span-3 h-full min-h-8 w-[3px] self-stretch" style={{ background: STATE_COLOR[x.state] }} aria-hidden />
+        <span className="line-clamp-2 min-w-0 text-[14.5px] font-medium leading-snug text-ink">{title}</span>
+        <span className="text-right text-[13.5px] font-medium text-ink tnum">
+          {x.state === 'event' ? (
+            x.hours ? tx(`今天 ${num(x.hours, 1)} 小時`, `${num(x.hours, 1)} h today`) : tx('排定日期', 'Scheduled')
+          ) : x.state === 'rest' ? (
+            <span className="font-normal text-muted">{tx('今天休息', 'Rest day')}</span>
+          ) : (
+            unitWord(x.unit, Math.round(x.target))
+          )}
+        </span>
+        <span className="col-span-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] text-muted">
           <Pair source={x.job.sourceLang} target={x.job.targetLang} />
-          {client && <span className="max-w-[140px] truncate">{client}</span>}
-          {due && <span className={cx('font-medium', due.tone === 'bad' ? 'text-bad' : due.tone === 'warn' ? 'text-warn' : 'text-ink-2')}>{due.text}</span>}
-        </div>
+          {client && <span className="min-w-0 truncate">· {client}</span>}
+          {due && <span className={cx('font-medium', due.tone === 'bad' ? 'text-bad' : due.tone === 'warn' ? 'text-warn' : 'text-ink-2')}>· {due.text}</span>}
+          {pace && pace.daysLeft > 0 && <span className={cx('font-medium tnum', paceTone)}>· {tx(`每天約需 ${num(Math.round(pace.perDay))} 字`, `~${num(Math.round(pace.perDay))} ${x.job.unit === 'char' ? 'chars' : 'words'}/day`)}</span>}
+        </span>
+        {loggable && x.state !== 'rest' && (
+          <span className="col-span-2 flex items-center gap-2">
+            <span className="h-[3px] flex-1 bg-surface-3">
+              <span className="block h-full bg-ink" style={{ width: `${share * 100}%`, transition: 'width .8s cubic-bezier(.2,.8,.2,1)' }} />
+            </span>
+            <span className="text-[11px] text-muted tnum">{x.doneToday > 0 ? tx(`已完成 ${num(Math.round(x.doneToday))}`, `${num(Math.round(x.doneToday))} done`) : tx(`完成度 ${x.job.progress ?? 0}%`, `${x.job.progress ?? 0}% overall`)}</span>
+          </span>
+        )}
       </button>
-      <div className="w-[108px] shrink-0 text-right">
-        {x.state === 'event' ? (
-          <div className="text-[13px] font-medium text-ink">{x.hours ? tx(`今天 ${num(x.hours, 1)} 小時`, `${num(x.hours, 1)} h today`) : tx('排定日期', 'Scheduled')}</div>
-        ) : x.state === 'rest' ? (
-          <div className="text-[13px] text-muted">{tx('今天休息', 'Rest day')}</div>
-        ) : (
-          <>
-            <div className="text-[13.5px] font-medium text-ink tnum">{unitWord(x.unit, Math.round(x.target))}</div>
-            <div className="mt-1 h-[3px] w-full bg-surface-3">
-              <div className="h-full bg-gold" style={{ width: `${share * 100}%`, transition: 'width .8s cubic-bezier(.2,.8,.2,1)' }} />
-            </div>
-            <div className="mt-1 text-[11px] text-muted tnum">{x.doneToday > 0 ? tx(`已完成 ${num(Math.round(x.doneToday))}`, `${num(Math.round(x.doneToday))} done`) : tx(`完成度 ${x.job.progress ?? 0}%`, `${x.job.progress ?? 0}% overall`)}</div>
-          </>
-        )}
-      </div>
       <div className="flex shrink-0 items-center gap-1">
-        {x.state !== 'event' && (
-          <button type="button" onClick={onLog} className="grid h-8 w-8 place-items-center rounded-[3px] border border-line-strong text-ink-2 transition-colors hover:border-ink hover:text-ink" aria-label={tx('記錄進度', 'Log progress')} title={tx('記錄進度', 'Log progress')}>
-            <NotebookPen size={14} />
-          </button>
-        )}
-        <button type="button" onClick={onFocus} className="grid h-8 w-8 place-items-center rounded-[3px] border border-line-strong text-ink-2 transition-colors hover:border-ink hover:text-ink" aria-label={tx('專注模式', 'Focus mode')} title={tx('專注模式', 'Focus mode')}>
-          <Crosshair size={14} />
+        <button type="button" onClick={onFocus} className="grid h-10 w-10 place-items-center rounded-[3px] border border-line-strong text-ink-2 transition-colors hover:border-ink hover:text-ink" aria-label={tx('專注模式', 'Focus mode')} title={tx('專注模式', 'Focus mode')}>
+          <Crosshair size={16} />
         </button>
         <span className="hidden sm:contents">
           <TimerButton job={x.job} />
@@ -227,7 +249,7 @@ function PlanRow({ x, client, onLog, onOpen, onFocus }: { x: PlanItem; client?: 
 /** Progress logger: a slider plus quick “+words” chips, shared with Focus mode. */
 export function LogProgress({ job, onClose, onSaved, initial }: { job: Job; onClose: () => void; onSaved?: (words: number) => void; initial?: number }) {
   const { today, sessions, settings } = useData();
-  const { toast, fireStamp } = useUI();
+  const { toast, fireStamp, navigate } = useUI();
   const [p, setP] = useState(initial ?? job.progress ?? 0);
   // when the work was done: today, yesterday, or over the days since the last log
   const yesterday = addDays(today, -1);
@@ -267,6 +289,16 @@ export function LogProgress({ job, onClose, onSaved, initial }: { job: Job; onCl
       size="sm"
       footer={
         <>
+          <Button
+            variant="ghost"
+            className="mr-auto"
+            onClick={() => {
+              onClose();
+              navigate('/jobs/' + job.id);
+            }}
+          >
+            {tx('查看案件', 'Open job')}
+          </Button>
           {p >= 100 && (
             <Button variant="secondary" icon={<Check size={16} />} onClick={() => void save(true)}>
               {tx('完成並交稿', 'Done & delivered')}

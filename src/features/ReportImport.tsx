@@ -26,7 +26,7 @@ const FIELDS = (): { id: ImportField; label: string }[] => [
   { id: 'receivedAt', label: tx('接案日', 'Received') },
   { id: 'dueAt', label: tx('截止日', 'Due') },
   { id: 'deliveredAt', label: tx('交稿日', 'Delivered') },
-  { id: 'paidAt', label: tx('收款日', 'Paid') },
+  { id: 'paidAt', label: tx('收款日', 'Paid on') },
   { id: 'pair', label: tx('語言組合', 'Language pair') },
   { id: 'sourceLang', label: tx('原文語言', 'Source language') },
   { id: 'targetLang', label: tx('譯文語言', 'Target language') },
@@ -292,7 +292,7 @@ export function ReportImport() {
         plan.clients.length && tx(`新客戶 ${plan.clients.length} 位`, `${plan.clients.length} new clients`),
       ].filter(Boolean);
       toast(tx('匯入完成：', 'Imported: ') + parts.join(tx('、', ', ')), { tone: 'good' });
-      if (paid) fireStamp(tx('已入帳', 'Paid'), tx(`${paid} 筆`, `${paid} jobs`));
+      if (paid) fireStamp(tx('已收款', 'Paid'), tx(`${paid} 筆`, `${paid} jobs`));
       closeReportImport();
       if (report?.kind === 'payments' && paid) navigate('/money');
     } finally {
@@ -466,7 +466,7 @@ export function ReportImport() {
             </Select>
           </Field>
           {r.kind === 'payments' && (
-            <Field label={tx('入帳日', 'Paid on')} htmlFor="ri-paid">
+            <Field label={tx('收款日', 'Paid on')} htmlFor="ri-paid">
               <Input id="ri-paid" type="date" value={r.paidAt ?? today} onChange={(e) => setPaidAt(e.target.value || undefined)} />
             </Field>
           )}

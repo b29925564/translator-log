@@ -1,7 +1,7 @@
-import { Download, FileUp, LayoutList, Plus, Search, SquareKanban } from 'lucide-react';
+import { Download, FileUp, MoreHorizontal, LayoutList, Plus, Search, SquareKanban } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useData } from '../db/data';
-import { setJobStatus } from '../db/repo';
+import { saveJob, setJobStatus } from '../db/repo';
 import { domainLabel, langInfo, PIPELINE } from '../domain/constants';
 import { toCSV } from '../domain/csv';
 import { fmtMonth, monthKey } from '../domain/dates';
@@ -10,7 +10,8 @@ import { incomeDate, totals } from '../domain/stats';
 import type { Job, JobStatus } from '../domain/types';
 import { getLang, tx } from '../i18n';
 import { domain as domainName, dueInfo, money, num, service as serviceName } from '../ui/format';
-import { Button, cx, Empty, Input, PageHeader, Pair, Segmented, Select, STATUS_COLOR, statusLabel } from '../ui/kit';
+import { Button, cx, Empty, Input, Menu, PageHeader, Pair, Segmented, Select, STATUS_COLOR, statusLabel } from '../ui/kit';
+import { celebrate, haptic } from '../ui/motion';
 import { useUI } from '../ui/store';
 import { JobRow } from '../features/common';
 import { downloadFile } from '../features/download';
@@ -36,7 +37,7 @@ const writePref = (k: string, v: string) => {
 
 export function Jobs() {
   const { jobs, clients, clientMap, projects, projectMap, settings, today } = useData();
-  const { openQuickAdd, navigate, fireStamp } = useUI();
+  const { openQuickAdd, navigate, fireStamp, toast } = useUI();
   const [q, setQ] = useState('');
   const [status, setStatus] = useState<StatusFilter>('all');
   const [year, setYear] = useState<string>('all');
@@ -264,8 +265,14 @@ export function Jobs() {
           jobs={filtered.filter((j) => j.status !== 'cancelled')}
           onMove={async (j, s) => {
             if (j.status === s) return;
+            const prev = { status: j.status, deliveredAt: j.deliveredAt, invoicedAt: j.invoicedAt, paidAt: j.paidAt, progress: j.progress };
             await setJobStatus(j, s);
-            if (s === 'paid') fireStamp(tx('已收款', 'PAID'), today.replace(/-/g, '.'));
+            // same moment as the job page: seal stamp for paid, small burst for delivered
+            if (s === 'paid') {
+              fireStamp(tx('已收款', 'PAID'), today.replace(/-/g, '.'));
+              haptic([12, 40, 18]);
+            } else if (s === 'delivered') celebrate('delivered');
+            toast(tx(`已改為「${statusLabel(s)}」`, `Marked as ${statusLabel(s)}`), { action: { label: tx('復原', 'Undo'), run: () => void saveJob({ ...j, ...prev }) } });
           }}
           onOpen={(j) => navigate('/jobs/' + j.id)}
           base={base}
@@ -338,10 +345,30 @@ function Board({
                     e.dataTransfer.effectAllowed = 'move';
                   }}
                   onDragEnd={() => setDragId(null)}
-                  onClick={() => onOpen(j)}
                   className={cx('cursor-grab rounded-xl border border-line bg-surface p-3 transition-shadow hover:shadow-[var(--shadow)] active:cursor-grabbing', dragId === j.id && 'opacity-50')}
                 >
-                  <div className="line-clamp-2 text-[13.5px] font-medium leading-snug text-ink">{j.title}</div>
+                  <div className="flex items-start gap-1">
+                    <button type="button" onClick={() => onOpen(j)} className="line-clamp-2 min-w-0 flex-1 text-left text-[13.5px] font-medium leading-snug text-ink hover:underline">
+                      {j.title || tx('（未命名）', '(Untitled)')}
+                    </button>
+                    <Menu
+                      trigger={(p) => (
+                        <button type="button" {...p} className="-m-1 grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted hover:bg-surface-2 hover:text-ink" aria-label={tx('移到…', 'Move to…')} title={tx('移到…', 'Move to…')}>
+                          <MoreHorizontal size={15} />
+                        </button>
+                      )}
+                      items={PIPELINE.map((s) => ({
+                        label: (
+                          <span className="inline-flex items-center gap-2">
+                            <span className="h-2 w-2 rounded-[1px]" style={{ background: STATUS_COLOR[s] }} />
+                            {statusLabel(s)}
+                          </span>
+                        ),
+                        disabled: s === j.status,
+                        onClick: () => onMove(j, s),
+                      }))}
+                    />
+                  </div>
                   <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[12px] text-muted">
                     <Pair source={j.sourceLang} target={j.targetLang} />
                     <span className="truncate">{clientName(j.clientId)}</span>

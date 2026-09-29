@@ -18,6 +18,8 @@ import { useUI } from '../ui/store';
 import { TimerButton } from '../features/common';
 import { RateScale } from '../features/QuickAdd';
 import { downloadFile } from '../features/download';
+import { celebrate, haptic } from '../ui/motion';
+import { paceNeeded } from '../domain/progress';
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   if (value == null || value === '') return null;
@@ -54,12 +56,18 @@ export function JobDetail({ id }: { id: string }) {
   const due = job.status === 'active' ? dueInfo(job.dueAt, today) : undefined;
   const bench = words > 0 && (job.unit === 'word' || job.unit === 'char') ? rateBenchmark(jobs.filter((j) => j.id !== job.id), { ratePerWordBase: jobGrossBase(job) / words, sourceLang: job.sourceLang, targetLang: job.targetLang, domain: job.domain, unit: job.unit }) : undefined;
   const stepIdx = PIPELINE.indexOf(job.status);
+  const pace = paceNeeded(job, today, { workdays: settings.work.workDays })?.perDay;
 
   const move = async (s: JobStatus) => {
     if (s === job.status) return;
+    const prev = { status: job.status, deliveredAt: job.deliveredAt, invoicedAt: job.invoicedAt, paidAt: job.paidAt, progress: job.progress };
     await setJobStatus(job, s);
-    if (s === 'paid') fireStamp(tx('已收款', 'PAID'), today.replace(/-/g, '.'));
-    else toast(tx(`已改為「${statusLabel(s)}」`, `Marked as ${statusLabel(s)}`));
+    // paid already gets the big seal stamp; delivered gets the small burst
+    if (s === 'paid') {
+      fireStamp(tx('已收款', 'PAID'), today.replace(/-/g, '.'));
+      haptic([12, 40, 18]);
+    } else if (s === 'delivered') celebrate('delivered');
+    toast(tx(`已改為「${statusLabel(s)}」`, `Marked as ${statusLabel(s)}`), { action: { label: tx('復原', 'Undo'), run: () => void saveJob({ ...job, ...prev }) } });
   };
 
   const duplicate = async () => {
@@ -144,6 +152,7 @@ export function JobDetail({ id }: { id: string }) {
           <div className="mt-2 flex flex-wrap items-center gap-3">
             <StatusPill status={job.status} />
             {due && <span className={cx('text-[13px] font-medium', due.tone === 'bad' ? 'text-bad' : due.tone === 'warn' ? 'text-warn' : 'text-ink-2')}>{tx('截稿', 'Due')} {due.text}</span>}
+            {pace != null && <span className="text-[13px] text-muted tnum">{tx(`每天約需 ${num(pace)} 字`, `~${num(pace)} words/day`)}</span>}
             {job.featured && (
               <span className="inline-flex items-center gap-1 text-[12.5px] font-medium text-gold">
                 <Star size={13} fill="currentColor" /> {tx('代表作', 'Featured')}
@@ -366,8 +375,8 @@ export function JobDetail({ id }: { id: string }) {
               <Row label={tx('截止', 'Due')} value={job.dueAt ? date(job.dueAt, { year: 'numeric', month: 'short', day: 'numeric', ...(job.dueAt.includes('T') ? { hour: '2-digit', minute: '2-digit', hour12: false } : {}) }) : undefined} />
               <Row label={tx('交稿日', 'Delivered')} value={job.deliveredAt ? dateLong(job.deliveredAt) : undefined} />
               <Row label={tx('請款日', 'Invoiced')} value={job.invoicedAt ? dateLong(job.invoicedAt) : undefined} />
-              {(job.status === 'delivered' || job.status === 'invoiced') && <Row label={tx('預計入帳', 'Payment due')} value={dateLong(paymentDue(job, client))} />}
-              <Row label={tx('收款日', 'Paid')} value={job.paidAt ? dateLong(job.paidAt) : undefined} />
+              {(job.status === 'delivered' || job.status === 'invoiced') && <Row label={tx('預計收款日', 'Payment expected')} value={dateLong(paymentDue(job, client))} />}
+              <Row label={tx('收款日', 'Paid on')} value={job.paidAt ? dateLong(job.paidAt) : undefined} />
               <Row label={tx('CAT 工具', 'CAT tool')} value={job.catTool} />
               <Row label="PO" value={job.poNumber} />
               {settings.tax.region === 'TW' && <Row label={tx('所得類別', 'Income type')} value={job.incomeCategory ?? '9B'} />}

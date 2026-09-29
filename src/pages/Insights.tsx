@@ -243,7 +243,7 @@ export function Insights() {
           subtitle={tx(`依季，${base}`, `By quarter, ${base}`)}
           action={
             pairOptions.length > 1 ? (
-              <Select value={activePair} onChange={(e) => setPair(e.target.value)} className="input-sm w-auto">
+              <Select value={activePair} onChange={(e) => setPair(e.target.value)} className="input-sm w-auto" aria-label={tx('語言組合', 'Language pair')}>
                 {pairOptions.map((p) => (
                   <option key={p} value={p}>
                     {pairLabel(p)}

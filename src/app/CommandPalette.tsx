@@ -1,5 +1,5 @@
 import { Building2, CornerDownLeft, Crosshair, FileText, FileUp, FolderKanban, Plus, Search } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useData } from '../db/data';
 import { jobGross } from '../domain/money';
@@ -29,6 +29,8 @@ export function CommandPalette() {
   const [sel, setSel] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const listId = useId();
+  const optId = (i: number) => `${listId}-opt-${i}`;
 
   useEffect(() => {
     if (palette) {
@@ -113,7 +115,16 @@ export function CommandPalette() {
   return createPortal(
     <div className="fixed inset-0 z-[60] flex items-start justify-center px-3 pt-[10vh]" role="presentation">
       <div className="absolute inset-0" style={{ background: 'var(--backdrop)' }} onClick={() => setPalette(false)} />
-      <div role="dialog" aria-modal="true" aria-label={tx('搜尋與指令', 'Search & commands')} className="relative w-full max-w-[620px] overflow-hidden rounded-2xl border border-line bg-surface animate-[pop_.16s_ease]" style={{ boxShadow: 'var(--shadow-lg)' }}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={tx('搜尋與指令', 'Search & commands')}
+        // options are not tabbable, so keeping Tab inside the dialog means returning to the input
+        onKeyDown={(e) => {
+          if (e.key !== 'Tab') return;
+          e.preventDefault();
+          inputRef.current?.focus();
+        }} className="relative w-full max-w-[620px] overflow-hidden rounded-2xl border border-line bg-surface animate-[pop_.16s_ease]" style={{ boxShadow: 'var(--shadow-lg)' }}>
         <div className="flex items-center gap-3 border-b border-line px-4">
           <Search size={18} className="text-muted" />
           <input
@@ -135,18 +146,30 @@ export function CommandPalette() {
             placeholder={tx('搜尋案件、客戶，或輸入指令…', 'Search jobs, clients, or type a command…')}
             className="h-14 flex-1 bg-transparent text-[16px] text-ink outline-none placeholder:text-muted"
             aria-label={tx('搜尋', 'Search')}
+            role="combobox"
+            aria-autocomplete="list"
+            aria-expanded={items.length > 0}
+            aria-controls={listId}
+            aria-activedescendant={items[sel] ? optId(sel) : undefined}
           />
         </div>
-        <div ref={listRef} className="max-h-[60vh] overflow-y-auto p-2">
-          {items.length === 0 && <div className="px-3 py-8 text-center text-[14px] text-muted">{tx('找不到符合的結果', 'No matches')}</div>}
+        <div className="sr-only" role="status" aria-live="polite">
+          {items.length ? tx(`共 ${items.length} 筆結果`, `${items.length} ${items.length === 1 ? 'result' : 'results'}`) : tx('找不到符合的結果', 'No matches')}
+        </div>
+        <div ref={listRef} id={listId} role="listbox" aria-label={tx('搜尋結果', 'Results')} className="max-h-[60vh] overflow-y-auto p-2">
+          {items.length === 0 && <div role="presentation" className="px-3 py-8 text-center text-[14px] text-muted">{tx('找不到符合的結果', 'No matches')}</div>}
           {items.map((it, i) => {
             const header = it.group !== lastGroup ? it.group : null;
             lastGroup = it.group;
             return (
-              <div key={it.id}>
-                {header && <div className="eyebrow px-3 pb-1 pt-2">{header}</div>}
+              <div key={it.id} role="presentation">
+                {header && <div role="presentation" className="eyebrow px-3 pb-1 pt-2">{header}</div>}
                 <button
                   type="button"
+                  id={optId(i)}
+                  role="option"
+                  aria-selected={i === sel}
+                  tabIndex={-1}
                   data-idx={i}
                   onMouseMove={() => setSel(i)}
                   onClick={it.run}

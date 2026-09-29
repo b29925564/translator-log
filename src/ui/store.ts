@@ -53,6 +53,9 @@ interface UIState {
   toasts: Toast[];
   toast: (text: string, opts?: Omit<Toast, 'id' | 'text'>) => void;
   dismissToast: (id: number) => void;
+  /** Holds a toast open while it is hovered or focused, so the undo stays reachable. */
+  pauseToast: (id: number) => void;
+  resumeToast: (id: number) => void;
 
   /** True while the opening “elevator doors” sequence covers the app. */
   overture: boolean;
@@ -72,6 +75,9 @@ const readHash = () => {
 };
 
 let toastSeq = 1;
+
+// Remaining lifetime per toast; a paused toast has no timer until it resumes.
+const toastTimers = new Map<number, { timer?: ReturnType<typeof setTimeout>; left: number; since: number }>();
 
 export const useUI = create<UIState>((set, get) => ({
   route: typeof window !== 'undefined' ? readHash() : '/',
@@ -129,9 +135,27 @@ export const useUI = create<UIState>((set, get) => ({
   toast: (text, opts) => {
     const id = toastSeq++;
     set({ toasts: [...get().toasts.slice(-2), { id, text, ...opts }] });
-    setTimeout(() => get().dismissToast(id), opts?.action ? 6000 : 3200);
+    toastTimers.set(id, { left: opts?.action ? 10_000 : 3200, since: 0 });
+    get().resumeToast(id);
   },
-  dismissToast: (id) => set({ toasts: get().toasts.filter((t) => t.id !== id) }),
+  dismissToast: (id) => {
+    clearTimeout(toastTimers.get(id)?.timer);
+    toastTimers.delete(id);
+    set({ toasts: get().toasts.filter((t) => t.id !== id) });
+  },
+  pauseToast: (id) => {
+    const t = toastTimers.get(id);
+    if (!t?.timer) return;
+    clearTimeout(t.timer);
+    t.timer = undefined;
+    t.left = Math.max(1500, t.left - (Date.now() - t.since));
+  },
+  resumeToast: (id) => {
+    const t = toastTimers.get(id);
+    if (!t || t.timer) return;
+    t.since = Date.now();
+    t.timer = setTimeout(() => get().dismissToast(id), t.left);
+  },
 
   overture: false,
 

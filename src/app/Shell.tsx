@@ -24,6 +24,7 @@ import { getLang, tx } from '../i18n';
 import { cx, Kbd, Sheet } from '../ui/kit';
 import { useUI } from '../ui/store';
 import { SyncBadge } from '../sync/SyncBadge';
+import { useAppBadge } from '../features/appBadge';
 import { Wordmark } from './Logo';
 
 export interface NavItem {
@@ -256,7 +257,10 @@ export function TimerPill() {
 }
 
 export function Toasts() {
-  const { toasts, dismissToast } = useUI();
+  const { toasts, dismissToast, pauseToast, resumeToast } = useUI();
+  const { jobs, today } = useData();
+  // Toasts is mounted on every screen, so the icon badge rides along here
+  useAppBadge(jobs, today);
   return (
     <div className="no-print pointer-events-none fixed inset-x-0 top-3 z-[80] flex flex-col items-center gap-2 px-4" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }} aria-live="polite">
       {toasts.map((t) => (
@@ -264,12 +268,16 @@ export function Toasts() {
           key={t.id}
           className="pointer-events-auto flex max-w-md items-center gap-3 rounded-[4px] bg-ink px-4 py-2.5 text-[14px] text-surface animate-[pop_.2s_ease]"
           style={{ boxShadow: 'var(--shadow-lg)' }}
+          onPointerEnter={() => pauseToast(t.id)}
+          onPointerLeave={() => resumeToast(t.id)}
+          onFocus={() => pauseToast(t.id)}
+          onBlur={(e) => !e.currentTarget.contains(e.relatedTarget as Node | null) && resumeToast(t.id)}
         >
           <span className="min-w-0 flex-1">{t.text}</span>
           {t.action && (
             <button
               type="button"
-              className="shrink-0 font-semibold text-gold underline-offset-2 hover:underline"
+              className="shrink-0 font-semibold text-surface underline decoration-gold decoration-2 underline-offset-4"
               onClick={() => {
                 t.action!.run();
                 dismissToast(t.id);

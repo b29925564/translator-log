@@ -56,7 +56,7 @@ export function SkylineHero() {
   const lang = getLang();
 
   return (
-    <section className="on-ink relative overflow-hidden rounded-[4px] border border-line text-ink" style={{ background: '#0b0b0c' }} aria-label={tx('職涯天際線', 'Career skyline')}>
+    <section className="on-ink hero-ink relative overflow-hidden rounded-[4px] border border-line text-ink" aria-label={tx('職涯天際線', 'Career skyline')}>
       <div className="relative z-10 flex flex-wrap items-start justify-between gap-x-8 gap-y-4 px-5 pt-5 sm:px-7 sm:pt-6">
         <div className="min-w-0">
           <div className="eyebrow" style={{ color: BRAND_GOLD }}>

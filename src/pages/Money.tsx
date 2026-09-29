@@ -10,6 +10,7 @@ import { tx } from '../i18n';
 import { date, money, num } from '../ui/format';
 import { Button, cx, Empty, fitText, PageHeader, Pair, Segmented } from '../ui/kit';
 import { useUI } from '../ui/store';
+import { haptic } from '../ui/motion';
 import { InvoiceBuilder } from '../features/InvoiceBuilder';
 
 type Tab = 'due' | 'invoices' | 'received';
@@ -44,7 +45,9 @@ export function Money() {
 
   const pay = async (ids: string[]) => {
     await markPaid(ids, today);
+    // the seal stamp is the paid moment everywhere; add the matching haptic
     fireStamp(tx('已收款', 'PAID'), today.replace(/-/g, '.'));
+    haptic([12, 40, 18]);
   };
 
   const sortedInvoices = [...invoices].sort((a, b) => b.issueDate.localeCompare(a.issueDate) || b.number.localeCompare(a.number));
@@ -181,7 +184,7 @@ export function Money() {
                       <span className="shrink-0 text-right">
                         <span className="block text-[14px] font-semibold text-ink tnum">{money(total, inv.currency)}</span>
                         <span className={cx('block text-[12px] font-medium', inv.status === 'paid' ? 'text-good' : overdue ? 'text-bad' : 'text-muted')}>
-                          {inv.status === 'paid' ? tx('已付款', 'Paid') : overdue ? tx('逾期', 'Overdue') : inv.status === 'draft' ? tx('草稿', 'Draft') : tx('已寄出', 'Sent')}
+                          {inv.status === 'paid' ? tx('已收款', 'Paid') : overdue ? tx('逾期', 'Overdue') : inv.status === 'draft' ? tx('草稿', 'Draft') : tx('已寄出', 'Sent')}
                         </span>
                       </span>
                     </button>
