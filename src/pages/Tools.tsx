@@ -1,5 +1,5 @@
 import { ArrowLeftRight, FileUp, Plus } from 'lucide-react';
-import { useMemo, useRef, useState } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
 import { LoadChart } from '../charts/charts';
 import { useData } from '../db/data';
 import { newJob } from '../db/repo';
@@ -144,7 +144,10 @@ function CountTool() {
         <section className="card p-4">
           <h2 className="mb-3 text-[15px] font-semibold text-ink">{tx('快速估價', 'Quick quote')}</h2>
           <div className="flex flex-col gap-3">
-            <Segmented value={unit} onChange={setUnit} options={[{ value: 'word', label: tx('以單字計', 'Per word') }, { value: 'char', label: tx('以中文字計', 'Per character') }]} />
+            {/* scrolls sideways instead of overflowing the card on a 390px phone */}
+            <div className="scroll-x -mx-4 px-4">
+              <Segmented value={unit} onChange={setUnit} options={[{ value: 'word', label: tx('以單字計', 'Per word') }, { value: 'char', label: tx('以中文字計', 'Per character') }]} />
+            </div>
             {unit === 'char' && (
               <label className="flex items-center gap-2 text-[13px] text-ink-2">
                 <input type="checkbox" checked={punct} onChange={(e) => setPunct(e.target.checked)} className="accent-[var(--accent)]" />
@@ -153,7 +156,10 @@ function CountTool() {
             )}
             <div className="flex gap-2">
               <NumberInput value={rate} onChange={setRate} placeholder={tx('單價', 'Rate')} aria-label={tx('單價', 'Rate')} />
-              <CurrencySelect value={cur} onChange={setCur} className="w-[110px] shrink-0" />
+              <label className="w-[110px] shrink-0">
+              <span className="sr-only">{tx('幣別', 'Currency')}</span>
+              <CurrencySelect value={cur} onChange={setCur} />
+            </label>
             </div>
             <div className="rounded-xl bg-surface-2 p-3">
               <div className="text-[12.5px] text-muted">
@@ -245,16 +251,19 @@ function QuoteTool() {
         <Field label={tx('客戶開價（單價）', 'Offered rate')}>
           <div className="flex gap-2">
             <NumberInput value={q.rate} onChange={(v) => set({ rate: v })} placeholder="—" />
-            <CurrencySelect value={q.currency} onChange={(v) => set({ currency: v })} className="w-[110px] shrink-0" />
+            <label className="w-[110px] shrink-0">
+              <span className="sr-only">{tx('幣別', 'Currency')}</span>
+              <CurrencySelect value={q.currency} onChange={(v) => set({ currency: v })} />
+            </label>
           </div>
         </Field>
         <div className="flex items-end gap-2">
           <Field label={tx('原文', 'Source')} className="flex-1">
-            <LangSelect value={q.sourceLang} onChange={(v) => set({ sourceLang: v })} />
+            <LangSelect value={q.sourceLang} onChange={(v) => set({ sourceLang: v })} aria-label={tx('原文語言', 'Source language')} />
           </Field>
           <Button iconOnly variant="ghost" icon={<ArrowLeftRight size={16} />} aria-label={tx('對調', 'Swap')} onClick={() => set({ sourceLang: q.targetLang, targetLang: q.sourceLang })} />
           <Field label={tx('譯文', 'Target')} className="flex-1">
-            <LangSelect value={q.targetLang} onChange={(v) => set({ targetLang: v })} />
+            <LangSelect value={q.targetLang} onChange={(v) => set({ targetLang: v })} aria-label={tx('譯文語言', 'Target language')} />
           </Field>
         </div>
         <Field label={tx('領域', 'Field')}>
@@ -353,7 +362,10 @@ function CatTool() {
         <Field label={tx('單價（每字）', 'Rate per word')}>
           <div className="flex gap-2">
             <NumberInput value={rate} onChange={setRate} />
-            <CurrencySelect value={cur} onChange={setCur} className="w-[110px] shrink-0" />
+            <label className="w-[110px] shrink-0">
+              <span className="sr-only">{tx('幣別', 'Currency')}</span>
+              <CurrencySelect value={cur} onChange={setCur} />
+            </label>
           </div>
         </Field>
         <div className="rounded-xl bg-surface-2 p-4">
@@ -372,6 +384,7 @@ function FxTool() {
   const { settings } = useData();
   const [amount, setAmount] = useState<number | undefined>(100);
   const [from, setFrom] = useState('USD');
+  const fxId = useId();
   const [to, setTo] = useState(settings.baseCurrency);
   const out = convert(amount || 0, from, to, settings.fx.rates);
   const common = ['USD', 'EUR', 'JPY', 'GBP', 'CNY', 'HKD'].filter((c) => c !== settings.baseCurrency);
@@ -382,8 +395,8 @@ function FxTool() {
           <Field label={tx('金額', 'Amount')} className="flex-1">
             <NumberInput value={amount} onChange={setAmount} />
           </Field>
-          <Field label={tx('從', 'From')}>
-            <CurrencySelect value={from} onChange={setFrom} className="w-[120px]" />
+          <Field label={tx('從', 'From')} htmlFor={`${fxId}-from`}>
+            <CurrencySelect id={`${fxId}-from`} value={from} onChange={setFrom} className="w-[120px]" />
           </Field>
         </div>
         <div className="flex items-end gap-2">
@@ -392,8 +405,8 @@ function FxTool() {
             <div className="text-[26px] font-medium tracking-[-0.03em] text-ink">{money(out, to)}</div>
           </div>
           <Button iconOnly variant="ghost" icon={<ArrowLeftRight size={16} />} aria-label={tx('對調', 'Swap')} onClick={() => { setFrom(to); setTo(from); }} />
-          <Field label={tx('到', 'To')}>
-            <CurrencySelect value={to} onChange={setTo} className="w-[120px]" />
+          <Field label={tx('到', 'To')} htmlFor={`${fxId}-to`}>
+            <CurrencySelect id={`${fxId}-to`} value={to} onChange={setTo} className="w-[120px]" />
           </Field>
         </div>
         <p className="text-[12px] text-muted">

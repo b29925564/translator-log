@@ -68,7 +68,7 @@ export function Tax() {
         }
       />
       <div className="mb-4 scroll-x">
-        <Segmented value={year} onChange={setYear} options={years.slice(0, 6).map((y) => ({ value: y, label: tx(`${y} 年度`, y) }))} />
+        <Segmented value={year} onChange={setYear} options={years.slice(0, 6).map((y) => ({ value: y, label: `${y}` }))} />
       </div>
 
       <div className="ruled mb-4 grid-cols-2 md:grid-cols-5">
