@@ -142,7 +142,7 @@ await suite('New user, English', { locale: 'en-US' }, async (page, step) => {
   });
   await step('hours over a few days can be backfilled with the work done', async () => {
     await page.getByRole('button', { name: 'Add time' }).click();
-    await page.getByRole('tab', { name: 'Hours over days' }).click();
+    await page.getByRole('radio', { name: 'Hours over days' }).click();
     await page.getByLabel('Total hours').fill('3');
     await page.getByLabel('Done in this time').fill('10');
     await page.getByTestId('add-time').getByRole('button', { name: 'Add', exact: true }).click();
@@ -425,7 +425,7 @@ await suite('Theme differs from the system', { locale: 'zh-TW', colorScheme: 'da
     await page.evaluate(() => (location.hash = '/settings'));
     // the build on the server is the one running, so it says so
     await expectVisible(page.getByTestId('app-version').getByText('已是最新版'), 10000);
-    await page.getByRole('tab', { name: '淺色', exact: true }).click();
+    await page.getByRole('radio', { name: '淺色', exact: true }).click();
     // the choice is saved before it applies, so wait for it rather than a fixed pause
     await page.waitForFunction(() => document.documentElement.getAttribute('data-theme') === 'light', null, { timeout: 5000 });
     await page.evaluate(() => (location.hash = '/'));
@@ -444,7 +444,7 @@ await suite('Theme differs from the system', { locale: 'zh-TW', colorScheme: 'da
     await page.emulateMedia({ colorScheme: 'light' });
     await skipOverture(page);
     await page.evaluate(() => (location.hash = '/settings'));
-    await page.getByRole('tab', { name: '深色', exact: true }).click();
+    await page.getByRole('radio', { name: '深色', exact: true }).click();
     // the choice is saved before it applies, so wait for it rather than a fixed pause
     await page.waitForFunction(() => document.documentElement.getAttribute('data-theme') === 'dark', null, { timeout: 5000 });
     await page.evaluate(() => (location.hash = '/'));

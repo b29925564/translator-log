@@ -16,9 +16,28 @@ import { loadDemo } from './db/repo';
 import { DemoBanner } from './app/DemoBanner';
 import { Overture } from './app/Overture';
 import { Dashboard } from './pages/Dashboard';
-import { Jobs } from './pages/Jobs';
-import { JobDetail } from './pages/JobDetail';
-import { Onboarding } from './pages/Onboarding';
+
+// the next stops after the dashboard: split out, then fetched while the app is idle
+const loadJobs = () => import('./pages/Jobs');
+const loadJobDetail = () => import('./pages/JobDetail');
+const loadOnboarding = () => import('./pages/Onboarding');
+const Jobs = lazy(() => loadJobs().then((m) => ({ default: m.Jobs })));
+const JobDetail = lazy(() => loadJobDetail().then((m) => ({ default: m.JobDetail })));
+const Onboarding = lazy(() => loadOnboarding().then((m) => ({ default: m.Onboarding })));
+
+const darkQuery = () => (typeof matchMedia === 'function' ? matchMedia('(prefers-color-scheme: dark)') : null);
+
+/** Puts light or dark on <html>; "system" follows the OS. A host page's own data-theme is left alone. */
+function applyTheme(theme: 'system' | 'light' | 'dark') {
+  const root = document.documentElement;
+  if (root.hasAttribute('data-theme') && !root.dataset.wtTheme) return;
+  const resolved = theme === 'system' ? (darkQuery()?.matches ? 'dark' : 'light') : theme;
+  root.setAttribute('data-theme', resolved);
+  root.dataset.wtTheme = '1';
+}
+
+// before the first render, so "system" on a dark OS never shows a light splash
+if (typeof document !== 'undefined' && !document.documentElement.hasAttribute('data-theme')) applyTheme('system');
 
 const Clients = lazy(() => import('./pages/Clients').then((m) => ({ default: m.Clients })));
 const ClientDetail = lazy(() => import('./pages/ClientDetail').then((m) => ({ default: m.ClientDetail })));
@@ -134,17 +153,7 @@ function AppBody() {
   useEffect(() => {
     // wait for saved settings, or the default "system" would undo the theme applied before paint
     if (!ready) return;
-    // only undo a theme we set ourselves, so a host page's own data-theme survives
-    const root = document.documentElement;
-    if (settings.theme === 'system') {
-      if (root.dataset.wtTheme) {
-        root.removeAttribute('data-theme');
-        delete root.dataset.wtTheme;
-      }
-    } else {
-      root.setAttribute('data-theme', settings.theme);
-      root.dataset.wtTheme = '1';
-    }
+    applyTheme(settings.theme);
     try {
       if (settings.theme === 'system') localStorage.removeItem('wt-theme');
       else localStorage.setItem('wt-theme', settings.theme);
@@ -158,6 +167,28 @@ function AppBody() {
       m.content = scheme === 'dark' ? '#09090a' : '#f4f4f2';
     }
   }, [ready, settings.theme]);
+
+  // "system" tracks the OS switching light/dark while the app is open
+  useEffect(() => {
+    if (!ready || settings.theme !== 'system') return;
+    const mq = darkQuery();
+    if (!mq) return;
+    const onChange = () => applyTheme('system');
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, [ready, settings.theme]);
+
+  // warm the split-out routes once the first screen is up
+  useEffect(() => {
+    if (!ready) return;
+    const warm = () => void Promise.all([loadJobs(), loadJobDetail(), loadOnboarding()]).catch(() => undefined);
+    if (typeof requestIdleCallback === 'function') {
+      const h = requestIdleCallback(warm, { timeout: 4000 });
+      return () => cancelIdleCallback(h);
+    }
+    const t = setTimeout(warm, 1500);
+    return () => clearTimeout(t);
+  }, [ready]);
 
   useEffect(() => {
     if (__DEMO_BUILD__ && ready && !settings.onboarded && jobs.length === 0) void loadDemo();
@@ -225,7 +256,13 @@ function AppBody() {
       </Suspense>
     );
 
-  if (!settings.onboarded && jobs.length === 0) return __DEMO_BUILD__ ? <Splash /> : <Onboarding />;
+  if (!settings.onboarded && jobs.length === 0) return __DEMO_BUILD__ ? (
+      <Splash />
+    ) : (
+      <Suspense fallback={<Splash />}>
+        <Onboarding />
+      </Suspense>
+    );
 
   const focus = matchRoute(route, '/focus/:id');
   if (focus)

@@ -12,9 +12,11 @@
   --surface-3: #ececea;
   --ink: #0b0b0c;
   --ink-2: #3a3a3e;
-  --muted: #76767c;
+  --muted: #636369;
   --line: #e2e2de;
   --line-strong: #c6c6c1;
+  /* form-control edges: 3:1 against the surface (WCAG 1.4.11) */
+  --field-border: #8a8a8f;
   --accent: #0b0b0c;
   --accent-hover: #2c2c31;
   --accent-ink: #ffffff;
@@ -25,8 +27,8 @@
   --focus: #0b0b0c;
   --good: #0f7a45;
   --good-soft: #e3f1e8;
-  --warn: #9a5b00;
-  --warn-soft: #f8eed9;
+  --warn: #b54708;
+  --warn-soft: #fdeadf;
   --bad: #c9262f;
   --bad-soft: #fbe6e6;
   --st-quote: #8e8e94;
@@ -36,6 +38,7 @@
   --st-paid: #16a05a;
   --st-cancelled: #b8b8bc;
   --seal: #a8843f;
+  --hero-ink: #0b0b0c;
   --shadow: 0 1px 1px rgb(11 11 12 / 0.04), 0 10px 30px rgb(11 11 12 / 0.07);
   --shadow-lg: 0 30px 80px rgb(11 11 12 / 0.22);
   --backdrop: rgb(11 11 12 / 0.38);
@@ -62,75 +65,20 @@
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --extra-alpha: 0.5;
-    --bg: #09090a;
-    --surface: #111113;
-    --surface-2: #151517;
-    --surface-3: #1d1d20;
-    --ink: #f2f2ef;
-    --ink-2: #b9b9b4;
-    --muted: #7f7f85;
-    --line: #232326;
-    --line-strong: #37373b;
-    --accent: #f2f2ef;
-    --accent-hover: #ffffff;
-    --accent-ink: #0b0b0c;
-    --accent-soft: #1f1f22;
-    --gold: #d4b36c;
-    --gold-strong: #e2c587;
-    --gold-soft: #2a2418;
-    --focus: #f2f2ef;
-    --good: #4cc37a;
-    --good-soft: #10281a;
-    --warn: #e9b04a;
-    --warn-soft: #2c220e;
-    --bad: #f0676d;
-    --bad-soft: #341517;
-    --st-quote: #85858b;
-    --st-active: #3987e5;
-    --st-delivered: #9085e9;
-    --st-invoiced: #e0a21a;
-    --st-paid: #3dbb6c;
-    --st-cancelled: #505055;
-    --seal: #d4b36c;
-    --shadow: 0 1px 1px rgb(0 0 0 / 0.4), 0 10px 30px rgb(0 0 0 / 0.45);
-    --shadow-lg: 0 30px 80px rgb(0 0 0 / 0.7);
-    --backdrop: rgb(0 0 0 / 0.6);
-    --series-1: #3987e5;
-    --series-2: #d95926;
-    --series-3: #199e70;
-    --series-4: #c98500;
-    --series-5: #d55181;
-    --series-6: #008300;
-    --series-7: #9085e9;
-    --series-8: #e66767;
-    --grid: #1f1f22;
-    --axis: #37373b;
-    --heat-0: #1c1c1f;
-    --heat-1: #104281;
-    --heat-2: #184f95;
-    --heat-3: #256abf;
-    --heat-4: #3987e5;
-    --heat-5: #6da7ec;
-    --heat-6: #b7d3f6;
-    color-scheme: dark;
-  }
-}
-
+/* App resolves "system" to light or dark on <html>, so the dark set lives in one place */
 :root[data-theme="dark"],
 .on-ink {
   --extra-alpha: 0.5;
   --bg: #09090a;
-  --surface: #111113;
-  --surface-2: #151517;
-  --surface-3: #1d1d20;
+  --surface: #151517;
+  --surface-2: #1a1a1d;
+  --surface-3: #232327;
   --ink: #f2f2ef;
   --ink-2: #b9b9b4;
   --muted: #8a8a90;
-  --line: #242427;
-  --line-strong: #37373b;
+  --line: #2c2c31;
+  --line-strong: #3d3d43;
+  --field-border: #6a6a70;
   --accent: #f2f2ef;
   --accent-hover: #ffffff;
   --accent-ink: #0b0b0c;
@@ -141,8 +89,8 @@
   --focus: #f2f2ef;
   --good: #4cc37a;
   --good-soft: #10281a;
-  --warn: #e9b04a;
-  --warn-soft: #2c220e;
+  --warn: #f38b4a;
+  --warn-soft: #2e1a0e;
   --bad: #f0676d;
   --bad-soft: #341517;
   --st-quote: #85858b;
@@ -341,7 +289,8 @@
     user-select: none;
   }
   .btn:active { transform: translateY(1px); }
-  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn:disabled { opacity: 1; background: var(--surface-3); color: var(--muted); border-color: var(--line); cursor: not-allowed; }
+  .btn-ghost:disabled { background: transparent; }
   .btn-sm { height: 32px; padding-inline: 12px; font-size: 13px; }
   .btn-lg { height: 50px; padding-inline: 24px; font-size: 15px; }
   .btn-primary { background: var(--accent); color: var(--accent-ink); }
@@ -360,7 +309,7 @@
     height: 42px;
     padding-inline: 12px;
     border-radius: 3px;
-    border: 1px solid var(--line-strong);
+    border: 1px solid var(--field-border);
     background: var(--surface);
     color: var(--ink);
     font: inherit;
@@ -368,14 +317,14 @@
     transition: border-color 0.15s, box-shadow 0.15s;
     min-width: 0;
   }
-  .input::placeholder { color: var(--muted); opacity: 0.85; }
-  .input:hover { border-color: color-mix(in srgb, var(--ink) 45%, var(--line-strong)); }
+  .input::placeholder { color: var(--muted); }
+  .input:hover { border-color: color-mix(in srgb, var(--ink) 45%, var(--field-border)); }
   .input:focus { outline: none; border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
   textarea.input { height: auto; padding-block: 10px; line-height: 1.55; resize: vertical; }
   select.input {
     appearance: none;
     padding-right: 34px;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2376767c' stroke-width='2.5' stroke-linecap='square' stroke-linejoin='miter'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23636369' stroke-width='2.5' stroke-linecap='square' stroke-linejoin='miter'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 12px center;
   }
@@ -396,7 +345,7 @@
     height: 32px;
     padding-inline: 12px;
     border-radius: 3px;
-    border: 1px solid var(--line-strong);
+    border: 1px solid var(--field-border);
     background: var(--surface);
     color: var(--ink-2);
     font-size: 13px;
@@ -407,6 +356,8 @@
   }
   .chip:hover { border-color: var(--ink); color: var(--ink); }
   .chip[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+  /* dark: a solid white fill glares, so selection is a lifted surface with an ink edge */
+  [data-theme="dark"] .chip[aria-pressed="true"] { background: var(--surface-3); color: var(--ink); border-color: var(--ink); }
 
   .pair {
     font-family: var(--font-mono);
@@ -433,9 +384,24 @@
   }
   .ruled > * { background: var(--surface); }
 
+  /* phones: 16px stops iOS zooming into a focused field; 44px touch targets */
+  @media (pointer: coarse) {
+    .input, .input-sm, select, textarea { font-size: 16px; }
+    .btn-sm, .input-sm { min-height: 44px; }
+    .btn-sm.btn-icon { width: 44px; }
+  }
+
   .scroll-x { overflow-x: auto; scrollbar-width: none; }
   .scroll-x::-webkit-scrollbar { display: none; }
 }
+
+/* Unlayered, so they win over the utilities kit.tsx puts on these elements. */
+[data-theme="dark"] .seg-item[aria-checked="true"],
+[data-theme="dark"] .seg-item[aria-selected="true"] { background: var(--surface-3); color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+
+/* skyline hero: always ink, with a gold hairline once the page itself is dark */
+.hero-ink { background: var(--hero-ink); }
+[data-theme="dark"] .hero-ink { border-color: color-mix(in srgb, var(--gold) 35%, transparent); }
 
 .skeleton-fade { animation: fadeIn 0.25s ease both; }
 
