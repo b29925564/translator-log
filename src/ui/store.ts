@@ -36,8 +36,9 @@ interface UIState {
   openProjectEditor: (project?: Project) => void;
   closeProjectEditor: () => void;
 
-  reportImport: { open: boolean; file?: File };
-  openReportImport: (file?: File) => void;
+  /** files: every file of a multi-file drop, file being the first. */
+  reportImport: { open: boolean; file?: File; files?: File[] };
+  openReportImport: (file?: File, files?: File[]) => void;
   closeReportImport: () => void;
 
   palette: boolean;
@@ -114,7 +115,7 @@ export const useUI = create<UIState>((set, get) => ({
   closeProjectEditor: () => set({ projectEditor: { open: false, isNew: false } }),
 
   reportImport: { open: false },
-  openReportImport: (file) => set({ reportImport: { open: true, file }, palette: false, more: false }),
+  openReportImport: (file, files) => set({ reportImport: { open: true, file, files }, palette: false, more: false }),
   closeReportImport: () => set({ reportImport: { open: false } }),
 
   palette: false,

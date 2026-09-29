@@ -3,6 +3,16 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { viteSingleFile } from 'vite-plugin-singlefile';
+import fs from 'node:fs';
+import path from 'node:path';
+
+// Files the on-device readers fetch at run time, served next to the app:
+// pdf.js character maps for CJK fonts, and the tesseract engine (one build per
+// CPU feature set; the worker picks one). Neither is precached.
+const RUNTIME_FILES: [string, string, RegExp][] = [
+  ['pdfjs/cmaps', 'node_modules/pdfjs-dist/cmaps', /\.bcmap$/],
+  ['tesseract', 'node_modules/tesseract.js-core', /^tesseract-core(-simd|-relaxedsimd)?-lstm\.wasm\.js$/],
+];
 
 // Identifies this build, so the app can tell whether the server has a newer one.
 const BUILD_ID = (process.env.GITHUB_SHA || '').slice(0, 7) || `local-${Date.now().toString(36)}`;
@@ -29,6 +39,29 @@ export default defineConfig(({ mode }) => {
       react(),
       tailwindcss(),
       // version.json is left out of the service worker cache, so fetching it always asks the server
+      !demo && {
+        name: 'reader-files',
+        configureServer(server) {
+          server.middlewares.use((req, res, next) => {
+            const url = (req.url ?? '').split('?')[0];
+            for (const [at, dir] of RUNTIME_FILES) {
+              const prefix = `/${at}/`;
+              const i = url.indexOf(prefix);
+              if (i < 0) continue;
+              const file = path.join(dir, path.basename(url.slice(i + prefix.length)));
+              if (!fs.existsSync(file)) break;
+              res.setHeader('Content-Type', file.endsWith('.js') ? 'text/javascript' : 'application/octet-stream');
+              fs.createReadStream(file).pipe(res);
+              return;
+            }
+            next();
+          });
+        },
+        generateBundle() {
+          for (const [at, dir, keep] of RUNTIME_FILES)
+            for (const name of fs.readdirSync(dir).filter((n) => keep.test(n))) this.emitFile({ type: 'asset', fileName: `${at}/${name}`, source: fs.readFileSync(path.join(dir, name)) });
+        },
+      },
       !demo && {
         name: 'build-version',
         generateBundle() {
@@ -102,8 +135,10 @@ export default defineConfig(({ mode }) => {
             },
             workbox: {
               globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
-              // the Anthropic SDK is only loaded once someone adds a Claude key, so it is cached on first use instead
-              globIgnores: ['screenshots/**', 'assets/sdk-*.js'],
+              // the Anthropic SDK is only loaded once someone adds a Claude key, and the PDF,
+              // spreadsheet and text-recognition readers only when a file needs them, so
+              // they are cached on first use instead
+              globIgnores: ['screenshots/**', 'assets/sdk-*.js', 'assets/pdf*.js', 'assets/ocr-*.js', 'assets/tesseract*.js', 'assets/worker.min-*.js', 'pdfjs/**', 'tesseract/**'],
               importScripts: ['share-target.js'],
               navigateFallback: 'index.html',
               runtimeCaching: [
@@ -113,6 +148,15 @@ export default defineConfig(({ mode }) => {
                   options: {
                     cacheName: 'ai-sdk',
                     expiration: { maxEntries: 4 },
+                    cacheableResponse: { statuses: [200] },
+                  },
+                },
+                {
+                  urlPattern: ({ url, sameOrigin }) => sameOrigin && /\/(assets\/(pdf|ocr-|tesseract|worker\.min-)[\w.-]*\.m?js|pdfjs\/cmaps\/.+|tesseract\/.+)$/.test(url.pathname),
+                  handler: 'CacheFirst',
+                  options: {
+                    cacheName: 'file-readers',
+                    expiration: { maxEntries: 200 },
                     cacheableResponse: { statuses: [200] },
                   },
                 },

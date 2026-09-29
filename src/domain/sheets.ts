@@ -1,8 +1,11 @@
 // Reads tables out of the files companies send: spreadsheets (CSV, TSV,
-// XLSX, ODS), web pages and Word documents. Everything runs locally.
+// XLSX, XLS, ODS), web pages and Word documents (DOCX, DOC, RTF). Records
+// written as lines rather than a table go through the line parser.
+// Everything runs locally.
 
 import { strFromU8, unzipSync } from 'fflate';
 import { parseCSV } from './csv';
+import { docText, docxParagraphs, rtfText, textToGrid } from './lineTable';
 import { toISODate } from './dates';
 
 export type Grid = string[][];
@@ -122,10 +125,14 @@ export const readHtmlTables = (html: string): Grid[] =>
     .map((t) => [...t[0].matchAll(/<tr\b[\s\S]*?<\/tr>/gi)].map((tr) => [...tr[0].matchAll(/<t[hd]\b[^>]*>([\s\S]*?)<\/t[hd]>/gi)].map((c) => cellText(c[1]))))
     .filter((g) => g.length > 1);
 
+const docxXml = (data: Uint8Array) => {
+  const files = unzipSync(data);
+  return files['word/document.xml'] ? strFromU8(files['word/document.xml']) : '';
+};
+
 /** Tables in a .docx file. */
 export const readDocxTables = (data: Uint8Array): Grid[] => {
-  const files = unzipSync(data);
-  const xml = files['word/document.xml'] ? strFromU8(files['word/document.xml']) : '';
+  const xml = docxXml(data);
   return [...xml.matchAll(/<w:tbl>[\s\S]*?<\/w:tbl>/g)]
     .map((t) =>
       [...t[0].matchAll(/<w:tr\b[\s\S]*?<\/w:tr>/g)].map((tr) =>
@@ -141,7 +148,7 @@ export const extOf = (name: string) => (name.split('.').pop() || '').toLowerCase
 
 export const fileKind = (name: string, type = ''): FileKind => {
   const ext = extOf(name);
-  if (['csv', 'tsv', 'xlsx', 'xlsm', 'ods', 'html', 'htm', 'docx'].includes(ext)) return 'sheet';
+  if (['csv', 'tsv', 'xlsx', 'xlsm', 'ods', 'html', 'htm', 'docx', 'doc', 'rtf', 'xlsb', 'numbers', 'pages'].includes(ext)) return 'sheet';
   if (ext === 'pdf' || type === 'application/pdf') return 'pdf';
   if (/^image\//.test(type) || ['png', 'jpg', 'jpeg', 'webp', 'gif', 'heic', 'heif', 'bmp'].includes(ext)) return 'image';
   if (['txt', 'md', 'eml', 'json', 'xml', 'text'].includes(ext) || /^text\//.test(type)) return 'text';
@@ -156,12 +163,41 @@ export const readTables = async (file: File): Promise<{ name: string; grid: Grid
   let out: { name: string; grid: Grid }[] = [];
   if (ext === 'xlsx' || ext === 'xlsm') out = readXlsx(await bytes());
   else if (ext === 'ods') out = readOds(await bytes());
-  else if (ext === 'docx') out = readDocxTables(await bytes()).map((grid, i) => ({ name: `#${i + 1}`, grid }));
-  else if (ext === 'csv' || ext === 'tsv') out = [{ name: file.name, grid: parseCSV(await file.text()) }];
+  else if (ext === 'docx') {
+    const data = await bytes();
+    out = readDocxTables(data).map((grid, i) => ({ name: `#${i + 1}`, grid }));
+    // records typed as paragraphs or a list
+    const lines = out.length ? undefined : textToGrid(docxParagraphs(docxXml(data)));
+    if (lines) out = [{ name: file.name, grid: lines }];
+  } else if (ext === 'csv' || ext === 'tsv') out = [{ name: file.name, grid: parseCSV(await file.text()) }];
+  else if (ext === 'rtf') {
+    const grid = textToGrid(rtfText(await file.text()));
+    if (grid) out = [{ name: file.name, grid }];
+  } else if (ext === 'doc') {
+    const data = await bytes();
+    let text = '';
+    try {
+      const { readCfb } = await import('./xls');
+      const word = readCfb(data).get('WordDocument');
+      text = docText(word ?? data);
+    } catch {
+      text = docText(data);
+    }
+    const grid = textToGrid(text);
+    if (grid) out = [{ name: file.name, grid }];
+  } else if (ext === 'xlsb' || ext === 'numbers' || ext === 'pages') throw new Error('export-xlsx');
   else {
-    const text = await file.text();
-    if (/<table/i.test(text)) out = readHtmlTables(text).map((grid, i) => ({ name: `#${i + 1}`, grid }));
-    else if (ext === 'xls') throw new Error('xls-binary');
+    const data = await bytes();
+    if (ext === 'xls' && data[0] === 0xd0 && data[1] === 0xcf) out = (await import('./xls')).readXls(data);
+    else {
+      const text = new TextDecoder().decode(data);
+      if (/<table/i.test(text)) out = readHtmlTables(text).map((grid, i) => ({ name: `#${i + 1}`, grid }));
+      else if (ext === 'xls') {
+        // tab-separated text saved with an .xls name
+        const grid = textToGrid(text);
+        if (grid) out = [{ name: file.name, grid }];
+      }
+    }
   }
   return out.filter((t) => t.grid.some((r) => r.some((c) => c.trim()))).sort((a, b) => b.grid.length - a.grid.length);
 };

@@ -1,16 +1,22 @@
-// Import a report a company sent: spreadsheets are read on the device, PDFs,
-// photos and screenshots are read by Claude with the person's own key. Every
-// row is matched to existing work first, so a payment statement settles jobs
-// instead of duplicating them.
+// Import a report a company sent: spreadsheets, Word files, PDFs, photos and
+// pasted text are read on the device (scans and photos by on-device text
+// recognition); Claude reads them instead when the person has added a key.
+// Every row is matched to existing work first, so a payment statement
+// settles jobs instead of duplicating them. Several files can be chosen at
+// once to bring in a whole career's records.
 
-import { Camera, ClipboardPaste, FileSpreadsheet, FileText, FileUp, Image as ImageIcon, Link2, Sparkles, TriangleAlert } from 'lucide-react';
+import { Camera, ClipboardPaste, FileSearch, FileSpreadsheet, FileText, FileUp, Image as ImageIcon, Link2, Sparkles, TriangleAlert } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { aiAvailable, aiReadReport, type ReportSource } from '../ai/claude';
 import { useData } from '../db/data';
 import { applyImport, planImport } from '../db/reportApply';
-import { guessMapping, parseCSV, type ImportField } from '../domain/csv';
+import { guessColumns, type ImportField } from '../domain/csv';
+import { findTemplate, headerSignature, loadTemplates, saveTemplate } from '../domain/importTemplates';
+import { textToGrid } from '../domain/lineTable';
+import { looksLikeTable, pdfItemsToGrid, pdfItemsToText } from '../domain/pdfTable';
 import { clientMentioned, defaultAction, fillFromRow, findHeaderRow, gridToReport, matchReport, type ParsedReport, type ReportKind, type RowAction, type RowMatch } from '../domain/reportImport';
 import { fileKind, readTables, type Grid } from '../domain/sheets';
+import type { PdfItem } from '../domain/pdfTable';
 import type { Job } from '../domain/types';
 import { tx } from '../i18n';
 import { Button, cx, Field, Input, NumberInput, Segmented, Select, Sheet, Textarea } from '../ui/kit';
@@ -58,7 +64,10 @@ const PATCH_LABEL = (): Record<string, string> => ({
   deliveredAt: tx('交稿日', 'delivery date'),
 });
 
-type Stage = { at: 'pick' } | { at: 'reading'; ai: boolean } | { at: 'review' } | { at: 'needs-ai' } | { at: 'error'; message: string };
+type Stage = { at: 'pick' } | { at: 'reading'; ai: boolean; ocr?: { page: number; pages: number; pct: number } } | { at: 'review' } | { at: 'needs-ai' } | { at: 'no-table'; pdf: boolean } | { at: 'error'; message: string };
+
+/** Everything the file picker offers; images also come from the camera button. */
+const ACCEPT = '.xlsx,.xlsm,.xls,.ods,.csv,.tsv,.docx,.doc,.rtf,.html,.htm,.pdf,.txt,.eml,.md,image/*';
 
 type Source =
   | { via: 'local'; name: string; tables: { name: string; grid: Grid }[] }
@@ -95,23 +104,22 @@ const imageSource = async (file: File): Promise<ReportSource> => {
   }
 };
 
-/** Pasted or .txt content that is really a table (copied cells arrive as TSV). */
-const asTable = (text: string): Grid | undefined => {
-  const grid = parseCSV(text.trim());
-  if (grid.length < 2) return undefined;
-  const h = findHeaderRow(grid);
-  const width = grid[h].length;
-  if (width < 3) return undefined;
-  const even = grid.filter((r) => r.length === width).length / grid.length;
-  const known = guessMapping(grid[h]).filter((f) => f !== 'ignore').length;
-  return even >= 0.6 && known >= 2 ? grid : undefined;
+/** A grid from positioned text (a PDF's text layer or recognised words): its table, else its record lines. */
+const itemsToGrid = (items: PdfItem[]): Grid | undefined => {
+  const grid = pdfItemsToGrid(items);
+  if (looksLikeTable(grid)) return grid;
+  return textToGrid(pdfItemsToText(items));
 };
 
 const errorText = (e: unknown) => {
   const m = (e as Error)?.message ?? String(e);
+  if (m === 'xls-encrypted') return tx('這個 Excel 檔有密碼保護。請在 Excel 移除密碼或另存為 .xlsx 後再匯入。', 'This Excel file is password-protected. Remove the password or save it as .xlsx and try again.');
+  if (m === 'export-xlsx') return tx('這種格式無法在本機讀取。請用 Excel 或 Numbers 開啟，另存為 .xlsx 或 CSV 後再匯入。', 'This format cannot be read on the device. Open it in Excel or Numbers and save it as .xlsx or CSV.');
+  if (m === 'ocr-offline') return tx('第一次辨識圖片需要連網下載中文辨識資料（約 20 MB），之後離線也能用。請連上網路再試一次。', 'Recognising text in images the first time downloads about 20 MB of language data; after that it works offline. Connect to the internet and try again.');
+  if (m === 'ocr-failed') return tx('無法啟動文字辨識。請重新整理頁面再試一次，或把報表另存為 Excel／CSV。', 'Text recognition could not start. Reload the page and try again, or save the report as Excel/CSV.');
   if (m === 'xls-binary') return tx('這是舊版 Excel（.xls）檔。請用 Excel 或 Google 試算表開啟，另存為 .xlsx 或 CSV 後再匯入。', 'This is an old binary Excel (.xls) file. Open it in Excel or Google Sheets and save it as .xlsx or CSV.');
   if (m === 'empty') return tx('檔案裡找不到表格或資料列。', 'No table or rows were found in this file.');
-  if (m === 'unsupported') return tx('不支援這種檔案。可以匯入 Excel、CSV、ODS、Word、網頁、PDF 或圖片。', 'This file type is not supported. Try Excel, CSV, ODS, Word, a web page, a PDF or an image.');
+  if (m === 'unsupported') return tx('不支援這種檔案。可以匯入 Excel、CSV、ODS、Word、RTF、網頁、PDF、文字檔或圖片。', 'This file type is not supported. Try Excel, CSV, ODS, Word, RTF, a web page, a PDF, a text file or an image.');
   if (m === 'image-decode') return tx('無法讀取這張圖片，請存成 JPG 或 PNG 再試一次。', 'This image could not be read. Save it as JPG or PNG and try again.');
   if (m === 'too-big') return tx('檔案太大（超過 25 MB）。請只匯出需要的頁面或月份。', 'The file is over 25 MB. Export only the pages or months you need.');
   if (m === 'no-rows') return tx('Claude 沒有在這份文件裡找到任何案件或款項。', 'Claude found no jobs or payments in this document.');
@@ -139,6 +147,9 @@ export function ReportImport() {
   const fileRef = useRef<HTMLInputElement>(null);
   const camRef = useRef<HTMLInputElement>(null);
   const loadingFor = useRef<File | undefined>(undefined);
+  // several files chosen at once go through the review one after another
+  const [queue, setQueue] = useState<{ files: File[]; at: number } | null>(null);
+  const [template, setTemplate] = useState<string | null>(null);
 
   const resetReview = () => {
     setKind(undefined);
@@ -149,16 +160,52 @@ export function ReportImport() {
     setOpenRow(null);
   };
 
-  const useTables = (name: string, tables: { name: string; grid: Grid }[]) => {
-    const grid = tables[0].grid;
+  /** Header and mapping for a table: a layout saved from this vendor before, else a fresh guess. */
+  const layoutFor = (grid: Grid) => {
     const h = findHeaderRow(grid);
+    const saved = findTemplate(grid, h, loadTemplates());
+    setTemplate(saved ? saved.template.name : null);
+    setHeader(saved ? saved.header : h);
+    setMapping(saved ? saved.mapping : guessColumns(grid, h));
+    resetReview();
+    const cid = saved?.template.clientId;
+    if (cid && clientMap.has(cid)) setClientId(cid);
+  };
+
+  const resetLayout = () => {
+    const h = findHeaderRow(grid);
+    setTemplate(null);
+    setHeader(h);
+    setMapping(guessColumns(grid, h));
+    resetReview();
+  };
+
+  const useTables = (name: string, tables: { name: string; grid: Grid }[]) => {
     setSource({ via: 'local', name, tables });
     setTableIdx(0);
-    setHeader(h);
-    setMapping(guessMapping(grid[h] ?? []));
     setShowMap(false);
-    resetReview();
+    layoutFor(tables[0].grid);
     setStage({ at: 'review' });
+  };
+
+  /** On-device text recognition, for scans and photos when no Claude key is set. */
+  const ocr = async (file: File, pdf: boolean): Promise<Grid | undefined> => {
+    if (__DEMO_BUILD__) return undefined;
+    const { recognise } = await import('../domain/ocr');
+    const items = await recognise(file, pdf, (page, pages, pct) => setStage({ at: 'reading', ai: false, ocr: { page, pages, pct } }));
+    return itemsToGrid(items);
+  };
+
+  /** What a PDF's own text layer holds; scans have none, and a damaged or locked file cannot be opened. */
+  const pdfText = async (file: File): Promise<{ grid?: Grid; text: boolean; opened: boolean }> => {
+    if (__DEMO_BUILD__) return { text: false, opened: false };
+    try {
+      const { readPdfItems } = await import('../domain/pdfText');
+      const items = await readPdfItems(await file.arrayBuffer());
+      return { grid: itemsToGrid(items), text: items.length > 0, opened: true };
+    } catch {
+      return { text: false, opened: false };
+    }
   };
 
   const viaAI = async (name: string, src: ReportSource) => {
@@ -186,25 +233,66 @@ export function ReportImport() {
         useTables(file.name, t);
       } else if (k === 'text') {
         const text = await file.text();
-        const grid = asTable(text);
+        const grid = textToGrid(text);
         if (grid) useTables(file.name, [{ name: file.name, grid }]);
-        else await viaAI(file.name, { type: 'text', text });
+        else if (aiAvailable()) await viaAI(file.name, { type: 'text', text });
+        else setStage({ at: 'no-table', pdf: false });
       } else if (k === 'pdf') {
         if (file.size > 25 * 1024 * 1024) throw new Error('too-big');
-        await viaAI(file.name, { type: 'pdf', data: await toBase64(file) });
+        const pdf = await pdfText(file);
+        if (pdf.grid) useTables(file.name, [{ name: file.name, grid: pdf.grid }]);
+        else if (aiAvailable()) await viaAI(file.name, { type: 'pdf', data: await toBase64(file) });
+        else if (__DEMO_BUILD__) setStage({ at: 'needs-ai' });
+        else if (pdf.text || !pdf.opened) setStage({ at: 'no-table', pdf: true });
+        else {
+          // a scan: recognise the text of each page
+          const scanned = await ocr(file, true);
+          if (scanned) useTables(file.name, [{ name: file.name, grid: scanned }]);
+          else setStage({ at: 'no-table', pdf: true });
+        }
       } else if (k === 'image') {
-        await viaAI(file.name, await imageSource(file));
+        if (aiAvailable() || __DEMO_BUILD__) await viaAI(file.name, await imageSource(file));
+        else {
+          const grid = await ocr(file, false);
+          if (grid) useTables(file.name, [{ name: file.name, grid }]);
+          else setStage({ at: 'no-table', pdf: true });
+        }
       } else throw new Error('unsupported');
     } catch (e) {
       setStage({ at: 'error', message: errorText(e) });
     }
   };
 
+  /** Starts on a list of files; more than one shows “file 2 / 5” and a skip button. */
+  const loadAll = (files: File[]) => {
+    if (!files.length) return;
+    setQueue(files.length > 1 ? { files, at: 0 } : null);
+    void load(files[0]);
+  };
+
+  /** The next file of the batch; false when there is none. */
+  const next = () => {
+    if (!queue || queue.at + 1 >= queue.files.length) {
+      setQueue(null);
+      return false;
+    }
+    const at = queue.at + 1;
+    setQueue({ ...queue, at });
+    setSource(null);
+    void load(queue.files[at]);
+    return true;
+  };
+
   const readPasted = async (text: string) => {
-    const grid = asTable(text);
+    const grid = textToGrid(text);
     try {
       if (grid) useTables(tx('貼上的表格', 'Pasted table'), [{ name: 'paste', grid }]);
-      else await viaAI(tx('貼上的內容', 'Pasted text'), { type: 'text', text });
+      else if (aiAvailable()) await viaAI(tx('貼上的內容', 'Pasted text'), { type: 'text', text });
+      else {
+        setStage({ at: 'no-table', pdf: false });
+        setPaste(null);
+        return;
+      }
       setPaste(null);
     } catch (e) {
       setStage({ at: 'error', message: errorText(e) });
@@ -217,13 +305,15 @@ export function ReportImport() {
       setStage({ at: 'pick' });
       setSource(null);
       setPaste(null);
+      setQueue(null);
+      setTemplate(null);
       loadingFor.current = undefined;
       return;
     }
     const f = reportImport.file;
     if (f && loadingFor.current !== f) {
       loadingFor.current = f;
-      void load(f);
+      loadAll(reportImport.files?.length ? reportImport.files : [f]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reportImport.open, reportImport.file]);
@@ -284,6 +374,18 @@ export function ReportImport() {
     setBusy(true);
     try {
       await applyImport(plan);
+      // remember this vendor's layout for the next report like it
+      if (source?.via === 'local' && grid[header]?.some((c) => c.trim())) {
+        saveTemplate({
+          sig: headerSignature(grid[header]),
+          headers: grid[header],
+          mapping,
+          header,
+          clientId: reportClient?.id,
+          name: reportClient?.name ?? source.name,
+          lastUsed: Date.now(),
+        });
+      }
       const { paid, updated, created } = plan.counts;
       const parts = [
         paid && tx(`${paid} 筆標記已收款`, `${paid} marked paid`),
@@ -293,6 +395,7 @@ export function ReportImport() {
       ].filter(Boolean);
       toast(tx('匯入完成：', 'Imported: ') + parts.join(tx('、', ', ')), { tone: 'good' });
       if (paid) fireStamp(tx('已收款', 'Paid'), tx(`${paid} 筆`, `${paid} jobs`));
+      if (next()) return;
       closeReportImport();
       if (report?.kind === 'payments' && paid) navigate('/money');
     } finally {
@@ -314,21 +417,20 @@ export function ReportImport() {
         e.preventDefault();
         e.stopPropagation();
         setDrag(false);
-        const f = e.dataTransfer.files?.[0];
-        if (f) void load(f);
+        loadAll([...(e.dataTransfer.files ?? [])]);
       }}
       className={cx('flex flex-col items-center gap-4 rounded-[6px] border-2 border-dashed px-4 py-10 text-center transition-colors', drag ? 'border-accent bg-accent-soft' : 'border-line-strong')}
     >
       <FileUp size={28} className="text-accent" />
       <div>
-        <div className="text-[16px] font-semibold text-ink">{tx('把報表拖到這裡', 'Drop a report here')}</div>
+        <div className="text-[16px] font-semibold text-ink">{tx('把報表拖到這裡', 'Drop reports here')}</div>
         <p className="mx-auto mt-1 max-w-md text-[13.5px] text-ink-2">
-          {tx('翻譯社的對帳單、PO 清單、平台匯出檔、匯款通知都可以。也能直接貼上截圖（Ctrl／⌘ + V）。', 'Statements, PO lists, vendor-portal exports and remittance advice all work. You can also paste a screenshot (Ctrl/⌘ + V).')}
+          {tx('翻譯社的對帳單、PO 清單、平台匯出檔、匯款通知、自己記的 Word 清單都可以，一次選好幾個檔案也行。也能直接貼上截圖（Ctrl／⌘ + V）。', 'Statements, PO lists, vendor-portal exports, remittance advice and your own Word lists all work, and you can pick several files at once. You can also paste a screenshot (Ctrl/⌘ + V).')}
         </p>
       </div>
       <div className="flex flex-wrap justify-center gap-2">
         <Button variant="primary" icon={<FileUp size={15} />} onClick={() => fileRef.current?.click()} data-autofocus>
-          {tx('選擇檔案', 'Choose a file')}
+          {tx('選擇檔案', 'Choose files')}
         </Button>
         <Button icon={<Camera size={15} />} onClick={() => camRef.current?.click()}>
           {tx('拍照', 'Take a photo')}
@@ -337,21 +439,32 @@ export function ReportImport() {
           {tx('貼上文字', 'Paste text')}
         </Button>
       </div>
-      <input ref={fileRef} type="file" className="hidden" aria-label={tx('選擇報表檔案', 'Choose a report file')} onChange={(e) => e.target.files?.[0] && void load(e.target.files[0])} />
+      <input
+        ref={fileRef}
+        type="file"
+        multiple
+        accept={ACCEPT}
+        className="hidden"
+        aria-label={tx('選擇報表檔案', 'Choose a report file')}
+        onChange={(e) => {
+          loadAll([...(e.target.files ?? [])]);
+          e.target.value = '';
+        }}
+      />
       <input ref={camRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => e.target.files?.[0] && void load(e.target.files[0])} />
       <div className="mt-2 grid w-full max-w-lg gap-2 text-left text-[12.5px] sm:grid-cols-2">
         <div className="flex gap-2.5 rounded-[4px] border border-line bg-surface-2 px-3 py-2.5">
           <FileSpreadsheet size={16} className="mt-0.5 shrink-0 text-accent" />
           <div>
             <div className="font-medium text-ink">{tx('在這台裝置上讀取', 'Read on this device')}</div>
-            <div className="text-muted">Excel (.xlsx) · CSV · ODS · Word · {tx('網頁表格', 'web tables')}</div>
+            <div className="text-muted">Excel (.xlsx, .xls) · CSV · ODS · Word (.docx, .doc) · RTF · PDF · {tx('網頁表格', 'web tables')} · {tx('文字檔與郵件', 'text and email')}</div>
           </div>
         </div>
         <div className="flex gap-2.5 rounded-[4px] border border-line bg-surface-2 px-3 py-2.5">
           <Sparkles size={16} className="mt-0.5 shrink-0 text-accent" />
           <div>
-            <div className="font-medium text-ink">{tx('由 Claude 讀取', 'Read by Claude')}</div>
-            <div className="text-muted">PDF · {tx('照片', 'photos')} · {tx('截圖', 'screenshots')} · {tx('郵件內文', 'email text')}</div>
+            <div className="font-medium text-ink">{tx('辨識圖片中的文字', 'Text recognised in images')}</div>
+            <div className="text-muted">{tx('掃描的 PDF', 'scanned PDFs')} · {tx('照片', 'photos')} · {tx('截圖', 'screenshots')} · {tx('有 Claude 金鑰時由 Claude 讀取', 'read by Claude when you have a key')}</div>
           </div>
         </div>
       </div>
@@ -360,7 +473,7 @@ export function ReportImport() {
 
   const pasteBox = paste != null && (
     <div className="flex flex-col gap-3">
-      <Field label={tx('貼上報表內容', 'Paste the report')} htmlFor="ri-paste" hint={tx('從 Excel 複製的儲存格會直接讀取；其他文字（例如付款通知信）交給 Claude。', 'Cells copied from a spreadsheet are read directly; other text, such as a payment email, goes to Claude.')}>
+      <Field label={tx('貼上報表內容', 'Paste the report')} htmlFor="ri-paste" hint={tx('從 Excel 複製的儲存格，或一行一筆的紀錄（例如「2023/05/01 某案名 3,000字 NT$4,500」）都能直接讀取。', 'Cells copied from a spreadsheet, or one record per line (such as “2023-05-01 Manual 3,000 words $450”), are read directly.')}>
         <Textarea id="ri-paste" rows={9} value={paste} onChange={(e) => setPaste(e.target.value)} data-autofocus />
       </Field>
       <div className="flex justify-end gap-2">
@@ -374,14 +487,35 @@ export function ReportImport() {
     </div>
   );
 
+  // in a batch, a file that cannot be read is skipped rather than replaced
+  const skip = queue ? (
+    <Button onClick={() => next() || setStage({ at: 'pick' })}>{queue.at + 1 < queue.files.length ? tx('略過，看下一個', 'Skip to the next') : tx('略過', 'Skip')}</Button>
+  ) : undefined;
+
+  const progress = queue && (
+    <div className="mb-3 flex items-center gap-2 text-[12.5px] text-muted" role="status">
+      <span className="tnum shrink-0 rounded-[3px] border border-line px-1.5 py-px font-medium text-ink-2">{tx(`檔案 ${queue.at + 1} / ${queue.files.length}`, `File ${queue.at + 1} of ${queue.files.length}`)}</span>
+      <span className="min-w-0 truncate">{queue.files[queue.at]?.name}</span>
+    </div>
+  );
+
   const body = () => {
     if (paste != null) return pasteBox;
     if (stage.at === 'reading')
       return (
         <div className="flex flex-col items-center gap-3 py-16 text-center" role="status">
           <span className="h-8 w-8 animate-spin rounded-full border-2 border-line-strong border-t-accent" />
-          <div className="text-[14.5px] font-medium text-ink">{stage.ai ? tx('Claude 正在閱讀這份報表…', 'Claude is reading the report…') : tx('讀取中…', 'Reading…')}</div>
+          <div className="text-[14.5px] font-medium text-ink">
+            {stage.ai
+              ? tx('Claude 正在閱讀這份報表…', 'Claude is reading the report…')
+              : stage.ocr
+                ? stage.ocr.page
+                  ? tx(`正在辨識 第 ${stage.ocr.page}/${stage.ocr.pages} 頁…`, `Recognizing page ${stage.ocr.page}/${stage.ocr.pages}…`)
+                  : tx(`正在準備文字辨識… ${Math.round(stage.ocr.pct * 100)}%`, `Preparing text recognition… ${Math.round(stage.ocr.pct * 100)}%`)
+                : tx('讀取中…', 'Reading…')}
+          </div>
           {stage.ai && <div className="text-[12.5px] text-muted">{tx('多頁 PDF 可能需要半分鐘。', 'A long PDF can take half a minute.')}</div>}
+          {stage.ocr && !stage.ocr.page && <div className="max-w-sm text-[12.5px] text-muted">{tx('第一次使用會下載約 20 MB 的辨識資料，之後離線也能用。', 'The first time downloads about 20 MB of language data; after that it works offline.')}</div>}
         </div>
       );
     if (stage.at === 'needs-ai')
@@ -390,12 +524,12 @@ export function ReportImport() {
           <Sparkles size={26} className="text-accent" />
           <div className="max-w-md text-[14.5px] text-ink">
             {__DEMO_BUILD__
-              ? tx('預覽版無法讀取 PDF 與圖片。安裝完整版並設定 Claude API 金鑰後，就能直接匯入。', 'The preview cannot read PDFs or images. Install the full app and add a Claude API key to import them.')
-              : tx('PDF、照片和截圖要由 Claude 讀取。到「設定 → AI 助理」輸入你的 API 金鑰就能使用；金鑰只存在這台裝置。', 'PDFs, photos and screenshots are read by Claude. Add your API key in Settings → AI assistant; it stays on this device.')}
+              ? tx('預覽版無法讀取 PDF 與圖片。安裝完整版後，就能在本機讀取文字 PDF、辨識掃描檔與照片。', 'The preview cannot read PDFs or images. The full app reads text PDFs and recognises scans and photos on the device.')
+              : tx('這段內容要由 Claude 讀取。到「設定 → AI 助理」輸入你的 API 金鑰就能使用；金鑰只存在這台裝置。', 'This content is read by Claude. Add your API key in Settings → AI assistant; it stays on this device.')}
           </div>
-          <div className="text-[12.5px] text-muted">{tx('或者：把報表另存為 Excel／CSV，在本機就能讀取。', 'Or save the report as Excel/CSV, which is read on the device.')}</div>
-          <div className="flex gap-2">
-            <Button onClick={() => setStage({ at: 'pick' })}>{tx('換一個檔案', 'Choose another file')}</Button>
+          <div className="max-w-md text-[12.5px] text-muted">{tx('不需要金鑰的：Excel、CSV、Word、PDF、照片和貼上的表格，都在本機讀取。', 'No key needed for Excel, CSV, Word, PDFs, photos and pasted tables: they are read on the device.')}</div>
+          <div className="flex flex-wrap justify-center gap-2">
+            {skip ?? <Button onClick={() => setStage({ at: 'pick' })}>{tx('換一個檔案', 'Choose another file')}</Button>}
             {!__DEMO_BUILD__ && (
               <Button
                 variant="primary"
@@ -410,12 +544,32 @@ export function ReportImport() {
           </div>
         </div>
       );
+    if (stage.at === 'no-table')
+      return (
+        <div className="flex flex-col items-center gap-3 py-10 text-center" role="alert">
+          <FileSearch size={26} className="text-accent" />
+          <div className="max-w-md text-[14.5px] text-ink">
+            {stage.pdf
+              ? tx('這份檔案裡沒有讀得出來的表格。如果是掃描檔，可能不夠清楚。', 'No readable table was found in this file. If it is a scan, it may not be clear enough.')
+              : tx('這段內容裡找不到表格或一行一筆的紀錄。', 'No table or one-record-per-line list was found in this text.')}
+          </div>
+          <div className="max-w-md text-[12.5px] text-muted">
+            {tx('可以到翻譯社的平台匯出 Excel 或 CSV，或把表格複製後貼上。', 'Export Excel or CSV from the vendor portal, or copy the table and paste it.')}
+          </div>
+          <div className="flex flex-wrap justify-center gap-2">
+            {skip ?? <Button onClick={() => setStage({ at: 'pick' })}>{tx('換一個檔案', 'Choose another file')}</Button>}
+            <Button icon={<ClipboardPaste size={15} />} onClick={() => setPaste('')}>
+              {tx('貼上表格', 'Paste a table')}
+            </Button>
+          </div>
+        </div>
+      );
     if (stage.at === 'error')
       return (
         <div className="flex flex-col items-center gap-3 py-10 text-center" role="alert">
           <TriangleAlert size={26} className="text-bad" />
           <div className="max-w-md text-[14.5px] text-ink">{stage.message}</div>
-          <Button onClick={() => setStage({ at: 'pick' })}>{tx('換一個檔案', 'Choose another file')}</Button>
+          {skip ?? <Button onClick={() => setStage({ at: 'pick' })}>{tx('換一個檔案', 'Choose another file')}</Button>}
         </div>
       );
     if (stage.at === 'review' && source && report && plan) return review();
@@ -435,9 +589,15 @@ export function ReportImport() {
           <span className="text-muted">
             {tx(`${r.rows.length} 列 · 對應到 ${matchedCount} 筆既有案件`, `${r.rows.length} rows · ${matchedCount} matched to existing jobs`)}
           </span>
-          <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setStage({ at: 'pick' })}>
-            {tx('換一個檔案', 'Choose another file')}
-          </Button>
+          {queue ? (
+            <Button size="sm" variant="ghost" className="ml-auto" onClick={() => next() || setStage({ at: 'pick' })}>
+              {queue.at + 1 < queue.files.length ? tx('略過這個檔案', 'Skip this file') : tx('略過', 'Skip')}
+            </Button>
+          ) : (
+            <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setStage({ at: 'pick' })}>
+              {tx('換一個檔案', 'Choose another file')}
+            </Button>
+          )}
         </div>
 
         <div className="grid gap-3 sm:grid-cols-3">
@@ -477,12 +637,8 @@ export function ReportImport() {
                 value={tableIdx}
                 onChange={(e) => {
                   const i = Number(e.target.value);
-                  const g = (source as Extract<Source, { via: 'local' }>).tables[i].grid;
-                  const h = findHeaderRow(g);
                   setTableIdx(i);
-                  setHeader(h);
-                  setMapping(guessMapping(g[h] ?? []));
-                  resetReview();
+                  layoutFor((source as Extract<Source, { via: 'local' }>).tables[i].grid);
                 }}
               >
                 {source!.tables.map((t, i) => (
@@ -494,6 +650,15 @@ export function ReportImport() {
             </Field>
           )}
         </div>
+
+        {source!.via === 'local' && template && (
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-[4px] border border-line bg-surface-2 px-3 py-2 text-[12.5px] text-ink-2" role="status">
+            <span className="min-w-0">{tx(`已套用上次「${template}」的欄位對應`, `Using the column layout saved from ${template}`)}</span>
+            <button type="button" className="font-medium text-accent hover:underline" onClick={resetLayout}>
+              {tx('改回自動判斷', 'Reset to the guess')}
+            </button>
+          </div>
+        )}
 
         {source!.via === 'local' && (
           <div>
@@ -511,7 +676,8 @@ export function ReportImport() {
                     onChange={(v) => {
                       const h = Math.max(0, Math.min(grid.length - 1, (v ?? 1) - 1));
                       setHeader(h);
-                      setMapping(guessMapping(grid[h] ?? []));
+                      setMapping(guessColumns(grid, h));
+                      setTemplate(null);
                       resetReview();
                     }}
                     aria-label={tx('標題列', 'Header row')}
@@ -673,9 +839,15 @@ export function ReportImport() {
                 .filter(Boolean)
                 .join(' · ') || tx('沒有要變更的項目', 'Nothing to change')}
             </span>
-            <Button variant="ghost" onClick={closeReportImport}>
-              {tx('取消', 'Cancel')}
-            </Button>
+            {queue ? (
+              <Button variant="ghost" onClick={() => next() || closeReportImport()}>
+                {tx('略過', 'Skip')}
+              </Button>
+            ) : (
+              <Button variant="ghost" onClick={closeReportImport}>
+                {tx('取消', 'Cancel')}
+              </Button>
+            )}
             <Button variant="primary" disabled={!total || busy} onClick={() => void apply()}>
               {tx('套用', 'Apply')}
             </Button>
@@ -683,6 +855,7 @@ export function ReportImport() {
         ) : undefined
       }
     >
+      {stage.at !== 'pick' && progress}
       {body()}
     </Sheet>
   );
