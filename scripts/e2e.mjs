@@ -164,8 +164,8 @@ await suite('New user, English', { locale: 'en-US' }, async (page, step) => {
     await page.evaluate(() => (location.hash = '/money'));
     await page.getByRole('button', { name: 'New invoice' }).first().click();
     await page.getByRole('button', { name: 'Create', exact: true }).click();
-    await expectVisible(page.getByRole('button', { name: 'Mark as paid' }));
-    await page.getByRole('button', { name: 'Mark as paid' }).click();
+    await expectVisible(page.getByRole('button', { name: 'Mark paid' }));
+    await page.getByRole('button', { name: 'Mark paid' }).click();
     await expectVisible(page.locator('svg[aria-label^="PAID"]'));
   });
   await step('switching to 中文 relabels the app', async () => {
@@ -349,7 +349,7 @@ await suite('Sample data, 繁體中文', { locale: 'zh-TW' }, async (page, step)
     await page.getByRole('button', { name: /請款 2 個已交稿部分/ }).click();
     await expectVisible(page.getByText('2 個項目，合計'));
     await page.getByRole('button', { name: '建立', exact: true }).click();
-    await expectVisible(page.getByRole('button', { name: '標記已收款' }));
+    await expectVisible(page.getByRole('button', { name: '標記已付款' }));
   });
   await step('command palette finds a job', async () => {
     await page.keyboard.press('Control+k');

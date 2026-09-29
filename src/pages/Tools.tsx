@@ -157,9 +157,9 @@ function CountTool() {
             <div className="flex gap-2">
               <NumberInput value={rate} onChange={setRate} placeholder={tx('單價', 'Rate')} aria-label={tx('單價', 'Rate')} />
               <label className="w-[110px] shrink-0">
-              <span className="sr-only">{tx('幣別', 'Currency')}</span>
-              <CurrencySelect value={cur} onChange={setCur} />
-            </label>
+                <span className="sr-only">{tx('幣別', 'Currency')}</span>
+                <CurrencySelect value={cur} onChange={setCur} />
+              </label>
             </div>
             <div className="rounded-xl bg-surface-2 p-3">
               <div className="text-[12.5px] text-muted">
