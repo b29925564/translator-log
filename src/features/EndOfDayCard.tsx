@@ -53,7 +53,7 @@ export function EndOfDayCard({ daily }: { daily: Map<string, number> }) {
 
   const vsWeek =
     avg <= 0
-      ? tx('這週的第一筆，好的開始。', 'The first of the week. A good start.')
+      ? tx('近 7 天來的第一筆，好的開始。', 'Your first in 7 days. A good start.')
       : words >= avg * 1.1
         ? tx(`比近 7 天平均（${num(avg)} 字）多一些，辛苦了。`, `A bit above your 7-day average of ${num(avg)}. Well earned.`)
         : words >= avg * 0.9

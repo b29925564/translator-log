@@ -223,7 +223,7 @@ function PlanRow({ x, client, pace, onLog, onOpen, onFocus }: { x: PlanItem; cli
           <Pair source={x.job.sourceLang} target={x.job.targetLang} />
           {client && <span className="min-w-0 truncate">· {client}</span>}
           {due && <span className={cx('font-medium', due.tone === 'bad' ? 'text-bad' : due.tone === 'warn' ? 'text-warn' : 'text-ink-2')}>· {due.text}</span>}
-          {pace && pace.daysLeft > 0 && <span className={cx('font-medium tnum', paceTone)}>· {tx(`每天約需 ${num(Math.round(pace.perDay))} 字`, `~${num(Math.round(pace.perDay))} words/day`)}</span>}
+          {pace && pace.daysLeft > 0 && <span className={cx('font-medium tnum', paceTone)}>· {tx(`每天約需 ${num(Math.round(pace.perDay))} 字`, `~${num(Math.round(pace.perDay))} ${x.job.unit === 'char' ? 'chars' : 'words'}/day`)}</span>}
         </span>
         {loggable && x.state !== 'rest' && (
           <span className="col-span-2 flex items-center gap-2">
