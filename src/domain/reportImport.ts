@@ -24,6 +24,10 @@ export interface ReportRow {
   sourceLang?: string;
   targetLang?: string;
   quantity?: number;
+  /** Raw (unweighted) word count, when the report gives it beside the billed one. */
+  rawWords?: number;
+  /** Project named on the row, matched to an existing project by name. */
+  project?: string;
   unit?: Unit;
   rate?: number;
   amount?: number;
@@ -73,6 +77,16 @@ const lastDate = (grid: Grid, rows: number) => {
 };
 
 /** Rows of a table under a column mapping; skips blank and total lines. */
+/**
+ * Billed volume and raw words from the columns a report has: weighted words
+ * are what the job is priced on; raw words are kept beside them. With only a
+ * raw column, that is the volume.
+ */
+export const rowWords = (quantity?: number, weighted?: number, raw?: number): { quantity?: number; rawWords?: number } => {
+  const billed = weighted ?? quantity ?? raw;
+  return { quantity: billed, rawWords: raw != null && raw !== billed ? raw : undefined };
+};
+
 export const gridToReport = (grid: Grid, header: number, mapping: ImportField[], ctx: { today: string; defaultTargetLang: string }): ParsedReport => {
   const rows: ReportRow[] = [];
   for (const r of grid.slice(header + 1)) {
@@ -96,7 +110,8 @@ export const gridToReport = (grid: Grid, header: number, mapping: ImportField[],
       paidAt,
       sourceLang: pair.sourceLang ?? get('sourceLang'),
       targetLang: pair.targetLang ?? get('targetLang'),
-      quantity: parseNumber(get('quantity')),
+      ...rowWords(parseNumber(get('quantity')), parseNumber(get('weightedWords')), parseNumber(get('rawWords'))),
+      project: get('project'),
       unit: parseUnit(get('unit')),
       rate: parseNumber(get('rate')),
       amount: parseNumber(get('amount')),
@@ -112,7 +127,7 @@ export const gridToReport = (grid: Grid, header: number, mapping: ImportField[],
     rows.push(row);
   }
   const headerText = grid.slice(0, header + 1).flat().join(' ');
-  const payments = PAYMENT_WORDS.test(headerText) && !mapping.includes('quantity');
+  const payments = PAYMENT_WORDS.test(headerText) && !mapping.some((f) => f === 'quantity' || f === 'weightedWords' || f === 'rawWords');
   return { kind: payments ? 'payments' : 'jobs', rows, paidAt: lastDate(grid, header) };
 };
 
@@ -251,6 +266,7 @@ export const fillFromRow = (j: Job, r: ReportRow): Partial<Job> => {
   const patch: Partial<Job> = {};
   if (r.ref && !j.poNumber) patch.poNumber = r.ref;
   if (r.quantity && !j.quantity && j.unit !== 'flat') patch.quantity = r.quantity;
+  if (r.rawWords && !j.rawWords) patch.rawWords = r.rawWords;
   if (r.rate && !j.rate) patch.rate = r.rate;
   if (r.dueAt && !j.dueAt) patch.dueAt = r.dueAt;
   if (r.date && !j.deliveredAt && (j.status === 'delivered' || j.status === 'invoiced' || j.status === 'paid')) patch.deliveredAt = r.date;

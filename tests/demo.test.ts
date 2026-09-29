@@ -10,5 +10,6 @@ describe('sample data', () => {
     await repo.clearDemo();
     expect((await repo.readSettings()).goals).toEqual({ yearIncome: 600_000, yearWords: 300_000 });
     expect(await repo.hasDemo()).toBe(false);
-  });
+    // a full demo load into fake IndexedDB takes about 5 s on a slow machine
+  }, 30_000);
 });

@@ -1,5 +1,5 @@
-import { ChevronRight, FolderKanban, Play, Plus, Square } from 'lucide-react';
-import { useMemo } from 'react';
+import { Check, ChevronRight, FolderKanban, Play, Plus, Square } from 'lucide-react';
+import { useMemo, useRef } from 'react';
 import { useData } from '../db/data';
 import { startTimer, stopTimer } from '../db/repo';
 import { BUILTIN_DOMAINS, CURRENCIES, LANGUAGES } from '../domain/constants';
@@ -169,7 +169,16 @@ export function TimerButton({ job, size = 'sm' }: { job: Job; size?: 'sm' | 'md'
   );
 }
 
-export function JobRow({ job, showClient = true, showTimer = false, showDue = false }: { job: Job; showClient?: boolean; showTimer?: boolean; showDue?: boolean }) {
+/** Row selection for the jobs list: a tap toggles, a long press starts selecting. */
+export interface RowSelect {
+  selecting: boolean;
+  selected: boolean;
+  toggle: () => void;
+  /** Long press on a phone: enter select mode with this row picked. */
+  longPress: () => void;
+}
+
+export function JobRow({ job, showClient = true, showTimer = false, showDue = false, select }: { job: Job; showClient?: boolean; showTimer?: boolean; showDue?: boolean; select?: RowSelect }) {
   const { clientMap, projectMap, today, settings } = useData();
   const navigate = useUI((s) => s.navigate);
   const client = job.clientId ? clientMap.get(job.clientId) : undefined;
@@ -178,16 +187,62 @@ export function JobRow({ job, showClient = true, showTimer = false, showDue = fa
   const project = pj && !job.title.startsWith(pj.name) ? pj : undefined;
   const due = showDue && job.status === 'active' ? dueInfo(job.dueAt, today) : undefined;
   const w = jobWords(job);
+  const press = useRef<{ timer?: ReturnType<typeof setTimeout>; fired: boolean; x: number; y: number; touch?: boolean }>({ fired: false, x: 0, y: 0 });
+  const selecting = !!select?.selecting;
+  const cancelPress = () => clearTimeout(press.current.timer);
+  const activate = () => {
+    if (press.current.fired) {
+      press.current.fired = false;
+      return;
+    }
+    if (selecting) select!.toggle();
+    else navigate('/jobs/' + job.id);
+  };
   return (
     <div
-      role="button"
+      role={selecting ? 'checkbox' : 'button'}
+      aria-checked={selecting ? !!select?.selected : undefined}
       tabIndex={0}
-      onClick={() => navigate('/jobs/' + job.id)}
-      onKeyDown={(e) => e.key === 'Enter' && navigate('/jobs/' + job.id)}
-      className="group relative flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-2 focus-visible:bg-surface-2"
+      data-job-row={job.id}
+      onClick={activate}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || (selecting && e.key === ' ')) {
+          e.preventDefault();
+          activate();
+        }
+      }}
+      onPointerDown={(e) => {
+        press.current.touch = e.pointerType !== 'mouse';
+        if (!select || !press.current.touch) return;
+        press.current = { fired: false, x: e.clientX, y: e.clientY, touch: true };
+        press.current.timer = setTimeout(() => {
+          press.current.fired = true;
+          select.longPress();
+          navigator.vibrate?.(10);
+        }, 480);
+      }}
+      onPointerMove={(e) => {
+        if (Math.abs(e.clientX - press.current.x) + Math.abs(e.clientY - press.current.y) > 10) cancelPress();
+      }}
+      onPointerUp={cancelPress}
+      onPointerCancel={cancelPress}
+      // a touch long press opens the system menu on Android; the press selects instead
+      onContextMenu={(e) => select && press.current.touch && e.preventDefault()}
+      className={cx(
+        'group relative flex cursor-pointer select-none items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-2 focus-visible:bg-surface-2 sm:select-auto',
+        selecting && select?.selected && 'bg-accent-soft hover:bg-accent-soft',
+      )}
     >
       {/* status is always the left bar; the pill is kept for screen readers */}
       <span className="absolute inset-y-2 left-0 w-[3px] rounded-r-[1px]" style={{ background: STATUS_COLOR[job.status] }} aria-hidden />
+      {selecting && (
+        <span
+          className={cx('grid h-5 w-5 shrink-0 place-items-center rounded-[4px] border transition-colors', select?.selected ? 'border-accent bg-accent text-surface' : 'border-line-strong bg-surface')}
+          aria-hidden
+        >
+          {select?.selected && <Check size={13} strokeWidth={3} />}
+        </span>
+      )}
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className={cx('truncate text-[14.5px] font-medium', job.status === 'cancelled' ? 'text-muted line-through' : 'text-ink')}>{job.title || tx('（未命名）', '(Untitled)')}</span>
@@ -218,7 +273,7 @@ export function JobRow({ job, showClient = true, showTimer = false, showDue = fa
         <span className="text-[14.5px] font-semibold text-ink tnum">{money(jobGross(job), job.currency)}</span>
         {job.currency !== settings.baseCurrency && <span className="text-[11.5px] text-muted tnum">≈ {money(jobGrossBase(job), settings.baseCurrency)}</span>}
       </div>
-      {showTimer && job.status === 'active' ? <TimerButton job={job} /> : <ChevronRight size={16} className="hidden shrink-0 text-line-strong group-hover:text-muted sm:block" />}
+      {selecting ? null : showTimer && job.status === 'active' ? <TimerButton job={job} /> : <ChevronRight size={16} className="hidden shrink-0 text-line-strong group-hover:text-muted sm:block" />}
     </div>
   );
 }

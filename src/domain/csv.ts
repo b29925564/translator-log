@@ -68,6 +68,9 @@ export type ImportField =
   | 'sourceLang'
   | 'targetLang'
   | 'quantity'
+  | 'weightedWords'
+  | 'rawWords'
+  | 'project'
   | 'unit'
   | 'rate'
   | 'currency'
@@ -91,6 +94,9 @@ const HEADER_HINTS: [ImportField, RegExp][] = [
   ['pair', /(語言組合|語對|語言|language\s*pair|pair|languages?)/i],
   ['sourceLang', /(原文|來源語|source)/i],
   ['targetLang', /(譯文|目標語|target)/i],
+  ['weightedWords', /(weighted|加權|計費字數|billable\s*words?)/i],
+  ['rawWords', /(\braw\b|total\s*words?|原始字數|總字數|全部字數)/i],
+  ['project', /^(所屬專案|parent\s*project)$/i],
   ['quantity', /(字數|數量|words?|word\s*count|volume|quantity|chars?)/i],
   ['unit', /(單位|unit)/i],
   ['rate', /(單價|費率|字價|rate|price\s*per)/i],
@@ -243,10 +249,11 @@ export const guessFromContent = (headers: string[], rows: string[][], mapping: I
   for (const i of cols('rate')) set(i, 'rate');
   for (const i of cols('money')) set(i, 'amount');
   const ints = cols('int');
-  if (ints.length >= 2 && !taken('amount') && !taken('quantity')) {
+  const hasWords = () => taken('quantity') || taken('weightedWords') || taken('rawWords');
+  if (ints.length >= 2 && !taken('amount') && !hasWords()) {
     set(ints[0], 'quantity');
     set(ints[ints.length - 1], 'amount');
-  } else for (const i of ints) set(i, taken('quantity') ? 'amount' : 'quantity');
+  } else for (const i of ints) set(i, hasWords() ? 'amount' : 'quantity');
   for (const i of cols('text')) set(i, 'title');
   return out;
 };

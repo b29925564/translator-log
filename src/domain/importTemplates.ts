@@ -12,6 +12,8 @@ export interface ImportTemplate {
   mapping: ImportField[];
   header: number;
   clientId?: string;
+  /** Currency for the vendor's rows, for reports that print none. */
+  currency?: string;
   /** What the note shows: the client or the file it was saved from. */
   name: string;
   lastUsed: number;

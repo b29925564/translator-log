@@ -1,16 +1,16 @@
-import { Download, FileUp, MoreHorizontal, LayoutList, Plus, Search, SquareKanban } from 'lucide-react';
+import { CheckSquare, Download, FileUp, MoreHorizontal, LayoutList, Pencil, Plus, Search, SquareKanban, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useData } from '../db/data';
-import { saveJob, setJobStatus } from '../db/repo';
-import { domainLabel, langInfo, PIPELINE } from '../domain/constants';
+import { bulkEdited, deleteJobs, restoreJobs, saveJob, saveJobs, setJobStatus, type BulkEdit } from '../db/repo';
+import { CURRENCIES, domainLabel, langInfo, PIPELINE } from '../domain/constants';
 import { toCSV } from '../domain/csv';
 import { fmtMonth, monthKey } from '../domain/dates';
-import { jobGross, jobGrossBase, jobNet, jobWords } from '../domain/money';
+import { fxRate, jobGross, jobGrossBase, jobNet, jobWords } from '../domain/money';
 import { incomeDate, totals } from '../domain/stats';
 import type { Job, JobStatus } from '../domain/types';
 import { getLang, tx } from '../i18n';
 import { domain as domainName, dueInfo, money, num, service as serviceName } from '../ui/format';
-import { Button, cx, Empty, Input, Menu, PageHeader, Pair, Segmented, Select, STATUS_COLOR, statusLabel } from '../ui/kit';
+import { Button, cx, Empty, Field, Input, Menu, PageHeader, Pair, Segmented, Select, Sheet, STATUS_COLOR, statusLabel } from '../ui/kit';
 import { celebrate, haptic } from '../ui/motion';
 import { useUI } from '../ui/store';
 import { JobRow } from '../features/common';
@@ -37,7 +37,7 @@ const writePref = (k: string, v: string) => {
 
 export function Jobs() {
   const { jobs, clients, clientMap, projects, projectMap, settings, today } = useData();
-  const { openQuickAdd, navigate, fireStamp, toast } = useUI();
+  const { openQuickAdd, navigate, fireStamp, toast, ask } = useUI();
   const [q, setQ] = useState('');
   const [status, setStatus] = useState<StatusFilter>('all');
   const [year, setYear] = useState<string>('all');
@@ -46,6 +46,26 @@ export function Jobs() {
   const [projectId, setProjectId] = useState<string>('');
   const [view, setView] = useState<'list' | 'board'>(() => (readPref('wt:jobsView', 'list') as 'list' | 'board'));
   useEffect(() => writePref('wt:jobsView', view), [view]);
+  // select mode: null when off, else the picked job ids
+  const [sel, setSel] = useState<Set<string> | null>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const startSelect = (id?: string) => {
+    setView('list');
+    setSel(new Set(id ? [id] : []));
+  };
+  const toggle = (id: string) =>
+    setSel((s) => {
+      const n = new Set(s ?? []);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  useEffect(() => {
+    if (!sel) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && !bulkOpen && !useUI.getState().confirm && setSel(null);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [sel, bulkOpen]);
 
   const years = useMemo(() => [...new Set(jobs.map((j) => incomeDate(j).slice(0, 4)))].sort().reverse(), [jobs]);
   const domains = useMemo(() => [...new Set(jobs.map((j) => j.domain).filter(Boolean) as string[])], [jobs]);
@@ -77,6 +97,38 @@ export function Jobs() {
         return rank(b) - rank(a) || incomeDate(b).localeCompare(incomeDate(a)) || b.updatedAt - a.updatedAt;
       });
   }, [jobs, q, status, year, clientId, dom, projectId, clientMap, projectMap]);
+
+  // only what is still on screen counts, so a filter change never acts on hidden jobs
+  const picked = useMemo(() => (sel ? filtered.filter((j) => sel.has(j.id)) : []), [sel, filtered]);
+  const allPicked = !!sel && filtered.length > 0 && picked.length === filtered.length;
+
+  const removePicked = async () => {
+    const ids = picked.map((j) => j.id);
+    if (!ids.length) return;
+    const ok = await ask({
+      title: tx(`刪除 ${ids.length} 個案件？`, `Delete ${ids.length} job${ids.length > 1 ? 's' : ''}?`),
+      body: tx('之後可以按「復原」救回來。', 'You can undo this right after.'),
+      confirm: tx('刪除', 'Delete'),
+      danger: true,
+    });
+    if (!ok) return;
+    await deleteJobs(ids);
+    setSel(null);
+    toast(tx(`已刪除 ${ids.length} 個案件`, `Deleted ${ids.length} job${ids.length > 1 ? 's' : ''}`), { action: { label: tx('復原', 'Undo'), run: () => void restoreJobs(ids) } });
+  };
+
+  const editPicked = async (e: BulkEdit) => {
+    const before = picked;
+    const after = before.map((j) => bulkEdited(j, e, { fxToBase: (c) => fxRate(c, base, settings.fx.rates), today }));
+    await saveJobs(after);
+    setBulkOpen(false);
+    setSel(null);
+    if (e.paidAt || e.status === 'paid') {
+      fireStamp(tx('已收款', 'PAID'), (e.paidAt ?? today).replace(/-/g, '.'));
+      haptic([12, 40, 18]);
+    }
+    toast(tx(`已更新 ${after.length} 個案件`, `Updated ${after.length} job${after.length > 1 ? 's' : ''}`), { action: { label: tx('復原', 'Undo'), run: () => void saveJobs(before) } });
+  };
 
   const groups = useMemo(() => {
     const out: { key: string; label: string; jobs: Job[] }[] = [];
@@ -154,6 +206,9 @@ export function Jobs() {
                 { value: 'board', label: <span className="inline-flex items-center gap-1.5"><SquareKanban size={14} />{tx('看板', 'Board')}</span> },
               ]}
             />
+            <Button size="sm" variant={sel ? 'primary' : 'ghost'} icon={<CheckSquare size={15} />} onClick={() => (sel ? setSel(null) : startSelect())} aria-pressed={!!sel}>
+              {sel ? tx('完成', 'Done') : tx('選取', 'Select')}
+            </Button>
             <Button size="sm" variant="ghost" icon={<FileUp size={15} />} onClick={() => useUI.getState().openReportImport()}>
               {tx('匯入', 'Import')}
             </Button>
@@ -241,14 +296,39 @@ export function Jobs() {
               return (
                 <section key={g.key} className="card overflow-hidden">
                   <div className="flex items-baseline justify-between gap-3 border-b border-line bg-surface-2 px-4 py-2">
-                    <h2 className="text-[13.5px] font-semibold text-ink">{g.label}</h2>
+                    {sel ? (
+                      <label className="inline-flex cursor-pointer items-center gap-2 text-[13.5px] font-semibold text-ink">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 accent-[var(--accent)]"
+                          checked={g.jobs.every((j) => sel.has(j.id))}
+                          onChange={(e) =>
+                            setSel((s) => {
+                              const n = new Set(s ?? []);
+                              for (const j of g.jobs) (e.target.checked ? n.add(j.id) : n.delete(j.id));
+                              return n;
+                            })
+                          }
+                          aria-label={tx(`選取「${g.label}」全部`, `Select all in ${g.label}`)}
+                        />
+                        {g.label}
+                      </label>
+                    ) : (
+                      <h2 className="text-[13.5px] font-semibold text-ink">{g.label}</h2>
+                    )}
                     <span className="text-[12.5px] text-muted tnum">
                       {tx(`${g.jobs.length} 件`, `${g.jobs.length} jobs`)} · {money(t.income, base)}
                     </span>
                   </div>
                   <div className="hairline-list">
                     {g.jobs.map((j) => (
-                      <JobRow key={j.id} job={j} showDue showTimer={j.status === 'active'} />
+                      <JobRow
+                        key={j.id}
+                        job={j}
+                        showDue
+                        showTimer={j.status === 'active'}
+                        select={{ selecting: !!sel, selected: !!sel?.has(j.id), toggle: () => toggle(j.id), longPress: () => (sel ? toggle(j.id) : startSelect(j.id)) }}
+                      />
                     ))}
                   </div>
                 </section>
@@ -280,7 +360,141 @@ export function Jobs() {
           clientName={(id) => (id ? clientMap.get(id)?.name : undefined)}
         />
       )}
+
+      {sel && (
+        <>
+          {/* room so the bar never covers the last rows */}
+          <div className="h-20" aria-hidden />
+          <div
+            className="no-print fixed inset-x-3 bottom-[74px] z-40 mx-auto flex max-w-xl items-center gap-1.5 rounded-[6px] border border-line bg-surface p-1.5 sm:gap-2 lg:bottom-5 lg:left-[248px]"
+            style={{ boxShadow: 'var(--shadow-lg)', marginBottom: 'env(safe-area-inset-bottom, 0px)' }}
+            role="toolbar"
+            aria-label={tx('選取的案件', 'Selected jobs')}
+          >
+            <Button size="sm" variant="ghost" iconOnly icon={<X size={16} />} onClick={() => setSel(null)} aria-label={tx('結束選取', 'Stop selecting')} />
+            <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-ink tnum" aria-live="polite">
+              {tx(`已選 ${picked.length} 件`, `${picked.length} selected`)}
+            </span>
+            <Button size="sm" variant="ghost" onClick={() => setSel(allPicked ? new Set() : new Set(filtered.map((j) => j.id)))}>
+              {allPicked ? tx('全不選', 'None') : tx('全選', 'All')}
+            </Button>
+            <Button size="sm" icon={<Pencil size={14} />} disabled={!picked.length} onClick={() => setBulkOpen(true)}>
+              {tx('編輯', 'Edit')}
+            </Button>
+            <Button size="sm" variant="danger" icon={<Trash2 size={14} />} disabled={!picked.length} onClick={() => void removePicked()}>
+              {tx('刪除', 'Delete')}
+            </Button>
+          </div>
+        </>
+      )}
+      <BulkEditSheet open={bulkOpen} count={picked.length} jobs={picked} onClose={() => setBulkOpen(false)} onApply={(e) => void editPicked(e)} />
     </div>
+  );
+}
+
+const KEEP = '__keep';
+
+/** The fields a batch of jobs can share; each starts as “no change”. */
+function BulkEditSheet({ open, count, jobs, onClose, onApply }: { open: boolean; count: number; jobs: Job[]; onClose: () => void; onApply: (e: BulkEdit) => void }) {
+  const { clients, projects, today } = useData();
+  const [status, setStatus] = useState(KEEP);
+  const [client, setClient] = useState(KEEP);
+  const [project, setProject] = useState(KEEP);
+  const [currency, setCurrency] = useState<string | null>(null);
+  const [paid, setPaid] = useState(false);
+  const [paidAt, setPaidAt] = useState(today);
+  useEffect(() => {
+    if (!open) return;
+    setStatus(KEEP);
+    setClient(KEEP);
+    setProject(KEEP);
+    setCurrency(null);
+    setPaid(false);
+    setPaidAt(today);
+  }, [open, today]);
+  const shared = jobs.length && jobs.every((j) => j.currency === jobs[0].currency) ? jobs[0].currency : undefined;
+  const edit: BulkEdit = {
+    ...(status !== KEEP && { status: status as JobStatus }),
+    ...(client !== KEEP && { clientId: client || null }),
+    ...(project !== KEEP && { projectId: project || null }),
+    ...(currency && currency !== shared && { currency }),
+    ...(paid && { paidAt }),
+  };
+  const changes = Object.keys(edit).length;
+  return (
+    <Sheet
+      open={open}
+      onClose={onClose}
+      size="sm"
+      title={tx(`編輯 ${count} 個案件`, `Edit ${count} job${count > 1 ? 's' : ''}`)}
+      subtitle={tx('只會改動你有設定的欄位。', 'Only the fields you set are changed.')}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            {tx('取消', 'Cancel')}
+          </Button>
+          <Button variant="primary" disabled={!changes} onClick={() => onApply(edit)}>
+            {tx('套用', 'Apply')}
+          </Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-3">
+        <Field label={tx('狀態', 'Status')} htmlFor="bulk-status">
+          <Select id="bulk-status" value={status} onChange={(e) => setStatus(e.target.value)} disabled={paid}>
+            <option value={KEEP}>{tx('（不變）', '(no change)')}</option>
+            {[...PIPELINE, 'cancelled' as JobStatus].map((s) => (
+              <option key={s} value={s}>
+                {statusLabel(s)}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label={tx('客戶', 'Client')} htmlFor="bulk-client">
+          <Select id="bulk-client" value={client} onChange={(e) => setClient(e.target.value)}>
+            <option value={KEEP}>{tx('（不變）', '(no change)')}</option>
+            <option value="">{tx('（無客戶）', '(no client)')}</option>
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label={tx('專案', 'Project')} htmlFor="bulk-project">
+          <Select id="bulk-project" value={project} onChange={(e) => setProject(e.target.value)}>
+            <option value={KEEP}>{tx('（不變）', '(no change)')}</option>
+            <option value="">{tx('（不屬於專案）', '(not in a project)')}</option>
+            {projects
+              .filter((p) => !p.archived)
+              .map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+          </Select>
+        </Field>
+        <Field label={tx('幣別', 'Currency')} htmlFor="bulk-currency" hint={shared ? undefined : tx('選取的案件幣別不同；選一個就會全部改成它', 'The selected jobs use different currencies; pick one to set them all')}>
+          <Select id="bulk-currency" value={currency ?? shared ?? ''} onChange={(e) => setCurrency(e.target.value || null)}>
+            {!shared && <option value="">{tx('（不變）', '(no change)')}</option>}
+            {CURRENCIES.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.code} · {getLang() === 'en' ? c.en : c.zh}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <label className="flex items-center gap-2 text-[14px] text-ink">
+          <input type="checkbox" className="h-4 w-4 accent-[var(--accent)]" checked={paid} onChange={(e) => setPaid(e.target.checked)} />
+          {tx('標記為已收款', 'Mark as paid')}
+        </label>
+        {paid && (
+          <Field label={tx('收款日', 'Paid on')} htmlFor="bulk-paid">
+            <Input id="bulk-paid" type="date" value={paidAt} onChange={(e) => setPaidAt(e.target.value || today)} />
+          </Field>
+        )}
+      </div>
+    </Sheet>
   );
 }
 

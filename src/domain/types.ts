@@ -60,6 +60,12 @@ export interface Job extends SyncMeta {
   quantity: number;
   /** Word count used for statistics when unit is not word/char. */
   words?: number;
+  /**
+   * Raw (unweighted) word count when the billed quantity is a weighted one,
+   * e.g. from a vendor report with both columns. Statistics and pricing use
+   * the billed quantity.
+   */
+  rawWords?: number;
   /** CAT analysis band counts and the grid used to weight them. */
   cat?: { counts: CatCounts; grid: CatGrid };
   rate: number;
