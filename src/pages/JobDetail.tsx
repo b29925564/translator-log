@@ -464,7 +464,7 @@ function SessionRow({ s, job, words, running }: { s: Session; job: Job; words: n
         <span className="text-ink-2">
           {date(toISODate(new Date(s.start)), { month: 'short', day: 'numeric', weekday: 'short' })}{' '}
           <span className="text-muted tnum">
-            {s.approx ? tx('補登', 'Added manually') : <>{hhmm(s.start)}–{s.end ? hhmm(s.end) : tx('計時中', 'running')}</>}
+            {s.approx ? tx('補登時數', 'backfilled') : <>{hhmm(s.start)}–{s.end ? hhmm(s.end) : tx('計時中', 'running')}</>}
           </span>
           {!!s.donePct && <span className="ml-2 text-[12px] text-muted tnum">+{s.doneWords ? `${num(s.doneWords)} ${tx('字', 'words')}` : `${s.donePct}%`}</span>}
         </span>
