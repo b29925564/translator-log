@@ -24,6 +24,7 @@ import { TrailNote, trailLabel, useSpeed } from '../features/common';
 import { insightView } from '../features/insightText';
 import { SkylineHero } from '../features/SkylineHero';
 import { TodayPlan } from '../features/TodayPlan';
+import { EndOfDayCard } from '../features/EndOfDayCard';
 import { ProjectsMini } from '../features/ProjectsMini';
 import { FirstSteps } from '../features/FirstSteps';
 import { Odometer } from '../ui/motion';
@@ -136,7 +137,8 @@ export function Dashboard() {
       <SkylineHero />
 
       <div className="grid items-start gap-4 lg:grid-cols-12">
-        <div className="min-w-0 lg:col-span-7">
+        <div className="flex min-w-0 flex-col gap-4 lg:col-span-7">
+          <EndOfDayCard daily={m.daily} />
           <TodayPlan />
         </div>
         <div className="flex min-w-0 flex-col gap-4 lg:col-span-5">
