@@ -5,7 +5,8 @@
 // edits from an older app version) is still spread, but only inside its own
 // window, so it never drifts onto later days.
 
-import { addDays, toISODate } from './dates';
+import { addDays, dateOnly, toISODate, workingDays } from './dates';
+import { jobWords } from './money';
 import type { DayMark, Job } from './types';
 
 export const createdDay = (j: Pick<Job, 'createdAt'>) => toISODate(new Date(j.createdAt));
@@ -106,4 +107,37 @@ export const progressPieces = (log: DayMark[], start: string, end: string, targe
   }
   add(target - level, windowFrom > end ? end : windowFrom, end, true);
   return out;
+};
+
+export interface Pace {
+  /** Words a working day needs to land the deadline. */
+  perDay: number;
+  /** Working days left, today included; 0 once the deadline has passed. */
+  daysLeft: number;
+  status: 'ahead' | 'on-track' | 'behind';
+}
+
+/**
+ * Words per working day still needed to make the deadline. `recentPerDay`
+ * is what the job has actually been getting lately (e.g. the last 3 days of
+ * dailyWords); without it the pace is only “on-track” or, when overdue,
+ * “behind”. Undefined for jobs with no deadline, no words, or nothing left.
+ */
+export const paceNeeded = (
+  job: Pick<Job, 'status' | 'dueAt' | 'progress' | 'unit' | 'quantity' | 'words' | 'cat'>,
+  today: string,
+  opts: { workdays: number[]; recentPerDay?: number },
+): Pace | undefined => {
+  if (job.status !== 'active' || !job.dueAt) return undefined;
+  const total = jobWords(job);
+  const left = total * (1 - Math.min(100, job.progress ?? 0) / 100);
+  if (!(total > 0) || left <= 0) return undefined;
+  const due = dateOnly(job.dueAt);
+  if (due < today) return { perDay: left, daysLeft: 0, status: 'behind' };
+  // a deadline on a day off still leaves today to work on it
+  const daysLeft = Math.max(1, workingDays(today, due, opts.workdays).length);
+  const perDay = left / daysLeft;
+  const r = opts.recentPerDay;
+  const status = r == null ? 'on-track' : r >= perDay * 1.15 ? 'ahead' : r >= perDay * 0.85 ? 'on-track' : 'behind';
+  return { perDay, daysLeft, status };
 };
