@@ -101,3 +101,44 @@ export function Tilt({ children, className, max = 12 }: { children: ReactNode; c
     </div>
   );
 }
+
+// Keyframes for celebrate(), injected once so the burst needs no stylesheet edits.
+const CELEBRATE_CSS = `
+.wm-burst{position:fixed;left:50%;top:42%;width:0;height:0;z-index:90;pointer-events:none}
+.wm-burst-seal{position:absolute;left:-32px;top:-32px;width:64px;height:64px;border-radius:6px;border:3px solid var(--burst);color:var(--burst);display:grid;place-items:center;font-weight:700;font-size:22px;background:color-mix(in srgb,var(--burst) 10%,transparent);animation:wm-seal .9s cubic-bezier(.2,.8,.3,1) forwards}
+.wm-burst-dot{position:absolute;left:-3px;top:-3px;width:6px;height:6px;border-radius:1px;background:var(--burst);animation:wm-dot .7s ease-out forwards}
+@keyframes wm-seal{0%{transform:scale(1.8) rotate(-14deg);opacity:0}25%{transform:scale(.94) rotate(-8deg);opacity:1}40%{transform:scale(1) rotate(-8deg)}75%{opacity:1}100%{transform:scale(1) rotate(-8deg);opacity:0}}
+@keyframes wm-dot{0%{transform:rotate(var(--a)) translateX(10px);opacity:0}20%{opacity:1}100%{transform:rotate(var(--a)) translateX(64px) scale(.4);opacity:0}}
+`;
+
+/** A small seal-stamp burst plus a haptic tick for delivering or getting paid. */
+export const celebrate = (kind: 'delivered' | 'paid') => {
+  haptic([12, 40, 18]);
+  if (reducedMotion() || typeof document === 'undefined') return;
+  try {
+    if (!document.getElementById('wm-burst-css')) {
+      const st = document.createElement('style');
+      st.id = 'wm-burst-css';
+      st.textContent = CELEBRATE_CSS;
+      document.head.appendChild(st);
+    }
+    const el = document.createElement('div');
+    el.className = 'wm-burst';
+    el.setAttribute('aria-hidden', 'true');
+    el.style.setProperty('--burst', kind === 'paid' ? 'var(--seal)' : 'var(--accent)');
+    const seal = document.createElement('span');
+    seal.className = 'wm-burst-seal';
+    seal.textContent = kind === 'paid' ? '收' : '交';
+    el.appendChild(seal);
+    for (let i = 0; i < 8; i++) {
+      const d = document.createElement('span');
+      d.className = 'wm-burst-dot';
+      d.style.setProperty('--a', `${i * 45 + 22}deg`);
+      el.appendChild(d);
+    }
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 900);
+  } catch {
+    /* ignore */
+  }
+};

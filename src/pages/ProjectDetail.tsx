@@ -11,7 +11,7 @@ import type { Job, JobStatus, Project, ProjectQuery, Unit } from '../domain/type
 import { getLang, tx } from '../i18n';
 import { Timeline, type TimelineRow } from '../charts/Timeline';
 import { dueInfo, money, num, qty } from '../ui/format';
-import { Button, cx, Empty, Field, fitText, Input, Menu, NumberInput, PageHeader, Pair, Segmented, Select, Sheet, StatusPill, Textarea, statusLabel } from '../ui/kit';
+import { Button, cx, Empty, Field, fitText, Input, Menu, NumberInput, PageHeader, Pair, Segmented, Select, Sheet, STATUS_COLOR, StatusPill, Textarea, statusLabel } from '../ui/kit';
 import { useUI } from '../ui/store';
 import { clientHabits, useSpeed } from '../features/common';
 import { JobPicker } from '../features/JobPicker';
@@ -274,11 +274,15 @@ function PartRow({ job, project, onLog, onEdit }: { job: Job; project: Project; 
   const due = job.status === 'active' || job.status === 'quote' ? dueInfo(job.dueAt, today) : undefined;
   const hasVolume = job.unit === 'flat' || job.quantity > 0;
   return (
-    <li className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3 sm:flex-nowrap">
+    <li className="relative flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3 sm:flex-nowrap">
+      {/* same status device as JobRow: a left bar, with the label for screen readers */}
+      <span className="absolute inset-y-2 left-0 w-[3px] rounded-r-[1px]" style={{ background: STATUS_COLOR[job.status] }} aria-hidden />
       <button type="button" onClick={() => navigate('/jobs/' + job.id)} className="min-w-0 basis-full text-left sm:flex-1 sm:basis-auto">
-        <div className="truncate text-[14.5px] font-medium text-ink hover:underline">{shortPartName(job.title, project.name)}</div>
+        <div className="truncate text-[14.5px] font-medium text-ink hover:underline">
+          {shortPartName(job.title, project.name)}
+          <StatusPill status={job.status} className="sr-only" />
+        </div>
         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[12.5px] text-muted">
-          <StatusPill status={job.status} />
           <span className="tnum">{hasVolume ? qty(job.unit === 'flat' ? 1 : job.quantity, job.unit) : tx('份量未定', 'Volume TBC')}</span>
           {due && <span className={cx('font-medium', due.tone === 'bad' ? 'text-bad' : due.tone === 'warn' ? 'text-warn' : 'text-ink-2')}>{due.text}</span>}
         </div>
