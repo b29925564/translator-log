@@ -7,12 +7,14 @@ import { fxRate } from '../domain/money';
 import { fillFromRow, findClient, type ParsedReport, type ReportRow, type RowAction, type RowMatch } from '../domain/reportImport';
 import type { Client, Invoice, Job, Project, Settings } from '../domain/types';
 import { tx } from '../i18n';
-import { applyRecords, changeBus, newClient, newJob, withStatus } from './repo';
+import { applyRecords, changeBus, newClient, newJob, newProject, withStatus } from './repo';
 
 export interface ImportPlan {
   jobs: Job[];
   clients: Client[];
   invoices: Invoice[];
+  /** Projects named in the report that do not exist yet; saved only when the plan is applied. */
+  projects: Project[];
   counts: { paid: number; updated: number; created: number };
 }
 
@@ -29,8 +31,10 @@ const domainOf = (s: string | undefined) => (s ? BUILTIN_DOMAINS.find((d) => d.z
  * The project a row belongs to: one named in its project column (matched by
  * name, ignoring case and spacing), else the one chosen for the whole import.
  */
+const projectKey = (s: string) => s.toLowerCase().normalize('NFKC').replace(/\s+/g, ' ').trim();
+
 export const projectFor = (name: string | undefined, projects: Pick<Project, 'id' | 'name'>[], fallback?: string): string | undefined => {
-  const key = (s: string) => s.toLowerCase().normalize('NFKC').replace(/\s+/g, ' ').trim();
+  const key = projectKey;
   const n = name ? key(name) : '';
   return (n && projects.find((p) => key(p.name) === n)?.id) || fallback;
 };
@@ -80,7 +84,16 @@ export const planImport = (
   actions: RowAction[],
   ctx: { jobs: Job[]; invoices: Invoice[]; clients: Client[]; settings: Settings; today: string; projects?: Pick<Project, 'id' | 'name'>[]; projectId?: string },
 ): ImportPlan => {
-  const projectOf = (r: ReportRow) => projectFor(r.project, ctx.projects ?? [], ctx.projectId);
+  // a project named on a row that does not exist yet is made once, as an ongoing project
+  const newProjects = new Map<string, Project>();
+  const projectOf = (r: ReportRow, clientId?: string) => {
+    const name = r.project?.trim();
+    const known = projectFor(name, [...(ctx.projects ?? []), ...newProjects.values()]);
+    if (known || !name) return known ?? ctx.projectId;
+    const p = newProject({ name, kind: 'ongoing', clientId, sourceLang: r.sourceLang ?? ctx.settings.defaultSourceLang, targetLang: r.targetLang ?? ctx.settings.defaultTargetLang });
+    newProjects.set(projectKey(name), p);
+    return p.id;
+  };
   const jobMap = new Map(ctx.jobs.map((j) => [j.id, j]));
   const touched = new Map<string, Job>();
   const invoices = new Map<string, Invoice>();
@@ -117,8 +130,9 @@ export const planImport = (
         const j = cur(id);
         if (!j) continue;
         let next: Job = { ...j, ...fillFromRow(j, r) };
-        const pid = projectOf(r);
-        if (pid && !j.projectId) next.projectId = pid;
+        // asked only when the job has no project, so no project is made that nothing joins
+        const pid = j.projectId ? undefined : projectOf(r, j.clientId);
+        if (pid) next.projectId = pid;
         if (r.paidAt && j.status !== 'paid') next = withStatus({ ...next, paidAt: r.paidAt }, 'paid', r.paidAt);
         touched.set(id, next);
         counts.updated++;
@@ -127,16 +141,17 @@ export const planImport = (
       const knownClient = findClient(r.client ?? report.client, ctx.clients);
       const currency = (r.currency ?? report.currency ?? knownClient?.currency ?? ctx.settings.baseCurrency).toUpperCase();
       const paid = report.kind === 'payments' ? paidAt : r.paidAt;
-      newJobs.push(jobFromRow(r, { clientId: clientFor(r, currency), currency, paidAt: paid, settings: ctx.settings, today: ctx.today, projectId: projectOf(r) }));
+      const clientId = clientFor(r, currency);
+      newJobs.push(jobFromRow(r, { clientId, currency, paidAt: paid, settings: ctx.settings, today: ctx.today, projectId: projectOf(r, clientId) }));
       counts.created++;
     }
   });
-  return { jobs: [...touched.values(), ...newJobs], clients: [...created.values()], invoices: [...invoices.values()], counts };
+  return { jobs: [...touched.values(), ...newJobs], clients: [...created.values()], invoices: [...invoices.values()], projects: [...newProjects.values()], counts };
 };
 
 export const applyImport = async (plan: ImportPlan) => {
   const t = Date.now();
   const stamp = <T extends object>(x: T): T => Object.fromEntries(Object.entries({ ...x, updatedAt: t }).filter(([, v]) => v !== undefined)) as T;
-  await applyRecords({ jobs: plan.jobs.map(stamp), clients: plan.clients, invoices: plan.invoices.map(stamp) });
+  await applyRecords({ jobs: plan.jobs.map(stamp), clients: plan.clients, invoices: plan.invoices.map(stamp), projects: plan.projects });
   changeBus.dispatchEvent(new Event('change'));
 };

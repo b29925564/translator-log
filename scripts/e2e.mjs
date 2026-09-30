@@ -387,6 +387,48 @@ await suite('New user, English', { locale: 'en-US' }, async (page, step) => {
     await expectVisible(page.locator('main').getByText('年報摘要'));
     await expectVisible(page.locator('main').getByText('產品型錄'));
   });
+  await step('bulk edit sets the field and CAT tool a report left out', async () => {
+    await page.evaluate(() => (location.hash = '/jobs'));
+    await page.getByRole('button', { name: '選取', exact: true }).click();
+    await page.getByRole('checkbox', { name: /年報摘要/ }).click();
+    await page.getByRole('checkbox', { name: /產品型錄/ }).click();
+    await page.getByRole('toolbar', { name: '選取的案件' }).getByRole('button', { name: '編輯' }).click();
+    await page.locator('#bulk-domain').selectOption('set');
+    await page.locator('#bulk-domain-value').selectOption('legal');
+    await page.locator('#bulk-cat').selectOption('set');
+    await page.getByLabel('CAT 工具名稱').fill('memoQ');
+    await page.getByText('標籤與備註', { exact: true }).click();
+    await page.locator('#bulk-notes').selectOption('append');
+    await page.getByRole('textbox', { name: '備註' }).fill('Batch from vendor');
+    await page.getByRole('button', { name: '套用', exact: true }).click();
+    await expectVisible(page.getByText('已更新 2 個案件'));
+    await page.locator('main').getByText('產品型錄').click();
+    await expectVisible(page.getByText('memoQ').first());
+    await expectVisible(page.getByText('Batch from vendor'));
+    await expectVisible(page.getByText(/法律/).first());
+    await page.evaluate(() => (location.hash = '/jobs'));
+  });
+  await step('an import creates a project it has not seen, once', async () => {
+    await page.evaluate(() => (location.hash = '/money'));
+    await page.getByRole('button', { name: '匯入報表' }).click();
+    await page.getByLabel('選擇報表檔案').setInputFiles({ name: 'orion.csv', mimeType: 'text/csv', buffer: Buffer.from('Job,Words,Rate,所屬專案\nOrion ch1,500,0.1,Orion saga\nOrion ch2,600,0.1,Orion saga\nMisc,100,0.1,Northwind\n') });
+    await expectVisible(page.getByText('將建立 1 個新專案：Orion saga'));
+    await page.keyboard.press('Escape');
+    // closing without applying leaves no project behind
+    await page.evaluate(() => (location.hash = '/projects'));
+    await page.waitForTimeout(300);
+    if (await page.getByText('Orion saga').count()) throw new Error('project created before applying');
+    await page.evaluate(() => (location.hash = '/money'));
+    await page.getByRole('button', { name: '匯入報表' }).click();
+    await page.getByLabel('選擇報表檔案').setInputFiles({ name: 'orion.csv', mimeType: 'text/csv', buffer: Buffer.from('Job,Words,Rate,所屬專案\nOrion ch1,500,0.1,Orion saga\nOrion ch2,600,0.1,Orion saga\nMisc,100,0.1,Northwind\n') });
+    await page.getByRole('button', { name: '套用', exact: true }).click();
+    await expectVisible(page.getByText(/新專案 1 個/));
+    await page.evaluate(() => (location.hash = '/projects'));
+    await expectVisible(page.getByText('Orion saga'));
+    await page.getByText('Orion saga').click();
+    await expectVisible(page.getByText('案件（2）'));
+    await page.evaluate(() => (location.hash = '/jobs'));
+  });
   await step('a delete confirm without a body has no empty body', async () => {
     await page.locator('main').getByText('產品型錄').click();
     await page.getByRole('button', { name: '更多動作' }).click();
@@ -597,6 +639,7 @@ await suite('Phone', { locale: 'zh-TW', viewport: { width: 390, height: 844 }, i
     const box = await toolbar.boundingBox();
     if (!box || box.x < 0 || box.x + box.width > 390) throw new Error('toolbar is off screen');
     await toolbar.getByRole('button', { name: '編輯' }).click();
+    await page.getByText('計價', { exact: true }).click();
     await page.locator('#bulk-currency').selectOption('EUR');
     await page.getByRole('button', { name: '套用', exact: true }).click();
     await expectVisible(page.getByText('已更新 2 個案件'));

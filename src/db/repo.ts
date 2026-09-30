@@ -172,14 +172,47 @@ export interface BulkEdit {
   currency?: string;
   /** Marks the jobs paid on this date. */
   paidAt?: string;
+  domain?: string | null;
+  catTool?: string | null;
+  service?: Job['service'];
+  sourceLang?: string;
+  targetLang?: string;
+  unit?: Job['unit'];
+  rate?: number;
+  receivedAt?: string | null;
+  dueAt?: string | null;
+  deliveredAt?: string | null;
+  tags?: { mode: 'append' | 'replace'; values: string[] };
+  notes?: { mode: 'append' | 'replace'; text: string };
 }
+
+/** Tags typed as “a, b、c”, trimmed and without repeats. */
+export const splitTags = (s: string) => [...new Set(s.split(/[,，、;；\n]/).map((t) => t.trim()).filter(Boolean))];
 
 export const bulkEdited = (job: Job, e: BulkEdit, ctx: { fxToBase: (currency: string) => number; today: string }): Job => {
   let j: Job = { ...job };
-  if (e.clientId !== undefined) j.clientId = e.clientId ?? undefined;
-  if (e.projectId !== undefined) j.projectId = e.projectId ?? undefined;
+  const opt = <K extends 'clientId' | 'projectId' | 'domain' | 'catTool' | 'receivedAt' | 'dueAt' | 'deliveredAt'>(k: K) => {
+    if (e[k] !== undefined) j[k] = (e[k] ?? undefined) as Job[K];
+  };
+  (['clientId', 'projectId', 'domain', 'catTool', 'receivedAt', 'dueAt'] as const).forEach(opt);
+  if (e.service) j.service = e.service;
+  if (e.sourceLang) j.sourceLang = e.sourceLang;
+  if (e.targetLang) j.targetLang = e.targetLang;
+  if (e.unit && e.unit !== j.unit) {
+    // a flat fee is one unit; leaving flat keeps the word count as the volume
+    j = e.unit === 'flat' ? { ...j, unit: 'flat', words: j.words ?? (j.unit === 'word' ? j.quantity : undefined), quantity: 1 } : { ...j, unit: e.unit, quantity: j.unit === 'flat' ? j.words ?? 0 : j.quantity };
+    if (e.unit === 'flat' || j.cat) j.cat = undefined;
+  }
+  if (e.rate != null) j.rate = e.rate;
   if (e.currency && e.currency !== j.currency) j = { ...j, currency: e.currency, fxToBase: ctx.fxToBase(e.currency) };
+  if (e.tags) j.tags = e.tags.mode === 'replace' ? [...e.tags.values] : [...new Set([...(j.tags ?? []), ...e.tags.values])];
+  if (e.notes) {
+    const text = e.notes.text.trim();
+    j.notes = e.notes.mode === 'replace' ? text || undefined : [j.notes?.trim(), text].filter(Boolean).join('\n') || undefined;
+  }
   if (e.status && e.status !== j.status) j = withStatus(j, e.status, ctx.today);
+  // a delivery date set by hand wins over the one a status change fills in
+  opt('deliveredAt');
   if (e.paidAt && j.status !== 'paid') j = withStatus({ ...j, paidAt: e.paidAt }, 'paid', e.paidAt);
   else if (e.paidAt && j.status === 'paid') j.paidAt = e.paidAt;
   return j;

@@ -409,6 +409,7 @@ export function ReportImport() {
         updated && tx(`${updated} 筆已更新`, `${updated} updated`),
         created && tx(`新增 ${created} 筆`, `${created} added`),
         plan.clients.length && tx(`新客戶 ${plan.clients.length} 位`, `${plan.clients.length} new clients`),
+        plan.projects.length && tx(`新專案 ${plan.projects.length} 個`, `${plan.projects.length} new projects`),
       ].filter(Boolean);
       toast(tx('匯入完成：', 'Imported: ') + parts.join(tx('、', ', ')), { tone: 'good' });
       if (paid) fireStamp(tx('已收款', 'Paid'), tx(`${paid} 筆`, `${paid} jobs`));
@@ -764,6 +765,13 @@ export function ReportImport() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {plan && plan.projects.length > 0 && (
+          <div className="rounded-[4px] border border-line bg-surface-2 px-3 py-2 text-[12.5px] text-ink-2" role="status">
+            {tx(`將建立 ${plan.projects.length} 個新專案：`, `Will create ${plan.projects.length} new project${plan.projects.length > 1 ? 's' : ''}: `)}
+            {plan.projects.map((p) => p.name).join(tx('、', ', '))}
           </div>
         )}
 

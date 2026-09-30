@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { describe, expect, it } from 'vitest';
-import { bulkEdited, newJob } from '../src/db/repo';
+import { bulkEdited, newJob, splitTags } from '../src/db/repo';
 import { planImport, projectFor } from '../src/db/reportApply';
 import { DEFAULT_SETTINGS } from '../src/domain/constants';
 import { guessMapping } from '../src/domain/csv';
@@ -96,5 +96,57 @@ describe('bulkEdited', () => {
     const out = bulkEdited(j, { paidAt: '2026-09-20' }, fx);
     expect(out).toMatchObject({ status: 'paid', paidAt: '2026-09-20', invoicedAt: '2026-09-20' });
     expect(bulkEdited(j, { status: 'active' }, fx)).toMatchObject({ status: 'active', deliveredAt: undefined });
+  });
+});
+
+describe('bulk edit of shared fields', () => {
+  const fx = { fxToBase: () => 1, today: '2026-09-29' };
+  const j = newJob({ title: 'B', tags: ['a'], notes: 'first', unit: 'word', quantity: 1200, currency: 'TWD', domain: 'legal', catTool: 'memoQ' });
+
+  it('sets domain, CAT tool, service, pair and rate', () => {
+    const out = bulkEdited(j, { domain: 'games', catTool: 'Trados Studio', service: 'review', sourceLang: 'ja', targetLang: 'zh-TW', rate: 0.5 }, fx);
+    expect(out).toMatchObject({ domain: 'games', catTool: 'Trados Studio', service: 'review', sourceLang: 'ja', targetLang: 'zh-TW', rate: 0.5 });
+    expect(bulkEdited(j, { domain: null, catTool: null }, fx)).toMatchObject({ domain: undefined, catTool: undefined });
+  });
+
+  it('appends or replaces tags and notes', () => {
+    expect(bulkEdited(j, { tags: { mode: 'append', values: splitTags('b, a、c') }, notes: { mode: 'append', text: 'second' } }, fx)).toMatchObject({ tags: ['a', 'b', 'c'], notes: 'first\nsecond' });
+    expect(bulkEdited(j, { tags: { mode: 'replace', values: ['x'] }, notes: { mode: 'replace', text: '' } }, fx)).toMatchObject({ tags: ['x'], notes: undefined });
+  });
+
+  it('keeps the word count when switching to a flat fee', () => {
+    expect(bulkEdited(j, { unit: 'flat' }, fx)).toMatchObject({ unit: 'flat', quantity: 1, words: 1200 });
+  });
+
+  it('dates can be set or cleared', () => {
+    expect(bulkEdited(j, { dueAt: '2026-10-01', receivedAt: null }, fx)).toMatchObject({ dueAt: '2026-10-01', receivedAt: undefined });
+  });
+});
+
+describe('projects named in a report', () => {
+  const grid = [
+    ['Job', 'Amount', '所屬專案'],
+    ['A1', '10', 'Atlas'],
+    ['A2', '10', 'atlas '],
+    ['B1', '10', 'Borealis'],
+    ['C1', '10', 'Game'],
+  ];
+  const r = gridToReport(grid, 0, guessMapping(grid[0]), ctx);
+
+  it('creates each unknown name once, as an ongoing project of the client', () => {
+    const plan = planImport({ ...r, client: 'Acme' }, r.rows.map(() => ({ jobIds: [], score: 0 })), ['new', 'new', 'new', 'new'], { jobs: [], invoices: [], clients: [], settings, today: ctx.today, projects: [{ id: 'p1', name: 'Game' }] });
+    expect(plan.projects.map((p) => [p.name, p.kind])).toEqual([
+      ['Atlas', 'ongoing'],
+      ['Borealis', 'ongoing'],
+    ]);
+    expect(plan.projects.every((p) => p.clientId === plan.clients[0].id)).toBe(true);
+    const [atlas, borealis] = plan.projects;
+    expect(plan.jobs.map((j) => j.projectId)).toEqual([atlas.id, atlas.id, borealis.id, 'p1']);
+  });
+
+  it('makes no project for skipped rows or jobs that already have one', () => {
+    const existing = newJob({ title: 'A1', projectId: 'p1' });
+    const plan = planImport(r, [{ jobIds: [existing.id], score: 1 }, { jobIds: [], score: 0 }, { jobIds: [], score: 0 }, { jobIds: [], score: 0 }], ['update', 'skip', 'skip', 'skip'], { jobs: [existing], invoices: [], clients: [], settings, today: ctx.today, projects: [] });
+    expect(plan.projects).toEqual([]);
   });
 });
