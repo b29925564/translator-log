@@ -80,7 +80,9 @@ const ask = async (params: { system: string; user: string | Anthropic.Beta.BetaC
 
 // ---------- job extraction ----------
 
-const nullable = (type: string, extra: Record<string, unknown> = {}) => ({ type: [type, 'null'], ...extra });
+// The API rejects `enum` next to a type array like ['string', 'null'], so an enum field
+// declares only its allowed values (null included) and no type.
+const nullable = (type: string, extra: Record<string, unknown> = {}) => ('enum' in extra ? { ...extra } : { type: [type, 'null'], ...extra });
 
 const JOB_SCHEMA = {
   type: 'object',
