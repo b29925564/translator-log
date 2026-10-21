@@ -1,14 +1,9 @@
 // 從錄音建立 take、跑分析。
 
-import { AnalysisClient } from '../analysis/client';
+import { analysisClient } from '../analysis/client';
 import { encodeWav } from '../audio/wav';
 import { DEFAULT_SETTINGS, type Note, type Take } from '../types';
 import type { Session } from './state';
-
-let client: AnalysisClient | null = null;
-function analysisClient() {
-  return (client ??= new AnalysisClient());
-}
 
 export function newId(): string {
   return typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;

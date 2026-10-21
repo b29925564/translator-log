@@ -47,7 +47,24 @@ export type Take = {
   /** 使用者選的調；沒有就用偵測到的第 1 名。 */
   key?: Key;
   settings: AnalysisSettings;
+  /** 說話變唱歌模式的設定與自評（mode = 'speech-song' 時才有）。 */
+  speech?: SpeechSettings;
 };
+
+export type SpeechSettings = {
+  /** 誇張化 1.0–2.0 */
+  exaggeration: number;
+  /** 伴奏型：長音／分解和弦 */
+  pattern: 'pad' | 'arpeggio';
+  drums: boolean;
+  /** 循環次數（5–20）與每次之間的停頓（0.3–2 秒） */
+  repeats: number;
+  gap: number;
+  /** 第 1…N 次播完後的自評（1 = 完全像說話 … 5 = 完全像唱歌），沒點就是 null */
+  ratings: (number | null)[];
+};
+
+export const DEFAULT_SPEECH: SpeechSettings = { exaggeration: 1.4, pattern: 'pad', drums: false, repeats: 10, gap: 0.8, ratings: [] };
 
 export const DEFAULT_SETTINGS: AnalysisSettings = {
   sensitivity: 0.5,

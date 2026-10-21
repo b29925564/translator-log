@@ -4,6 +4,7 @@
 import type { AnalysisSettings } from '../types';
 import { trackRaw, type RawTrack } from './pitch-track';
 import { analyzeTrack, NO_CONTEXT, type AnalysisContext, type HumAnalysis } from './pipeline';
+import { analyzeSpeechTrack, type SpeechAnalysis, type SpeechOptions } from './speech';
 
 export type AnalyzeRequest = {
   type: 'analyze';
@@ -12,11 +13,15 @@ export type AnalyzeRequest = {
   /** 第一次分析這段錄音時要附上；之後只改設定時可以省略，直接用快取。 */
   audio?: { samples: Float32Array; sampleRate: number };
   settings: AnalysisSettings;
+  /** 哼唱模式用。 */
   context?: AnalysisContext;
+  /** 有這個欄位就跑「說話變唱歌」的管線。 */
+  speech?: SpeechOptions;
 };
 
 export type AnalyzeResponse =
   | { type: 'result'; jobId: number; takeId: string; result: HumAnalysis; ms: number }
+  | { type: 'speech-result'; jobId: number; takeId: string; result: SpeechAnalysis; ms: number }
   | { type: 'error'; jobId: number; takeId: string; message: string };
 
 const CACHE_SIZE = 4;
@@ -44,11 +49,13 @@ export function createAnalyzer() {
     has: (takeId: string) => cache.has(takeId),
     handle(req: AnalyzeRequest): AnalyzeResponse {
       const t0 = performance.now();
+      const base = { jobId: req.jobId, takeId: req.takeId };
       try {
-        const result = analyzeTrack(rawFor(req), req.settings, req.context ?? NO_CONTEXT);
-        return { type: 'result', jobId: req.jobId, takeId: req.takeId, result, ms: performance.now() - t0 };
+        const raw = rawFor(req);
+        if (req.speech) return { type: 'speech-result', ...base, result: analyzeSpeechTrack(raw, req.settings, req.speech), ms: performance.now() - t0 };
+        return { type: 'result', ...base, result: analyzeTrack(raw, req.settings, req.context ?? NO_CONTEXT), ms: performance.now() - t0 };
       } catch (err) {
-        return { type: 'error', jobId: req.jobId, takeId: req.takeId, message: err instanceof Error ? err.message : String(err) };
+        return { type: 'error', ...base, message: err instanceof Error ? err.message : String(err) };
       }
     },
   };

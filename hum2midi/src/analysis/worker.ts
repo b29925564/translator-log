@@ -6,6 +6,6 @@ const analyzer = createAnalyzer();
 
 self.onmessage = (e: MessageEvent<AnalyzeRequest>) => {
   const res = analyzer.handle(e.data);
-  const transfer = res.type === 'result' ? [res.result.curve.buffer] : [];
+  const transfer = res.type === 'error' ? [] : [res.result.curve.buffer];
   self.postMessage(res, { transfer });
 };

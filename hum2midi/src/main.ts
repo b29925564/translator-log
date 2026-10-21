@@ -1,32 +1,29 @@
-// 應用程式外殼：頂部頁籤、頁面切換、全域快捷鍵。
+// 應用程式外殼：頂部頁籤、頁面切換、全域快捷鍵、隱藏模式解鎖。
 
 import './style.css';
 import { debugHooks } from './app/debug';
-import { store, type AppState, type Page as PageName } from './app/state';
+import { onSaveError, startAutosave } from './app/library';
+import { setPrefs, store, type AppState, type Page as PageName } from './app/state';
 import { h } from './ui/dom';
 import type { Page } from './ui/page';
-import { onSaveError, startAutosave } from './app/library';
 import { createEditPage } from './ui/page-edit';
 import { createLibraryPage } from './ui/page-library';
 import { createRecordPage } from './ui/page-record';
+import { createSpeechPage } from './ui/page-speech-song';
 import { toast } from './ui/toast';
 
-const TABS: { page: PageName; label: string; key: string }[] = [
+const TABS: { page: PageName; label: string; key: string; hidden?: boolean }[] = [
   { page: 'record', label: '錄音', key: '1' },
   { page: 'edit', label: '編輯', key: '2' },
   { page: 'library', label: '庫', key: '3' },
+  { page: 'speech', label: '說話變唱歌', key: '4', hidden: true },
 ];
-
-function createPlaceholder(label: string, text: string): Page {
-  const el = h('section', { class: 'page', 'aria-label': label }, h('div', { class: 'empty' }, text));
-  return { el, show: () => el.classList.add('active'), hide: () => el.classList.remove('active'), onKey: () => false };
-}
 
 const pages: Record<PageName, Page> = {
   record: createRecordPage(),
   edit: createEditPage(),
   library: createLibraryPage(),
-  speech: createPlaceholder('說話變唱歌', '說話變唱歌'),
+  speech: createSpeechPage(),
 };
 
 startAutosave();
@@ -39,7 +36,7 @@ const tabButtons = TABS.map((t) =>
   h(
     'button',
     {
-      class: 'tab',
+      class: t.hidden ? 'tab secret' : 'tab',
       role: 'tab',
       'aria-selected': 'false',
       'aria-label': `${t.label}（${mod}${t.key}）`,
@@ -50,13 +47,14 @@ const tabButtons = TABS.map((t) =>
   ),
 );
 
-const logo = h('button', { class: 'logo', 'aria-label': 'hum2midi' }, h('span', { class: 'logo-mark' }), 'hum2midi');
+const logo = h('button', { class: 'logo', 'aria-label': 'hum2midi', onclick: () => onLogoClick() }, h('span', { class: 'logo-mark' }), 'hum2midi');
 const header = h('header', { class: 'topbar' }, h('h1', { class: 'brand' }, logo), h('nav', { class: 'tabs', role: 'tablist', 'aria-label': '頁面' }, ...tabButtons), h('span', { class: 'spacer' }));
 const main = h('main', { class: 'pages' }, ...Object.values(pages).map((p) => p.el));
 document.querySelector('#app')!.append(header, main);
 
 function go(page: PageName) {
-  if (store.get().rec.status !== 'idle' && page !== 'record') return; // 錄音中不能離開
+  if (store.get().rec.status !== 'idle' && page !== store.get().page) return; // 錄音中不能離開
+  if (page === 'speech' && !store.get().prefs.speechUnlocked) return;
   store.set({ page });
 }
 
@@ -71,14 +69,38 @@ function renderPage(s: AppState) {
 
 function renderTabs(s: AppState) {
   const locked = s.rec.status !== 'idle';
-  TABS.forEach((t, i) => (tabButtons[i].disabled = locked && t.page !== 'record'));
+  TABS.forEach((t, i) => {
+    tabButtons[i].disabled = locked && t.page !== s.page;
+    if (t.hidden) tabButtons[i].hidden = !s.prefs.speechUnlocked;
+  });
 }
 
 store.subscribe((s, prev) => {
   if (s.page !== prev.page) renderPage(s);
-  if (s.rec.status !== prev.rec.status) renderTabs(s);
+  if (s.rec.status !== prev.rec.status || s.prefs.speechUnlocked !== prev.prefs.speechUnlocked || s.page !== prev.page) renderTabs(s);
 });
 renderPage(store.get());
+renderTabs(store.get());
+
+// ---------- 隱藏模式：在錄音頁連點 logo 三下，或按 ⇧S ----------
+
+function unlockSpeech() {
+  if (!store.get().prefs.speechUnlocked) {
+    setPrefs({ speechUnlocked: true });
+    toast('解鎖隱藏模式：說話變唱歌');
+  }
+  go('speech');
+}
+
+let logoClicks: number[] = [];
+function onLogoClick() {
+  const now = performance.now();
+  logoClicks = [...logoClicks.filter((t) => now - t < 700), now];
+  if (logoClicks.length >= 3 && store.get().page === 'record' && store.get().rec.status === 'idle') {
+    logoClicks = [];
+    unlockSpeech();
+  }
+}
 
 // ---------- 快捷鍵 ----------
 
@@ -89,21 +111,62 @@ function typing(target: EventTarget | null): boolean {
   return target instanceof HTMLInputElement && !['checkbox', 'radio', 'range', 'button'].includes(target.type);
 }
 
+/** 焦點在控制項上時，讓瀏覽器照原本的方式處理按鍵（鍵盤操作按鈕、核取方塊、滑桿）。 */
+function nativeKey(e: KeyboardEvent): boolean {
+  const t = e.target;
+  if (!(t instanceof HTMLElement)) return false;
+  const activates = t instanceof HTMLButtonElement || t instanceof HTMLAnchorElement || (t instanceof HTMLInputElement && (t.type === 'checkbox' || t.type === 'radio'));
+  if (activates && (e.key === 'Enter' || e.key === ' ')) return true;
+  if (t instanceof HTMLInputElement && t.type === 'range' && /^(Arrow|Page|Home|End)/.test(e.key)) return true;
+  if (t instanceof HTMLInputElement && t.type === 'radio' && e.key.startsWith('Arrow')) return true;
+  return false;
+}
+
+// 用滑鼠點過的按鈕、核取方塊、單選鈕不要留著焦點：否則之後按空白鍵會再「按」一次那個控制項，
+// 而不是錄音／播放。鍵盤操作的焦點不受影響。
+let lastPointer = 0;
+document.addEventListener('pointerdown', () => (lastPointer = performance.now()), true);
+document.addEventListener('click', (e) => {
+  const b = (e.target as HTMLElement | null)?.closest('button');
+  if (b && e.detail > 0) b.blur();
+});
+document.addEventListener(
+  'change',
+  (e) => {
+    const t = e.target;
+    if (t instanceof HTMLInputElement && (t.type === 'checkbox' || t.type === 'radio') && performance.now() - lastPointer < 1000) t.blur();
+  },
+  true,
+);
+
 let swallowSpaceUp = false;
 
 window.addEventListener('keydown', (e) => {
-  // ⌘1／⌘2／⌘3（其他系統 Ctrl）切換頁面；瀏覽器若保留了這組快捷鍵，也可以不加修飾鍵直接按 1／2／3
+  if (document.querySelector('dialog[open]')) return;
   const tab = TABS.find((t) => t.key === e.key);
-  if (tab && !e.shiftKey && !e.altKey && ((isMac ? e.metaKey : e.ctrlKey) || (!e.metaKey && !e.ctrlKey && !typing(e.target)))) {
+  const cmd = isMac ? e.metaKey : e.ctrlKey;
+  // ⌘1–⌘4（其他系統 Ctrl）切換頁面
+  if (tab && cmd && !e.shiftKey && !e.altKey) {
     e.preventDefault();
     go(tab.page);
     return;
   }
-  if (typing(e.target)) return;
+  if (typing(e.target) || nativeKey(e)) return;
   if (current && pages[current].onKey(e)) {
     e.preventDefault();
-    // 焦點在按鈕上時，空白鍵放開會再「點」一次按鈕；已經處理過就吞掉
+    // 焦點在別的地方時，空白鍵放開可能會觸發瀏覽器的預設動作；已經處理過就吞掉
     if (e.code === 'Space') swallowSpaceUp = true;
+    return;
+  }
+  // 瀏覽器可能保留了 ⌘＋數字（切換分頁）：不加修飾鍵直接按 1–4 也可以
+  if (tab && !cmd && !e.altKey && !e.metaKey && !e.ctrlKey && !e.shiftKey) {
+    e.preventDefault();
+    go(tab.page);
+    return;
+  }
+  if (e.key === 'S' && e.shiftKey && !cmd && !e.altKey) {
+    e.preventDefault();
+    unlockSpeech();
   }
 });
 

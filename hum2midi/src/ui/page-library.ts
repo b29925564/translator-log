@@ -2,7 +2,7 @@
 
 import { flushAutosave, openTake } from '../app/library';
 import { newId } from '../app/session';
-import { store } from '../app/state';
+import { setPrefs, store } from '../app/state';
 import { formatClock } from '../music';
 import { deleteTake, duplicateTake, listTakes, renameTake, type TakeMeta } from '../store/takes';
 import type { Note } from '../types';
@@ -82,12 +82,15 @@ export function createLibraryPage(): Page {
   }
 
   async function open(id: string) {
-    const s = await openTake(id);
-    if (!s) {
+    const opened = await openTake(id);
+    if (!opened) {
       toast('找不到這個 take', 'error');
       return reload();
     }
-    store.set({ session: s, page: s.take.mode === 'speech-song' && store.get().prefs.speechUnlocked ? 'speech' : 'edit' });
+    if (opened.kind === 'speech') {
+      if (!store.get().prefs.speechUnlocked) setPrefs({ speechUnlocked: true });
+      store.set({ speech: opened.session, page: 'speech' });
+    } else store.set({ session: opened.session, page: 'edit' });
   }
 
   async function rename(t: TakeMeta) {
@@ -97,6 +100,8 @@ export function createLibraryPage(): Page {
     await renameTake(t.id, name);
     const s = store.get().session;
     if (s?.take.id === t.id) store.set({ session: { ...s, take: { ...s.take, name } } });
+    const sp = store.get().speech;
+    if (sp?.take.id === t.id) store.set({ speech: { ...sp, take: { ...sp.take, name } } });
     await reload();
   }
 
@@ -112,13 +117,14 @@ export function createLibraryPage(): Page {
     if (!(await confirmDialog(`刪除「${t.name}」？刪除後無法復原。`, '刪除'))) return;
     await deleteTake(t.id);
     if (store.get().session?.take.id === t.id) store.set({ session: null });
+    if (store.get().speech?.take.id === t.id) store.set({ speech: null });
     await reload();
     toast(`已刪除「${t.name}」`);
   }
 
   function card(t: TakeMeta) {
     const thumb = h('canvas', { class: 'lib-thumb', 'aria-hidden': 'true' });
-    const current = store.get().session?.take.id === t.id;
+    const current = store.get().session?.take.id === t.id || store.get().speech?.take.id === t.id;
     const c = h(
       'article',
       { class: 'take-card panel', role: 'listitem', 'aria-label': t.name, 'data-current': current ? 'true' : undefined },

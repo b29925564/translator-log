@@ -19,6 +19,9 @@ class RecordingController {
   private watchdog = 0;
   /** 開始錄音那一刻的 performance.now()（預備拍結束的時候），給畫面上的計時器用。 */
   startedAt = 0;
+  /** 錄完之後交給誰處理；null = 哼唱模式（分析、存成新 take、切到編輯頁）。說話變唱歌頁會暫時換掉。 */
+  onRecorded: ((samples: Float32Array, sampleRate: number) => Promise<void>) | null = null;
+  private useMetronome = true;
 
   /** 打開麥克風（重複呼叫沒關係）。 */
   async openMic(): Promise<Recorder> {
@@ -55,15 +58,16 @@ class RecordingController {
     this.live = null;
   }
 
-  toggle() {
+  toggle(opts: { metronome?: boolean } = {}) {
     const { status } = store.get().rec;
-    if (status === 'idle') void this.start();
+    if (status === 'idle') void this.start(opts);
     else if (status === 'countin') this.cancel();
     else if (status === 'recording') void this.stop();
   }
 
-  async start() {
+  async start(opts: { metronome?: boolean } = {}) {
     if (store.get().rec.status !== 'idle') return;
+    this.useMetronome = opts.metronome ?? true;
     setRec({ status: 'opening', error: null });
     let rec: Recorder;
     try {
@@ -73,7 +77,8 @@ class RecordingController {
       return;
     }
     const ctx = rec.ctx;
-    const { metronome, bpm, latencyOffsetMs } = store.get().prefs;
+    const { bpm, latencyOffsetMs } = store.get().prefs;
+    const metronome = this.useMetronome && store.get().prefs.metronome;
     if (!metronome) {
       rec.start();
       this.beginRecording();
@@ -136,7 +141,16 @@ class RecordingController {
       setRec({ status: 'idle', error: '錄音太短了，再試一次。' });
       return;
     }
-    const { metronome, bpm } = store.get().prefs;
+    if (this.onRecorded) {
+      try {
+        await this.onRecorded(samples, rec.sampleRate);
+      } finally {
+        setRec({ status: 'idle' });
+      }
+      return;
+    }
+    const { bpm } = store.get().prefs;
+    const metronome = this.useMetronome && store.get().prefs.metronome;
     try {
       const session = await sessionFromRecording(samples, rec.sampleRate, metronome ? bpm : null);
       // 每次錄音停止後自動存成新 take，不需要手動儲存

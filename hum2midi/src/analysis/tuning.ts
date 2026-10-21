@@ -12,19 +12,24 @@ const VIBRATO_FRAMES = 19;
  * 直接拿逐幀音高算會被顫音帶偏：±50 音分的顫音偏差會繞過 ±π，圓形平均反而指向 ±50 音分。
  */
 export function estimateTuningOffset(midi: ArrayLike<number>): number {
-  const centered = movingAverageRuns(midi, VIBRATO_FRAMES);
+  return circularOffset(movingAverageRuns(midi, VIBRATO_FRAMES));
+}
+
+/** 一組音高相對最近半音的偏差的圓形平均（可加權）；NaN 略過。 */
+export function circularOffset(values: ArrayLike<number>, weights?: ArrayLike<number>): number {
   let c = 0;
   let s = 0;
-  let n = 0;
-  for (let i = 0; i < centered.length; i++) {
-    const m = centered[i];
+  let total = 0;
+  for (let i = 0; i < values.length; i++) {
+    const m = values[i];
     if (Number.isNaN(m)) continue;
+    const w = weights ? weights[i] : 1;
     const a = 2 * Math.PI * (m - Math.round(m));
-    c += Math.cos(a);
-    s += Math.sin(a);
-    n++;
+    c += w * Math.cos(a);
+    s += w * Math.sin(a);
+    total += w;
   }
-  if (n === 0 || Math.hypot(c, s) / n < MIN_RESULTANT) return 0;
+  if (total === 0 || Math.hypot(c, s) / total < MIN_RESULTANT) return 0;
   return Math.atan2(s, c) / (2 * Math.PI);
 }
 
