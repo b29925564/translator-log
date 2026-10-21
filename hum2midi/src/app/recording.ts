@@ -4,6 +4,7 @@ import { audioContext, outputLatency } from '../audio/context';
 import { LivePitch } from '../audio/live-pitch';
 import { BEATS_PER_BAR, Metronome } from '../audio/metronome';
 import { MAX_SECONDS, MicError, Recorder } from '../audio/recorder';
+import { saveNewSession } from './library';
 import { sessionFromRecording } from './session';
 import { setRec, store } from './state';
 
@@ -138,6 +139,8 @@ class RecordingController {
     const { metronome, bpm } = store.get().prefs;
     try {
       const session = await sessionFromRecording(samples, rec.sampleRate, metronome ? bpm : null);
+      // 每次錄音停止後自動存成新 take，不需要手動儲存
+      await saveNewSession(session);
       setRec({ status: 'idle' });
       store.set({ session, page: 'edit' });
     } catch (err) {

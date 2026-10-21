@@ -5,8 +5,11 @@ import { debugHooks } from './app/debug';
 import { store, type AppState, type Page as PageName } from './app/state';
 import { h } from './ui/dom';
 import type { Page } from './ui/page';
+import { onSaveError, startAutosave } from './app/library';
 import { createEditPage } from './ui/page-edit';
+import { createLibraryPage } from './ui/page-library';
 import { createRecordPage } from './ui/page-record';
+import { toast } from './ui/toast';
 
 const TABS: { page: PageName; label: string; key: string }[] = [
   { page: 'record', label: '錄音', key: '1' },
@@ -22,9 +25,12 @@ function createPlaceholder(label: string, text: string): Page {
 const pages: Record<PageName, Page> = {
   record: createRecordPage(),
   edit: createEditPage(),
-  library: createPlaceholder('庫', 'Takes 庫'),
+  library: createLibraryPage(),
   speech: createPlaceholder('說話變唱歌', '說話變唱歌'),
 };
+
+startAutosave();
+onSaveError((m) => toast(m, 'error'));
 
 const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 const mod = isMac ? '⌘' : 'Ctrl+';

@@ -27,6 +27,6 @@ npm run dev        # http://localhost:5173 （麥克風只能在 localhost 或 h
 - [x] M2 匯出 MIDI／WAV
 - [x] M3 錄音＋即時顯示＋鋼琴捲軸（唯讀）
 - [x] M4 量化、調性、編輯、播放、復原
-- [ ] M5 Takes 庫
+- [x] M5 Takes 庫
 - [ ] M6 隱藏模式：說話變唱歌
 - [ ] M7 打磨與人工驗收

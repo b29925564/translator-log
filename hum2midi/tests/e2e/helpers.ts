@@ -53,7 +53,13 @@ export function rollBox(page: Page) {
   return page.evaluate(() => (window as unknown as { __humDebug: Debug }).__humDebug.rollBox());
 }
 
+/** 等 App 載入完成（開發伺服器第一次編譯可能要一點時間）。 */
+export async function ready(page: Page) {
+  await page.waitForFunction(() => 'window' in globalThis && '__humDebug' in window);
+}
+
 export async function recordFor(page: Page, ms: number) {
+  await ready(page);
   await page.keyboard.press('Space');
   await expect.poll(async () => (await snap(page)).status).toBe('recording');
   await page.waitForTimeout(ms);
