@@ -1,0 +1,43 @@
+name: hum2midi
+
+on:
+  push:
+    branches: [main]
+    paths: ['hum2midi/**', '.github/workflows/hum2midi.yml']
+  pull_request:
+    paths: ['hum2midi/**', '.github/workflows/hum2midi.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: hum2midi
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: hum2midi/package-lock.json
+      - run: npm ci
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e
+        env:
+          CI: '1'
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: hum2midi-e2e
+          path: hum2midi/test-results

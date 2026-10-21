@@ -1,0 +1,35 @@
+{
+  "name": "hum2midi",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "哼歌變 MIDI：按空白鍵哼一段，自動轉成音符，一鍵輸出 .mid",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "fixtures": "tsx scripts/gen-test-audio.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "1.56.1",
+    "@types/node": "^26.6.5",
+    "eslint": "^10.13.0",
+    "globals": "^17.13.0",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.72.0",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
+  },
+  "dependencies": {
+    "@tonejs/midi": "^2.0.28",
+    "idb": "^8.0.4",
+    "pitchy": "^4.1.0"
+  }
+}
