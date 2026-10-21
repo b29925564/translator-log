@@ -1,6 +1,7 @@
 // 說話變唱歌：從一句話建立 take、分析、組出伴奏與多軌 MIDI。
 
 import { analysisClient } from '../analysis/client';
+import { frameRms, noiseFloor } from '../analysis/pitch-track';
 import { BEATS_PER_BAR, GM_DRUMS, chordNotes, drumPattern, type DrumEvent } from '../analysis/harmonize';
 import type { PlaySource } from '../audio/player';
 import { trimSilence } from '../audio/trim';
@@ -17,14 +18,19 @@ export async function analyzeSpeechSession(take: Take, samples: Float32Array): P
   const analysis = await analysisClient().analyzeSpeech(take.id, take.settings, samples, take.sampleRate, {
     exaggeration: sp.exaggeration,
     key: take.key ?? null,
+    noiseFloor: sp.noiseFloor,
   });
   const notes: Note[] = analysis.notes.map(({ id, midi, start, dur, velocity }) => ({ id, midi, start, dur, velocity }));
   const chords = analysis.chords.map(({ root, quality, start, dur }) => ({ root, quality, start, dur }));
   return { take: { ...take, notes, chords, bpm: analysis.bpm, gridOffset: analysis.gridOffset }, samples, analysis };
 }
 
-/** 一句話（錄的或從庫裡框選的）→ 修剪頭尾靜音 → 新的說話變唱歌 take（自動存進庫）。 */
-export async function speechSessionFromSamples(raw: Float32Array, sampleRate: number): Promise<SpeechSession> {
+/**
+ * 一句話（錄的或從庫裡框選的）→ 修剪頭尾靜音 → 新的說話變唱歌 take（自動存進庫）。
+ * floorSource：用來量底噪的音訊（框選時是整段來源錄音）；預設是修剪前的這一句。
+ */
+export async function speechSessionFromSamples(raw: Float32Array, sampleRate: number, floorSource: Float32Array = raw): Promise<SpeechSession> {
+  const floor = noiseFloor(frameRms(floorSource, sampleRate));
   const { samples } = trimSilence(raw, sampleRate);
   const now = new Date();
   const take: Take = {
@@ -38,7 +44,7 @@ export async function speechSessionFromSamples(raw: Float32Array, sampleRate: nu
     bpm: null,
     gridOffset: 0,
     settings: structuredClone(DEFAULT_SETTINGS),
-    speech: structuredClone(DEFAULT_SPEECH),
+    speech: { ...structuredClone(DEFAULT_SPEECH), noiseFloor: floor > 0 ? floor : undefined },
   };
   const session = await analyzeSpeechSession(take, samples);
   await saveNewSession(session);

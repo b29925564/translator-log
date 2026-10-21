@@ -103,7 +103,7 @@ test('完整 4 步：框選 → 循環＋自評 → 揭曉 → 配和弦、匯�
   await page.getByLabel('片段開始（秒）').fill('0');
   await page.getByLabel('片段結束（秒）').fill('1.9');
   await page.getByLabel('片段結束（秒）').press('Tab');
-  await page.getByRole('button', { name: '用框選的這一段' }).click();
+  await page.getByRole('button', { name: /^用這一段/ }).click();
   await expect.poll(async () => (await speechSnap(page)).hasSpeech, { timeout: 15_000 }).toBe(true);
   const first = await speechSnap(page);
   expect(first.notes.length).toBe(5);
@@ -123,7 +123,7 @@ test('完整 4 步：框選 → 循環＋自評 → 揭曉 → 配和弦、匯�
   await page.keyboard.press('3');
   await expect(page.getByText('5 / 5')).toBeVisible({ timeout: 10_000 });
   await page.getByRole('button', { name: /完全像唱歌/ }).click();
-  await expect(page.getByRole('button', { name: /開始循環/ })).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole('button', { name: /再聽一輪/ })).toBeVisible({ timeout: 10_000 });
   const rated = await speechSnap(page);
   expect(rated.ratings).toEqual([1, null, 3, null, 5]);
 

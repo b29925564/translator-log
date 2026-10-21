@@ -36,3 +36,15 @@ export function promptDialog(message: string, value: string, ok = '確定'): Pro
     input.select();
   });
 }
+
+/** 只有內容和「知道了」按鈕的說明框。 */
+export function infoDialog(title: string, content: HTMLElement): void {
+  const dlg = h(
+    'dialog',
+    { class: 'panel info-dialog', 'aria-label': title },
+    h('form', { method: 'dialog' }, h('h2', {}, title), content, h('div', { class: 'dialog-actions' }, h('button', { class: 'btn primary', value: 'ok' }, '知道了'))),
+  );
+  document.body.append(dlg);
+  dlg.addEventListener('close', () => dlg.remove());
+  dlg.showModal();
+}

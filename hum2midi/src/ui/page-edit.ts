@@ -8,7 +8,8 @@ import { analyzeSession, newId, sameNotes } from '../app/session';
 import { store, type Session } from '../app/state';
 import { formatClock, midiName } from '../music';
 import type { Note } from '../types';
-import { confirmDialog } from './dialog';
+import { confirmDialog, infoDialog } from './dialog';
+import { garageBandTips } from './onboarding';
 import { h } from './dom';
 import { createEditSettings, type TakePatch } from './edit-settings';
 import type { Page } from './page';
@@ -44,10 +45,15 @@ export function createEditPage(): Page {
   const redoBtn = h('button', { class: 'btn icon', 'aria-label': `重做（${isMac ? '⇧⌘Z' : 'Ctrl+Shift+Z'}）`, onclick: () => redo() }, '↷');
   const midiBtn = h('button', { class: 'btn primary', 'aria-label': '匯出 MIDI（Enter）', onclick: () => withSession(exportMidi) }, '⬇ 匯出 MIDI', h('kbd', { class: 'small' }, '⏎'));
   const wavBtn = h('button', { class: 'btn', 'aria-label': '匯出 WAV', onclick: () => withSession(exportWav) }, '⬇ WAV');
+  const gbBtn = h(
+    'button',
+    { class: 'btn', title: '怎麼把 MIDI 拖進 GarageBand', onclick: () => withSession((s) => infoDialog('拖進 GarageBand', garageBandTips(s.take.bpm))) },
+    'GarageBand 說明',
+  );
   const toolbar = h(
     'div',
     { class: 'toolbar panel' },
-    h('div', { class: 'toolbar-row' }, title, info, tuning, busy, h('span', { class: 'spacer' }), wavBtn, midiBtn),
+    h('div', { class: 'toolbar-row' }, title, info, tuning, busy, h('span', { class: 'spacer' }), gbBtn, wavBtn, midiBtn),
     h('div', { class: 'toolbar-row' }, transport.el, h('span', { class: 'spacer' }), undoBtn, redoBtn),
   );
   const settings = createEditSettings((patch) => void reanalyze(patch));

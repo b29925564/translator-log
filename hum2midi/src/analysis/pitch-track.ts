@@ -20,29 +20,43 @@ export type RawTrack = {
   hz: Float64Array;
   clarity: Float64Array;
   rms: Float64Array;
+  /** 外部提供的底噪；沒有就用整段最安靜 10% 幀估計。 */
+  floor?: number;
 };
 
 export function hopSize(sampleRate: number): number {
   return Math.round(sampleRate * HOP_SECONDS);
 }
 
-export function trackRaw(samples: Float32Array, sampleRate: number): RawTrack {
+/** 每一幀（分析窗 2048、hop 10 ms）的 RMS。 */
+export function frameRms(samples: Float32Array, sampleRate: number): Float64Array {
   const hop = hopSize(sampleRate);
   const count = samples.length >= WINDOW ? Math.floor((samples.length - WINDOW) / hop) + 1 : 0;
-  const t = new Float64Array(count);
-  const hz = new Float64Array(count);
-  const clarity = new Float64Array(count);
   const rms = new Float64Array(count);
   for (let i = 0; i < count; i++) {
     const start = i * hop;
     let sq = 0;
     for (let j = start; j < start + WINDOW; j++) sq += samples[j] * samples[j];
     rms[i] = Math.sqrt(sq / WINDOW);
-    t[i] = (start + WINDOW / 2) / sampleRate;
   }
+  return rms;
+}
+
+/**
+ * floor：已知的底噪（RMS）。修剪過頭尾靜音的短句裡已經沒有真正的安靜幀，
+ * 這時要用修剪前量到的底噪，否則門檻會被高估、小聲的音節被濾掉。
+ */
+export function trackRaw(samples: Float32Array, sampleRate: number, floor?: number): RawTrack {
+  const hop = hopSize(sampleRate);
+  const rms = frameRms(samples, sampleRate);
+  const count = rms.length;
+  const t = new Float64Array(count);
+  const hz = new Float64Array(count);
+  const clarity = new Float64Array(count);
+  for (let i = 0; i < count; i++) t[i] = (i * hop + WINDOW / 2) / sampleRate;
   // 再安靜的幀在最高靈敏度下也不可能被判成有聲，就不必跑 pitchy（hz、clarity 留 0）。
   // 錄音裡通常有一半以上是停頓，這能省下大部分時間。
-  const quiet = Math.max(noiseFloor(rms), MIN_FLOOR) * voicingParams(1).k;
+  const quiet = Math.max(floor ?? noiseFloor(rms), MIN_FLOOR) * voicingParams(1).k;
   const detector = PitchDetector.forFloat32Array(WINDOW);
   for (let i = 0; i < count; i++) {
     if (rms[i] < quiet) continue;
@@ -52,7 +66,7 @@ export function trackRaw(samples: Float32Array, sampleRate: number): RawTrack {
     hz[i] = f;
     clarity[i] = c;
   }
-  return { sampleRate, hop, t, hz, clarity, rms };
+  return { sampleRate, hop, t, hz, clarity, rms, floor };
 }
 
 /** 整段最安靜 10% 幀的 RMS 中位數。 */
@@ -61,6 +75,11 @@ export function noiseFloor(rms: ArrayLike<number>): number {
   const sorted = Float64Array.from(rms).sort();
   const n = Math.max(1, Math.round(sorted.length * 0.1));
   return sorted[Math.floor((n - 1) / 2)];
+}
+
+/** 這段錄音的底噪：外部提供的優先。 */
+export function trackFloor(raw: RawTrack): number {
+  return raw.floor ?? noiseFloor(raw.rms);
 }
 
 export type VoicingParams = { clarityMin: number; k: number };
@@ -81,7 +100,7 @@ export function voicingParams(sensitivity: number): VoicingParams {
 /** 套用有聲判定：clarity ≥ 門檻、rms ≥ noiseFloor × k、70 Hz ≤ hz ≤ 1100 Hz。 */
 export function applyVoicing(raw: RawTrack, sensitivity: number): PitchFrame[] {
   const { k, clarityMin } = voicingParams(sensitivity);
-  const minRms = Math.max(noiseFloor(raw.rms), MIN_FLOOR) * k;
+  const minRms = Math.max(trackFloor(raw), MIN_FLOOR) * k;
   const frames: PitchFrame[] = new Array(raw.t.length);
   for (let i = 0; i < raw.t.length; i++) {
     const f = raw.hz[i];

@@ -43,7 +43,7 @@ export function createSpeechPage(): Page {
     h('button', { class: 'step', role: 'tab', 'aria-selected': 'false', onclick: () => go(i) }, h('span', { class: 'step-no num' }, String(i + 1)), label),
   );
   const prevBtn = h('button', { class: 'btn icon', 'aria-label': '上一步（←）', onclick: () => go(step - 1) }, '←');
-  const nextBtn = h('button', { class: 'btn primary', 'aria-label': '下一步（→）', onclick: () => go(step + 1) }, '下一步 →');
+  const nextBtn = h('button', { class: 'btn primary', 'aria-keyshortcuts': 'ArrowRight', onclick: () => go(step + 1) }, '下一步 →');
   const head = h('div', { class: 'toolbar-row speech-head' }, h('div', { class: 'steps', role: 'tablist', 'aria-label': '步驟' }, ...stepButtons), h('span', { class: 'spacer' }), prevBtn, nextBtn);
 
   // ---------- 1 錄一句話 ----------
@@ -51,7 +51,7 @@ export function createSpeechPage(): Page {
   const recBtnLabel = h('span', {}, '開始錄音');
   const recBtn = h(
     'button',
-    { class: 'rec-button', 'data-status': 'idle', 'aria-label': '錄一句話（空白鍵）', onclick: () => recording.toggle({ metronome: false }) },
+    { class: 'rec-button', 'data-status': 'idle', 'aria-keyshortcuts': 'Space', onclick: () => recording.toggle({ metronome: false }) },
     h('span', {}, h('span', { class: 'glyph', style: 'display:block;margin:0 auto 6px' }), recBtnLabel),
   );
   const recStatus = h('div', { class: 'muted', 'aria-live': 'polite' }, '按空白鍵錄一句話，再按一次停止。建議 1–3 秒，例如「今天晚上不想加班」。');
@@ -63,7 +63,7 @@ export function createSpeechPage(): Page {
   sourceWave.selectable = true;
   const selStart = h('input', { type: 'number', min: 0, step: 0.05, class: 'num', 'aria-label': '片段開始（秒）', onchange: () => setSelection() });
   const selEnd = h('input', { type: 'number', min: 0, step: 0.05, class: 'num', 'aria-label': '片段結束（秒）', onchange: () => setSelection() });
-  const useSel = h('button', { class: 'btn', 'aria-label': '用框選的這一段', onclick: () => void useSelection() }, '用這一段');
+  const useSel = h('button', { class: 'btn', 'aria-label': '用這一段（框選的片段）', onclick: () => void useSelection() }, '用這一段');
   const sourceBox = h(
     'div',
     { class: 'pick panel' },
@@ -131,12 +131,13 @@ export function createSpeechPage(): Page {
     const [a, b] = sourceWave.selection;
     if (b - a < 0.3) return toast('框選的片段太短了（至少 0.3 秒）');
     const part = sourceSamples.slice(Math.round(a * sourceRate), Math.round(b * sourceRate));
-    await usePhrase(part, sourceRate);
+    // 底噪用整段來源錄音量（框選的片段可能從頭到尾都是說話聲）
+    await usePhrase(part, sourceRate, sourceSamples);
   }
 
-  async function usePhrase(samples: Float32Array, sampleRate: number) {
+  async function usePhrase(samples: Float32Array, sampleRate: number, floorSource?: Float32Array) {
     try {
-      const s = await speechSessionFromSamples(samples, sampleRate);
+      const s = await speechSessionFromSamples(samples, sampleRate, floorSource);
       store.set({ speech: s });
       if (s.samples.length / sampleRate > 5) toast('這句話有點長：錯覺通常在短句（1–3 秒）比較明顯。');
     } catch (err) {
@@ -154,7 +155,7 @@ export function createSpeechPage(): Page {
   const loopBtn = h('button', { class: 'btn primary', 'aria-label': '開始循環（空白鍵）', onclick: () => toggleLoop() }, '▶ 開始循環');
   const counter = h('div', { class: 'counter num', 'aria-live': 'polite' }, '– / –');
   const ratingButtons = SCALE.map((label, i) =>
-    h('button', { class: 'rate', 'aria-label': `第 ${i + 1} 級：${label}（按 ${i + 1}）`, 'aria-pressed': 'false', onclick: () => rate(i + 1) }, h('span', { class: 'num' }, String(i + 1)), label),
+    h('button', { class: 'rate', 'aria-keyshortcuts': String(i + 1), 'aria-pressed': 'false', onclick: () => rate(i + 1) }, h('span', { class: 'num' }, `${i + 1} `), label),
   );
   const chart = h('canvas', { class: 'rating-chart', role: 'img', 'aria-label': '評分曲線' });
   const card2 = h(
@@ -221,7 +222,7 @@ export function createSpeechPage(): Page {
   function renderLoop() {
     const running = !!repeater?.running;
     loopBtn.textContent = running ? '■ 停止' : settings().ratings.length ? '↻ 再聽一輪' : '▶ 開始循環';
-    loopBtn.setAttribute('aria-label', running ? '停止循環（空白鍵）' : '開始循環（空白鍵）');
+    loopBtn.setAttribute('aria-label', running ? '停止循環（空白鍵）' : settings().ratings.length ? '再聽一輪（空白鍵）' : '開始循環（空白鍵）');
     repeats.disabled = running;
     gap.disabled = running;
     if (!running && ratingIndex < 0) counter.textContent = `– / ${settings().repeats}`;
@@ -308,8 +309,8 @@ export function createSpeechPage(): Page {
   const drumsBox = h('input', { type: 'checkbox', 'aria-label': '鼓組', onchange: () => patchSpeech({ drums: drumsBox.checked }) });
   const loopBox = h('input', { type: 'checkbox', checked: true, 'aria-label': '循環播放' });
   const playVoiceChords = h('button', { class: 'btn primary', 'aria-label': '原聲＋和弦（空白鍵）', onclick: () => togglePlay('voice') }, '▶ 原聲＋和弦');
-  const playMelodyChords = h('button', { class: 'btn', 'aria-label': '旋律合成音＋和弦', onclick: () => togglePlay('melody') }, '▶ 旋律＋和弦');
-  const exportBtn = h('button', { class: 'btn', 'aria-label': '匯出多軌 MIDI', onclick: () => withSpeech(exportSpeechMidi) }, '⬇ 匯出 MIDI');
+  const playMelodyChords = h('button', { class: 'btn', 'aria-label': '旋律＋和弦（合成音）', onclick: () => togglePlay('melody') }, '▶ 旋律＋和弦');
+  const exportBtn = h('button', { class: 'btn', onclick: () => withSpeech(exportSpeechMidi) }, '⬇ 匯出多軌 MIDI');
   const card4 = h(
     'div',
     { class: 'speech-card' },

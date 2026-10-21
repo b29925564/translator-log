@@ -10,6 +10,7 @@ import { createEditPage } from './ui/page-edit';
 import { createLibraryPage } from './ui/page-library';
 import { createRecordPage } from './ui/page-record';
 import { createSpeechPage } from './ui/page-speech-song';
+import { showOnboarding } from './ui/onboarding';
 import { toast } from './ui/toast';
 
 const TABS: { page: PageName; label: string; key: string; hidden?: boolean }[] = [
@@ -39,16 +40,26 @@ const tabButtons = TABS.map((t) =>
       class: t.hidden ? 'tab secret' : 'tab',
       role: 'tab',
       'aria-selected': 'false',
-      'aria-label': `${t.label}（${mod}${t.key}）`,
+      'aria-keyshortcuts': `${isMac ? 'Meta' : 'Control'}+${t.key}`,
+      title: `${t.label}（${mod}${t.key}）`,
       onclick: () => go(t.page),
     },
     t.label,
-    h('kbd', {}, `${mod}${t.key}`),
+    h('kbd', { 'aria-hidden': 'true' }, `${mod}${t.key}`),
   ),
 );
 
 const logo = h('button', { class: 'logo', 'aria-label': 'hum2midi', onclick: () => onLogoClick() }, h('span', { class: 'logo-mark' }), 'hum2midi');
-const header = h('header', { class: 'topbar' }, h('h1', { class: 'brand' }, logo), h('nav', { class: 'tabs', role: 'tablist', 'aria-label': '頁面' }, ...tabButtons), h('span', { class: 'spacer' }));
+const helpBtn = h('button', { class: 'btn icon help', 'aria-label': '說明（?）', title: '說明（?）', onclick: () => showOnboarding() }, '?');
+const header = h(
+  'header',
+  { class: 'topbar' },
+  h('h1', { class: 'brand' }, logo),
+  h('nav', { class: 'tabs', role: 'tablist', 'aria-label': '頁面' }, ...tabButtons),
+  h('span', { class: 'spacer' }),
+  h('span', { class: 'small muted privacy' }, '音訊只在你的電腦上處理'),
+  helpBtn,
+);
 const main = h('main', { class: 'pages' }, ...Object.values(pages).map((p) => p.el));
 document.querySelector('#app')!.append(header, main);
 
@@ -81,6 +92,7 @@ store.subscribe((s, prev) => {
 });
 renderPage(store.get());
 renderTabs(store.get());
+if (!store.get().prefs.onboarded) showOnboarding();
 
 // ---------- 隱藏模式：在錄音頁連點 logo 三下，或按 ⇧S ----------
 
@@ -167,6 +179,11 @@ window.addEventListener('keydown', (e) => {
   if (e.key === 'S' && e.shiftKey && !cmd && !e.altKey) {
     e.preventDefault();
     unlockSpeech();
+    return;
+  }
+  if (e.key === '?' && !cmd && !e.altKey && store.get().rec.status === 'idle') {
+    e.preventDefault();
+    showOnboarding();
   }
 });
 

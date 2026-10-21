@@ -31,7 +31,7 @@ export function createAnalyzer() {
 
   function rawFor(req: AnalyzeRequest): RawTrack {
     if (req.audio) {
-      const raw = trackRaw(req.audio.samples, req.audio.sampleRate);
+      const raw = trackRaw(req.audio.samples, req.audio.sampleRate, req.speech?.noiseFloor);
       cache.delete(req.takeId);
       cache.set(req.takeId, raw);
       while (cache.size > CACHE_SIZE) cache.delete(cache.keys().next().value!);

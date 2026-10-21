@@ -62,6 +62,8 @@ export type SpeechSettings = {
   gap: number;
   /** 第 1…N 次播完後的自評（1 = 完全像說話 … 5 = 完全像唱歌），沒點就是 null */
   ratings: (number | null)[];
+  /** 修剪頭尾靜音之前量到的底噪（RMS）；修剪後的短句裡已經沒有安靜的幀可以估。 */
+  noiseFloor?: number;
 };
 
 export const DEFAULT_SPEECH: SpeechSettings = { exaggeration: 1.4, pattern: 'pad', drums: false, repeats: 10, gap: 0.8, ratings: [] };

@@ -106,7 +106,7 @@ export function createRecordPage(): Page {
     button.dataset.status = st;
     statusText.textContent = LABEL[st];
     btnLabel.textContent = BUTTON[st];
-    button.setAttribute('aria-label', st === 'recording' ? '停止錄音（空白鍵）' : st === 'countin' ? '取消預備拍（空白鍵）' : '開始錄音（空白鍵）');
+    button.setAttribute('aria-label', st === 'recording' ? '停止錄音（空白鍵）' : st === 'countin' ? '取消預備拍（空白鍵）' : st === 'idle' ? '開始錄音（空白鍵）' : BUTTON[st]);
     button.disabled = st === 'opening' || st === 'analyzing';
     countBig.hidden = st !== 'countin';
     countBig.textContent = String(s.rec.count || '');

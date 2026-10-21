@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SAMPLE_RATES, renderFixture } from '../../scripts/gen-test-audio';
-import { trackRaw } from '../../src/analysis/pitch-track';
+import { frameRms, noiseFloor, trackRaw } from '../../src/analysis/pitch-track';
 import { analyzeSpeechTrack, bpmFromOnsets, exaggerate } from '../../src/analysis/speech';
 import { pickPeaks, smoothEnvelope } from '../../src/analysis/segment-speech';
 import { trimSilence } from '../../src/audio/trim';
@@ -69,6 +69,27 @@ describe('說話變唱歌的旋律', () => {
 
   it('同一句話、同一組設定 → 結果完全相同', () => {
     expect(analyzeSpeechTrack(raw, DEFAULT_SETTINGS, opts)).toEqual(analyzeSpeechTrack(raw, DEFAULT_SETTINGS, opts));
+  });
+});
+
+describe('修剪後的短句沿用修剪前的底噪', () => {
+  it('小聲的音節（−17 dB）在修剪後不會因為底噪被高估而消失', () => {
+    const base = fixture('speech_like');
+    const fx = {
+      ...base,
+      name: 'soft_syllable',
+      voices: base.voices.map((v, i) => (i === 3 ? { ...v, level: 0.04 } : v)),
+      noise: [...base.noise, { kind: 'white' as const, rmsDb: -50, start: 0.3, dur: 1.25 }],
+    };
+    const sr = 48000;
+    const full = renderFixture(fx, sr);
+    const trimmed = trimSilence(full, sr).samples;
+    const floor = noiseFloor(frameRms(full, sr));
+    expect(noiseFloor(frameRms(trimmed, sr))).toBeGreaterThan(floor * 4); // 修剪後自己估的底噪高很多
+    const fromFull = analyzeSpeechTrack(trackRaw(full, sr), DEFAULT_SETTINGS, opts);
+    const withFloor = analyzeSpeechTrack(trackRaw(trimmed, sr, floor), DEFAULT_SETTINGS, { ...opts, noiseFloor: floor });
+    expect(fromFull.syllables.length).toBe(5);
+    expect(withFloor.syllables.length).toBe(5);
   });
 });
 

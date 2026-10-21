@@ -3,7 +3,7 @@
 import type { AnalysisSettings, Key, PitchFrame } from '../types';
 import { harmonize, type HarmonizedChord } from './harmonize';
 import { rankKeys, snapToKey, type KeyCandidate } from './key';
-import { applyVoicing, noiseFloor, type RawTrack } from './pitch-track';
+import { applyVoicing, trackFloor, type RawTrack } from './pitch-track';
 import { quantizeNotes } from './quantize';
 import type { HumNote } from './segment-hum';
 import { segmentSpeech, type Syllable } from './segment-speech';
@@ -15,6 +15,8 @@ export type SpeechOptions = {
   exaggeration: number;
   /** 使用者選的調；null = 偵測到的第 1 名。 */
   key: Key | null;
+  /** 修剪前量到的底噪（RMS）；修剪後的短句已經沒有安靜的幀，不能拿它自己估。 */
+  noiseFloor?: number;
 };
 
 export const DEFAULT_EXAGGERATION = 1.4;
@@ -55,7 +57,7 @@ export function analyzeSpeechTrack(raw: RawTrack, settings: AnalysisSettings, op
   const hop = raw.hop / raw.sampleRate;
   const frames = applyVoicing(raw, settings.sensitivity);
   const smooth = smoothPitch(frames);
-  const found = segmentSpeech(smooth, raw.rms, raw.t, { hop, noiseFloor: Math.max(noiseFloor(raw.rms), 3e-5) });
+  const found = segmentSpeech(smooth, raw.rms, raw.t, { hop, noiseFloor: Math.max(trackFloor(raw), 3e-5) });
   // 說話的音高一直在滑，逐幀算的偏移沒有意義；改用各音節的中心音高（以有聲長度加權）算整體偏移
   const offset = circularOffset(
     found.map((s) => s.pitch),
