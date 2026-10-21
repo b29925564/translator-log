@@ -1,6 +1,7 @@
 // 鋼琴捲軸（Canvas）。縱軸音高、左側琴鍵（標出每個 C）；橫軸有 BPM 時顯示小節／拍，沒有時顯示秒。
 // 原始音高曲線半透明畫在音符後面，讓人一眼看出切分是否合理。
 
+import { MIN_DUR, moveNotes } from '../app/edit-ops';
 import { isBlackKey, midiName } from '../music';
 import type { Note } from '../types';
 import { cssVar, fitCanvas, h } from './dom';
@@ -26,6 +27,13 @@ export type RollView = {
   high: number; // 最上面一列的 midi（含）
 };
 
+type Drag =
+  | { kind: 'move'; x0: number; y0: number; orig: Note[]; anchor: Note; moved: boolean }
+  | { kind: 'resize'; x0: number; orig: Note[]; note: Note; moved: boolean }
+  | { kind: 'seek' };
+
+const EDGE_PX = 7; // 音符右緣多寬的範圍可以拖曳改長度
+
 export class PianoRoll {
   readonly el: HTMLDivElement;
   readonly canvas: HTMLCanvasElement;
@@ -33,16 +41,147 @@ export class PianoRoll {
   view: RollView = { t0: 0, pxPerSec: 100, low: 48, high: 72 };
   selected = new Set<string>();
   playhead: number | null = null;
+  /** 播放起點（點時間尺設定）。 */
+  cursor: number | null = null;
+  /** 第 1 小節第 1 拍的位置（秒），小節線從這裡畫起。 */
+  gridOffset = 0;
+
+  // ---- 編輯 ----
+  editable = false;
+  /** 拖曳、新增時把時間吸到格線；null = 不吸附。 */
+  snapTime: ((t: number) => number) | null = null;
+  minDur = MIN_DUR;
+  /** 拖曳中（commit = false，只是預覽）與放開時（commit = true）呼叫。 */
+  onEdit: ((notes: Note[], commit: boolean) => void) | null = null;
+  onSelect: (() => void) | null = null;
+  onSeek: ((t: number) => void) | null = null;
+  onAdd: ((midi: number, t: number) => void) | null = null;
   /** 有東西改了視圖（捲動、縮放）時呼叫。 */
   onViewChange: (() => void) | null = null;
+
   private frame = 0;
   private size = { w: 1, h: 1 };
+  private drag: Drag | null = null;
 
   constructor(label = '鋼琴捲軸') {
     this.canvas = h('canvas', { role: 'img', 'aria-label': label });
     this.el = h('div', { class: 'roll panel' }, this.canvas);
     new ResizeObserver(() => this.render()).observe(this.el);
     this.canvas.addEventListener('wheel', (e) => this.onWheel(e), { passive: false });
+    this.canvas.addEventListener('pointerdown', (e) => this.onPointerDown(e));
+    this.canvas.addEventListener('pointermove', (e) => this.onPointerMove(e));
+    this.canvas.addEventListener('pointerup', (e) => this.onPointerUp(e));
+    this.canvas.addEventListener('pointercancel', () => this.cancelDrag());
+    this.canvas.addEventListener('dblclick', (e) => this.onDoubleClick(e));
+  }
+
+  // ---------- 滑鼠編輯 ----------
+
+  private local(e: MouseEvent) {
+    const r = this.canvas.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  }
+
+  private onEdge(n: Note, x: number) {
+    const right = this.timeToX(n.start + n.dur);
+    return x >= right - Math.min(EDGE_PX, (n.dur * this.view.pxPerSec) / 3) && x <= right + 2;
+  }
+
+  private onPointerDown(e: PointerEvent) {
+    if (e.button !== 0) return;
+    const { x, y } = this.local(e);
+    if (x < KEY_W) return;
+    this.canvas.setPointerCapture(e.pointerId);
+    if (y < RULER_H) {
+      this.drag = { kind: 'seek' };
+      this.onSeek?.(Math.max(0, this.xToTime(x)));
+      return;
+    }
+    if (!this.editable) return;
+    const n = this.noteAt(x, y) ?? this.noteAt(x - 3, y);
+    if (!n) {
+      if (!e.shiftKey && this.selected.size) {
+        this.selected.clear();
+        this.onSelect?.();
+        this.render();
+      }
+      return;
+    }
+    if (e.shiftKey) {
+      if (this.selected.has(n.id)) this.selected.delete(n.id);
+      else this.selected.add(n.id);
+    } else if (!this.selected.has(n.id)) {
+      this.selected = new Set([n.id]);
+    }
+    this.onSelect?.();
+    const orig = this.data.notes;
+    this.drag = this.onEdge(n, x) ? { kind: 'resize', x0: x, orig, note: n, moved: false } : { kind: 'move', x0: x, y0: y, orig, anchor: n, moved: false };
+    this.render();
+  }
+
+  private onPointerMove(e: PointerEvent) {
+    const { x, y } = this.local(e);
+    const d = this.drag;
+    if (!d) {
+      this.updateCursor(x, y);
+      return;
+    }
+    if (d.kind === 'seek') {
+      this.onSeek?.(Math.max(0, this.xToTime(x)));
+      return;
+    }
+    const dtRaw = (x - d.x0) / this.view.pxPerSec;
+    if (d.kind === 'move') {
+      if (!d.moved && Math.abs(x - d.x0) < 3 && Math.abs(y - d.y0) < 3) return;
+      d.moved = true;
+      const dMidi = this.yToMidi(y) - this.yToMidi(d.y0);
+      let dt = dtRaw;
+      if (this.snapTime) dt = this.snapTime(d.anchor.start + dtRaw) - d.anchor.start;
+      this.data = { ...this.data, notes: moveNotes(d.orig, this.selected, dMidi, dt) };
+    } else {
+      if (!d.moved && Math.abs(x - d.x0) < 2) return;
+      d.moved = true;
+      let end = d.note.start + d.note.dur + dtRaw;
+      if (this.snapTime) end = this.snapTime(end);
+      const dur = Math.max(this.minDur, end - d.note.start);
+      this.data = { ...this.data, notes: d.orig.map((n) => (n.id === d.note.id ? { ...n, dur } : n)) };
+    }
+    this.onEdit?.(this.data.notes, false);
+    this.render();
+  }
+
+  private onPointerUp(e: PointerEvent) {
+    const d = this.drag;
+    this.drag = null;
+    if (this.canvas.hasPointerCapture(e.pointerId)) this.canvas.releasePointerCapture(e.pointerId);
+    if (d && d.kind !== 'seek' && d.moved) this.onEdit?.(this.data.notes, true);
+  }
+
+  private cancelDrag() {
+    const d = this.drag;
+    this.drag = null;
+    if (d && d.kind !== 'seek' && d.moved) {
+      this.data = { ...this.data, notes: d.orig };
+      this.onEdit?.(d.orig, false);
+      this.render();
+    }
+  }
+
+  private onDoubleClick(e: MouseEvent) {
+    if (!this.editable) return;
+    const { x, y } = this.local(e);
+    if (x < KEY_W || y < RULER_H || this.noteAt(x, y)) return;
+    this.onAdd?.(this.yToMidi(y), Math.max(0, this.xToTime(x)));
+  }
+
+  private updateCursor(x: number, y: number) {
+    let cursor = 'default';
+    if (x >= KEY_W && y < RULER_H) cursor = 'col-resize';
+    else if (this.editable && x >= KEY_W) {
+      const n = this.noteAt(x, y) ?? this.noteAt(x - 3, y);
+      cursor = n ? (this.onEdge(n, x) ? 'ew-resize' : 'grab') : 'crosshair';
+    }
+    this.canvas.style.cursor = cursor;
   }
 
   private pendingFit = false;
@@ -261,7 +400,10 @@ export class PianoRoll {
       const y = this.midiToY(n.midi);
       const sel = this.selected.has(n.id);
       ctx.fillStyle = sel ? colors.sel : colors.note;
+      // 稍微透明：音符底下的原始音高曲線看得到
+      ctx.globalAlpha = 0.82;
       ctx.fillRect(x, y + 1, nw, rowH - 2);
+      ctx.globalAlpha = 1;
       ctx.strokeStyle = colors.noteInk;
       ctx.lineWidth = sel ? 2.5 : 1.5;
       ctx.strokeRect(x + 0.75, y + 1.75, nw - 1.5, rowH - 3.5);
@@ -269,6 +411,13 @@ export class PianoRoll {
         ctx.fillStyle = colors.noteInk;
         ctx.fillText(midiName(n.midi), x + 5, y + rowH / 2 + 0.5);
       }
+    }
+
+    // 播放起點
+    if (this.cursor !== null && this.playhead === null) {
+      const x = Math.round(this.timeToX(this.cursor));
+      ctx.fillStyle = colors.ink;
+      for (let yy = RULER_H; yy < H; yy += 8) ctx.fillRect(x - 1, yy, 2, 4);
     }
 
     // 播放頭
@@ -295,15 +444,17 @@ export class PianoRoll {
     const lines: { t: number; strong: boolean; label?: string }[] = [];
     if (this.data.bpm) {
       const beat = 60 / this.data.bpm;
+      const o = this.gridOffset;
       // 拍子太密就只畫小節線
       const showBeats = beat * v.pxPerSec >= 12;
-      const first = Math.floor(Math.max(0, v.t0) / beat);
-      for (let b = first; b * beat <= tEnd; b++) {
-        const bar = b % BEATS_PER_BAR === 0;
+      const first = Math.floor((Math.max(0, v.t0) - o) / beat);
+      for (let b = first; o + b * beat <= tEnd; b++) {
+        const bar = ((b % BEATS_PER_BAR) + BEATS_PER_BAR) % BEATS_PER_BAR === 0;
         if (!bar && !showBeats) continue;
-        const barNo = b / BEATS_PER_BAR + 1;
+        const barNo = Math.floor(b / BEATS_PER_BAR) + 1;
         const labelEvery = Math.max(1, Math.ceil(40 / (beat * BEATS_PER_BAR * v.pxPerSec)));
-        lines.push({ t: b * beat, strong: bar, label: bar && (barNo - 1) % labelEvery === 0 ? String(barNo) : undefined });
+        const label = bar && barNo >= 1 && (barNo - 1) % labelEvery === 0 ? String(barNo) : undefined;
+        lines.push({ t: o + b * beat, strong: bar, label });
       }
     } else {
       const step = niceStep(70 / v.pxPerSec);
@@ -322,6 +473,18 @@ export class PianoRoll {
       if (ln.label) {
         ctx.fillStyle = colors.muted;
         ctx.fillText(ln.label, x + 4, RULER_H / 2);
+      }
+    }
+    const marker = this.playhead ?? this.cursor;
+    if (marker !== null) {
+      const x = this.timeToX(marker);
+      if (x >= KEY_W) {
+        ctx.fillStyle = this.playhead !== null ? colors.rec : colors.ink;
+        ctx.beginPath();
+        ctx.moveTo(x - 6, 2);
+        ctx.lineTo(x + 6, 2);
+        ctx.lineTo(x, RULER_H - 4);
+        ctx.fill();
       }
     }
   }

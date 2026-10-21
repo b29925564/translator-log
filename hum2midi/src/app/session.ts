@@ -2,7 +2,7 @@
 
 import { AnalysisClient } from '../analysis/client';
 import { encodeWav } from '../audio/wav';
-import { DEFAULT_SETTINGS, type AnalysisSettings, type Note, type Take } from '../types';
+import { DEFAULT_SETTINGS, type Note, type Take } from '../types';
 import type { Session } from './state';
 
 let client: AnalysisClient | null = null;
@@ -23,10 +23,17 @@ export function defaultTakeName(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-export async function analyzeSession(take: Take, samples: Float32Array, settings: AnalysisSettings = take.settings): Promise<Session> {
-  const analysis = await analysisClient().analyze(take.id, settings, samples, take.sampleRate);
+/** 用 take 目前的設定、BPM、格線原點、調性跑一次分析，回傳新的 session（音符被分析結果取代）。 */
+export async function analyzeSession(take: Take, samples: Float32Array): Promise<Session> {
+  const context = { bpm: take.bpm, gridOffset: take.gridOffset ?? 0, key: take.key ?? null };
+  const analysis = await analysisClient().analyze(take.id, take.settings, samples, take.sampleRate, context);
   const notes: Note[] = analysis.notes.map(({ id, midi, start, dur, velocity }) => ({ id, midi, start, dur, velocity }));
-  return { take: { ...take, settings, notes }, samples, analysis };
+  return { take: { ...take, notes }, samples, analysis, edited: false };
+}
+
+/** 兩組音符是否相同（比較音高、起點、長度、力度）。 */
+export function sameNotes(a: Note[], b: Note[]): boolean {
+  return a.length === b.length && a.every((n, i) => n.midi === b[i].midi && n.start === b[i].start && n.dur === b[i].dur && n.velocity === b[i].velocity);
 }
 
 export async function sessionFromRecording(samples: Float32Array, sampleRate: number, bpm: number | null): Promise<Session> {
@@ -40,6 +47,7 @@ export async function sessionFromRecording(samples: Float32Array, sampleRate: nu
     audio: new Blob([encodeWav(samples, sampleRate)], { type: 'audio/wav' }),
     notes: [],
     bpm,
+    gridOffset: 0,
     settings: structuredClone(DEFAULT_SETTINGS),
   };
   return analyzeSession(take, samples);

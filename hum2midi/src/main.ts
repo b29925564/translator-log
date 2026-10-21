@@ -1,6 +1,7 @@
 // 應用程式外殼：頂部頁籤、頁面切換、全域快捷鍵。
 
 import './style.css';
+import { debugHooks } from './app/debug';
 import { store, type AppState, type Page as PageName } from './app/state';
 import { h } from './ui/dom';
 import type { Page } from './ui/page';
@@ -123,6 +124,26 @@ if (import.meta.env.DEV) {
     },
     get notes() {
       return store.get().session?.take.notes ?? [];
+    },
+    /** 音符在畫面上的位置（client 座標），e2e 測試用來點、拖。 */
+    noteBox(id: string) {
+      const roll = debugHooks.roll;
+      const n = store.get().session?.take.notes.find((x) => x.id === id);
+      if (!roll || !n) return null;
+      const r = roll.canvas.getBoundingClientRect();
+      const x = r.left + roll.timeToX(n.start);
+      const y = r.top + roll.midiToY(n.midi);
+      return { x, y, w: n.dur * roll.view.pxPerSec, h: roll.rowH };
+    },
+    /** 畫面座標 → 時間、音高 */
+    rollAt(clientX: number, clientY: number) {
+      const roll = debugHooks.roll!;
+      const r = roll.canvas.getBoundingClientRect();
+      return { t: roll.xToTime(clientX - r.left), midi: roll.yToMidi(clientY - r.top) };
+    },
+    rollBox() {
+      const r = debugHooks.roll!.canvas.getBoundingClientRect();
+      return { x: r.left, y: r.top, w: r.width, h: r.height, rowH: debugHooks.roll!.rowH };
     },
   };
 }

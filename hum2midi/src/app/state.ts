@@ -14,6 +14,8 @@ export type Session = {
   take: Take;
   samples: Float32Array;
   analysis: HumAnalysis;
+  /** 分析之後有沒有手動改過音符（重新分析會覆蓋，要先確認）。 */
+  edited: boolean;
 };
 
 export type AppState = {

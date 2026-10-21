@@ -9,7 +9,13 @@ export type Prefs = {
   speechUnlocked: boolean;
   /** 看過說明卡了。 */
   onboarded: boolean;
+  /** 編輯頁播放：原音／合成音／兩者，各自的音量 0–1。 */
+  playMode: PlayMode;
+  volOriginal: number;
+  volSynth: number;
 };
+
+export type PlayMode = 'original' | 'synth' | 'both';
 
 const KEY = 'hum2midi.prefs';
 
@@ -19,6 +25,9 @@ export const DEFAULT_PREFS: Prefs = {
   latencyOffsetMs: 0,
   speechUnlocked: false,
   onboarded: false,
+  playMode: 'both',
+  volOriginal: 0.8,
+  volSynth: 0.6,
 };
 
 export function loadPrefs(): Prefs {

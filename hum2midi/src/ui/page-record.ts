@@ -67,7 +67,7 @@ export function createRecordPage(): Page {
     step: 1,
     value: prefs.bpm,
     class: 'num',
-    'aria-label': 'BPM',
+    'aria-label': '節拍器速度（BPM）',
     onchange: () => {
       const v = Math.round(Number(bpmInput.value));
       const bpm = Number.isFinite(v) ? Math.min(BPM_MAX, Math.max(BPM_MIN, v)) : store.get().prefs.bpm;

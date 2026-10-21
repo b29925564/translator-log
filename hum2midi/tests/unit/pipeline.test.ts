@@ -105,3 +105,41 @@ describe('耐受度（不在規劃書表中，防止參數調得太剛好）', (
     midis.forEach((_, i) => expect(Math.abs(notes[i].start - (0.3 + i * 0.4))).toBeLessThanOrEqual(ONSET_TOL));
   });
 });
+
+describe('管線後段：調性、吸附音階、量化', () => {
+  it('scale_c_major 偵測為 C 大調（前 2 名）', () => {
+    const r = run('scale_c_major', 48000);
+    expect(r.keys.length).toBe(2);
+    expect(r.keys[0]).toMatchObject({ tonic: 0, mode: 'major' });
+    expect(r.key).toEqual({ tonic: 0, mode: 'major' });
+  });
+
+  it('有 BPM 時量化（強度 100%、1/8 @ 120 BPM、原點 0.3 秒）：起點全部落在格線上', () => {
+    const { samples, sampleRate } = loadFixture('scale_c_major', 48000);
+    const settings = { ...DEFAULT_SETTINGS, quantize: { enabled: true, grid: '1/8' as const, strength: 1 } };
+    const { notes } = analyzeHum(samples, sampleRate, settings, { bpm: 120, gridOffset: 0.3, key: null });
+    expect(notes.map((n) => n.midi)).toEqual([60, 62, 64, 65, 67, 69, 71, 72]);
+    notes.forEach((n, i) => {
+      expect(n.start).toBeCloseTo(0.3 + i * 0.5, 9);
+      expect(n.dur).toBeCloseTo(0.5, 9);
+    });
+  });
+
+  it('沒有 BPM、或關閉量化 → 不量化', () => {
+    const { samples, sampleRate } = loadFixture('scale_c_major', 48000);
+    const off = analyzeHum(samples, sampleRate, { ...DEFAULT_SETTINGS, quantize: { ...DEFAULT_SETTINGS.quantize, enabled: false } }, { bpm: 120, gridOffset: 0, key: null });
+    const none = analyzeHum(samples, sampleRate, DEFAULT_SETTINGS);
+    expect(off.notes.map((n) => n.start)).toEqual(none.notes.map((n) => n.start));
+  });
+
+  it('吸附音階：用使用者選的調，把調外音移進來', () => {
+    // C 大調音階裡把 F 唱成 F♯（偏高一點）
+    const base = fixture('scale_c_major');
+    const fx = { ...base, name: 'sharp4', voices: base.voices.map((v, i) => (i === 3 ? { ...v, pitch: () => 66.2 } : v)) };
+    const samples = renderFixture(fx, 48000);
+    const plain = analyzeHum(samples, 48000, DEFAULT_SETTINGS);
+    expect(plain.notes[3].midi).toBe(66);
+    const snapped = analyzeHum(samples, 48000, { ...DEFAULT_SETTINGS, snapToScale: true }, { bpm: null, gridOffset: 0, key: { tonic: 0, mode: 'major' } });
+    expect(snapped.notes.map((n) => n.midi)).toEqual([60, 62, 64, 67, 67, 69, 71, 72]);
+  });
+});

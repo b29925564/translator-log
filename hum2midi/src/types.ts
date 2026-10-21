@@ -42,6 +42,9 @@ export type Take = {
   chords?: Chord[];
   /** null = 沒開節拍器、也沒手動設定 BPM（不量化，匯出時 tempo 寫 120）。 */
   bpm: number | null;
+  /** 第 1 小節第 1 拍在錄音裡的位置（秒）。用節拍器錄的是 0；事後手動設 BPM 時是第一個音的起點。 */
+  gridOffset?: number;
+  /** 使用者選的調；沒有就用偵測到的第 1 名。 */
   key?: Key;
   settings: AnalysisSettings;
 };

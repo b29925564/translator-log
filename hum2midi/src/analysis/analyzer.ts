@@ -3,7 +3,7 @@
 
 import type { AnalysisSettings } from '../types';
 import { trackRaw, type RawTrack } from './pitch-track';
-import { analyzeTrack, type HumAnalysis } from './pipeline';
+import { analyzeTrack, NO_CONTEXT, type AnalysisContext, type HumAnalysis } from './pipeline';
 
 export type AnalyzeRequest = {
   type: 'analyze';
@@ -12,6 +12,7 @@ export type AnalyzeRequest = {
   /** 第一次分析這段錄音時要附上；之後只改設定時可以省略，直接用快取。 */
   audio?: { samples: Float32Array; sampleRate: number };
   settings: AnalysisSettings;
+  context?: AnalysisContext;
 };
 
 export type AnalyzeResponse =
@@ -44,7 +45,7 @@ export function createAnalyzer() {
     handle(req: AnalyzeRequest): AnalyzeResponse {
       const t0 = performance.now();
       try {
-        const result = analyzeTrack(rawFor(req), req.settings);
+        const result = analyzeTrack(rawFor(req), req.settings, req.context ?? NO_CONTEXT);
         return { type: 'result', jobId: req.jobId, takeId: req.takeId, result, ms: performance.now() - t0 };
       } catch (err) {
         return { type: 'error', jobId: req.jobId, takeId: req.takeId, message: err instanceof Error ? err.message : String(err) };
