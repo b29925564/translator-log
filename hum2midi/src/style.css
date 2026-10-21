@@ -1,0 +1,501 @@
+/* 暗色錄音室＋ Neo-Brutalist 點綴：粗框線、無模糊的硬陰影、等寬字型顯示數值。 */
+
+:root {
+  color-scheme: dark;
+  --bg: #171613;
+  --panel: #23221e;
+  --panel-2: #2d2b26;
+  --ink: #f2ede0;
+  --muted: #a39d8e;
+  --line: #f2ede0;
+  --shadow: #f2ede0;
+  --accent: #ffd23f;
+  --accent-ink: #171613;
+  --rec: #ff4b3a;
+  --ok: #69e38c;
+  --curve: #5cc8ff;
+  --note: #ffd23f;
+  --note-sel: #ff8a3d;
+  --grid: #2e2c27;
+  --grid-strong: #45423b;
+  --key-white: #d9d3c4;
+  --key-black: #1f1e1a;
+  --radius: 0;
+  --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, 'PingFang TC', 'Noto Sans TC', 'Microsoft JhengHei', system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.45 var(--sans);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.num {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.small {
+  font-size: 12px;
+}
+
+/* ---------- 頂部 ---------- */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 10px 18px;
+  border-bottom: 2px solid var(--line);
+  background: var(--panel);
+}
+
+.brand {
+  margin: 0;
+  font: inherit;
+}
+
+.logo {
+  all: unset;
+  cursor: pointer;
+  font: 800 19px/1 var(--mono);
+  letter-spacing: -0.5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  user-select: none;
+}
+
+.logo-mark {
+  width: 22px;
+  height: 22px;
+  background: var(--accent);
+  border: 2px solid var(--line);
+  box-shadow: 2px 2px 0 var(--shadow);
+}
+
+.logo:focus-visible {
+  outline: 2px dashed var(--accent);
+  outline-offset: 4px;
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.tab {
+  font: 600 14px/1 var(--sans);
+  color: var(--ink);
+  background: transparent;
+  border: 2px solid transparent;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.tab kbd {
+  font: 11px var(--mono);
+  color: var(--muted);
+  margin-left: 6px;
+}
+
+.tab[aria-selected='true'] {
+  border-color: var(--line);
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: 3px 3px 0 var(--shadow);
+}
+
+.tab[aria-selected='true'] kbd {
+  color: var(--accent-ink);
+}
+
+.tab:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.spacer {
+  flex: 1;
+}
+
+/* ---------- 按鈕、表單 ---------- */
+
+.btn {
+  font: 600 14px/1 var(--sans);
+  color: var(--ink);
+  background: var(--panel-2);
+  border: 2px solid var(--line);
+  box-shadow: 3px 3px 0 var(--shadow);
+  padding: 9px 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.btn:hover {
+  background: #3a3832;
+}
+
+.btn:active {
+  transform: translate(3px, 3px);
+  box-shadow: none;
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+  transform: none;
+}
+
+.btn.primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.btn.icon {
+  padding: 8px 11px;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px dashed var(--accent);
+  outline-offset: 3px;
+}
+
+label.field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+input[type='number'],
+input[type='text'],
+select {
+  font: 14px var(--mono);
+  color: var(--ink);
+  background: var(--bg);
+  border: 2px solid var(--line);
+  padding: 5px 7px;
+  width: 5.5em;
+}
+
+input[type='text'] {
+  font-family: var(--sans);
+  width: auto;
+}
+
+input[type='range'] {
+  accent-color: var(--accent);
+}
+
+input[type='checkbox'] {
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+}
+
+/* ---------- 頁面 ---------- */
+
+.pages {
+  position: relative;
+  min-height: 0;
+}
+
+.page {
+  position: absolute;
+  inset: 0;
+  display: none;
+  padding: 18px;
+  gap: 16px;
+  min-height: 0;
+}
+
+.page.active {
+  display: flex;
+  flex-direction: column;
+}
+
+.panel {
+  background: var(--panel);
+  border: 2px solid var(--line);
+  box-shadow: 5px 5px 0 #000;
+}
+
+/* ---------- 錄音頁 ---------- */
+
+.live {
+  flex: 1;
+  min-height: 140px;
+  display: grid;
+  grid-template-columns: 1fr 190px;
+}
+
+.live canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  min-height: 0;
+}
+
+.tuner {
+  border-left: 2px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.tuner-note {
+  font: 700 46px/1 var(--mono);
+}
+
+.tuner-cents {
+  font: 16px var(--mono);
+  color: var(--muted);
+}
+
+.tuner-meter {
+  width: 140px;
+  height: 10px;
+  border: 2px solid var(--line);
+  position: relative;
+}
+
+.tuner-meter::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -6px;
+  bottom: -6px;
+  width: 2px;
+  background: var(--line);
+}
+
+.tuner-needle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  margin-left: -5px;
+  background: var(--accent);
+  left: 50%;
+  transition: left 60ms linear;
+}
+
+.deck {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 20px;
+}
+
+.rec-button {
+  width: 132px;
+  height: 132px;
+  border-radius: 50%;
+  border: 3px solid var(--line);
+  background: var(--panel-2);
+  box-shadow: 5px 5px 0 var(--shadow);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  color: var(--ink);
+  font: 700 13px/1.2 var(--sans);
+  padding: 0;
+}
+
+.rec-button:active {
+  transform: translate(4px, 4px);
+  box-shadow: 1px 1px 0 var(--shadow);
+}
+
+.rec-button .glyph {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--rec);
+  border: 2px solid var(--line);
+  margin-bottom: 6px;
+}
+
+.rec-button[data-status='recording'] {
+  background: var(--rec);
+}
+
+.rec-button[data-status='recording'] .glyph {
+  border-radius: 0;
+  width: 36px;
+  height: 36px;
+  background: var(--ink);
+}
+
+.rec-button[data-status='countin'] .glyph,
+.rec-button[data-status='opening'] .glyph,
+.rec-button[data-status='analyzing'] .glyph {
+  background: transparent;
+  border-style: dashed;
+}
+
+.rec-button[data-status='countin'] {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.status {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.status-line {
+  font: 700 22px/1.2 var(--sans);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.status-line .dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--muted);
+  border: 2px solid var(--line);
+}
+
+.status-line[data-status='recording'] .dot {
+  background: var(--rec);
+  animation: blink 1s steps(2, start) infinite;
+}
+
+.status-line[data-status='countin'] .dot {
+  background: var(--accent);
+}
+
+.status-line .clock {
+  font: 700 22px var(--mono);
+}
+
+@keyframes blink {
+  to {
+    visibility: hidden;
+  }
+}
+
+.count-big {
+  font: 800 64px/1 var(--mono);
+  color: var(--accent);
+}
+
+.error {
+  color: var(--rec);
+  font-weight: 600;
+}
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.controls .row {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* ---------- 編輯頁 ---------- */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+}
+
+.toolbar .title {
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.editor {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.roll {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.roll canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.empty {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  color: var(--muted);
+}
+
+.badge {
+  font: 12px var(--mono);
+  border: 2px solid var(--line);
+  padding: 3px 7px;
+  background: var(--panel-2);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

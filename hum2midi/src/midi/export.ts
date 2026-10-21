@@ -27,7 +27,7 @@ export type MidiExportOptions = {
 export const DEFAULT_BPM = 120;
 export const DRUM_CHANNEL = 9;
 
-export function buildMidi(opts: MidiExportOptions): Uint8Array {
+export function buildMidi(opts: MidiExportOptions): Uint8Array<ArrayBuffer> {
   const midi = new Midi();
   midi.header.name = opts.title ?? 'hum2midi';
   // 先設 tempo 再加音符：音符的秒數是依 header 的 tempo 換算成 ticks
@@ -52,7 +52,7 @@ export function buildMidi(opts: MidiExportOptions): Uint8Array {
       });
     }
   }
-  return midi.toArray();
+  return new Uint8Array(midi.toArray());
 }
 
 /** 同一個音高的音符如果重疊，截短前一個 — 否則下一個 note-on 之後的 note-off 會把它提早關掉。 */

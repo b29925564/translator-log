@@ -40,7 +40,8 @@ export type Take = {
   audio: Blob; // WAV
   notes: Note[];
   chords?: Chord[];
-  bpm: number;
+  /** null = 沒開節拍器、也沒手動設定 BPM（不量化，匯出時 tempo 寫 120）。 */
+  bpm: number | null;
   key?: Key;
   settings: AnalysisSettings;
 };

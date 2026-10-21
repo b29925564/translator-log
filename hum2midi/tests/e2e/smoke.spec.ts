@@ -2,7 +2,9 @@ import { expect, test } from '@playwright/test';
 
 test('頁面可以開啟', async ({ page }) => {
   await page.goto('/');
-  await expect(page.locator('h1')).toHaveText('hum2midi');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('hum2midi');
+  await expect(page.getByRole('tab')).toHaveCount(3);
+  await expect(page.getByRole('button', { name: /開始錄音/ })).toBeVisible();
 });
 
 test('假麥克風有聲音（Chromium 讀測試音檔）', async ({ page }) => {
