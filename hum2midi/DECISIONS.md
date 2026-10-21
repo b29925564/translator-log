@@ -43,3 +43,15 @@
 - `AnalysisSettings.quantize` 的預設是開啟、1/16、75% — 但規格 7.5 說只有在有 BPM 時才量化，所以沒有 BPM 時這個設定不生效（M4 實作）。
 - Worker 快取最近 4 段錄音的原始音高追蹤（LRU）；主執行緒的 `AnalysisClient` 第一次送音訊、之後只送設定，快取被擠掉時自動重送。
 - 新增 `src/analysis/pipeline.ts`（串起整條管線）與 `analyzer.ts`（Worker 內的快取服務）— 規劃書的檔案清單沒有，但讓 Vitest 能不透過 Worker 直接測完整管線。
+
+## M2 匯出
+
+- ⚠️ 實測確認（`tests/unit/midi.test.ts`）：`@tonejs/midi` 2.0.28 用 `header.setTempo(bpm)` 設速度；拍號是往 `header.timeSignatures` push `{ ticks: 0, timeSignature: [4, 4] }` 後呼叫 `header.update()`。兩者都寫進第 0 軌（Type 1 檔，PPQ 480），用 `midi-file` 直接解析確認有 FF 51（tempo）與 FF 58（拍號）meta event。
+- 必須先設 tempo 再加音符 — 音符的秒數是用 header 當下的 tempo 換算成 ticks；我們自己用 `secondsToTicks` 算好 `ticks`／`durationTicks` 再加，避免 `time`、`duration` setter 的設定順序問題。
+- 力度傳 `(v + 0.5) / 127` — `@tonejs/midi` 寫檔用 `floor(velocity × 127)`，直接傳 `v / 127` 會因浮點誤差偶爾少 1。
+- 不寫調號 — `@tonejs/midi` 2.0.28 的 `encodeKeySignature` 把升降記號數寫成「索引 + 7」（C 大調寫成 14、超出 −7…+7），小調也會用錯關係大調；規格沒要求調號，寧可不寫。
+- 匯出時同一個音高重疊的音符會截短前一個 — 否則後一個 note-on 之後，前一個的 note-off 會把它提早關掉；長度 0 的音符略過。
+- 鼓組軌用 channel index 9（即 General MIDI 的 channel 10），`@tonejs/midi` 會把它標成 percussion。
+- 檔名用本地時間 `hum-YYYYMMDD-HHmm.mid`／`.wav`。
+- WAV 編碼正值乘 32767、負值乘 32768 並四捨五入，解碼對稱 — 來回誤差最多半格（< 1/32768）。解碼另外支援 8/24/32-bit PCM、32-bit float、多聲道（平均成單聲道）、跳過不認得的區塊，讓使用者丟進來的檔案也能讀。
+- 測試直接用 `midi-file` 解析原始位元組，所以把它從間接相依改成明確的 devDependency。

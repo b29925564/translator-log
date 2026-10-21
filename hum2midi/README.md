@@ -24,7 +24,7 @@ npm run dev        # http://localhost:5173 （麥克風只能在 localhost 或 h
 
 - [x] M0 專案骨架、測試音檔
 - [x] M1 離線分析管線
-- [ ] M2 匯出 MIDI／WAV
+- [x] M2 匯出 MIDI／WAV
 - [ ] M3 錄音＋即時顯示＋鋼琴捲軸（唯讀）
 - [ ] M4 量化、調性、編輯、播放、復原
 - [ ] M5 Takes 庫
