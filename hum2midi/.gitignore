@@ -1,6 +1,0 @@
-node_modules
-dist
-test-results
-playwright-report
-# 測試音檔由 scripts/gen-test-audio.ts 產生（固定種子，位元完全相同），不進版控
-tests/fixtures/*.wav
